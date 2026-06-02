@@ -16,6 +16,9 @@ ATTEMPT_COUNTER_PATTERNS = [r"attempt_count", r"retry_count", r"max_attempts"]
 ACTION_LOG_PATTERNS = [r"action_log", r"log_action", r"append.*log"]
 ERROR_PATTERN_PATTERNS = [r"same_error", r"error_pattern", r"consecutive_errors"]
 
+_SCOPE_BOUNDARY_WORDS = ["no", "not", "never", "kein", "ohne"]
+_SCOPE_MIN_AUTHORIZED_LEN = 20
+
 
 def _read_text(path: Path) -> str:
     try:
@@ -37,6 +40,46 @@ def _collect_py_content(project_path: Path) -> str:
     for py_file in project_path.rglob("*.py"):
         parts.append(_read_text(py_file))
     return "\n".join(parts)
+
+
+def _check_scope(config: dict, findings: list[Finding]) -> None:
+    """Validate structured scope fields and append findings."""
+    raw_scope = config.get("scope", {})
+
+    if isinstance(raw_scope, str):
+        # Legacy single-string scope — treat as authorized only
+        scope = {"authorized": raw_scope, "prohibited": "", "requires_confirmation": ""}
+    else:
+        scope = raw_scope
+
+    authorized = scope.get("authorized", "").strip()
+    prohibited = scope.get("prohibited", "").strip()
+    requires_confirmation = scope.get("requires_confirmation", "").strip()
+
+    # authorized
+    if not authorized:
+        findings.append(Finding(get_severity(config, "no_scope"), "No authorized scope defined"))
+    elif len(authorized) < _SCOPE_MIN_AUTHORIZED_LEN:
+        findings.append(Finding("warning", "Scope too vague — be specific (authorized field < 20 chars)"))
+    else:
+        findings.append(Finding("ok", "Authorized scope defined"))
+
+    # prohibited
+    if not prohibited:
+        findings.append(Finding(get_severity(config, "no_scope"), "No prohibited actions defined in scope"))
+    elif not any(word in prohibited.lower() for word in _SCOPE_BOUNDARY_WORDS):
+        findings.append(Finding("warning", "Scope has no boundaries defined (use 'no', 'not', 'never', etc.)"))
+    else:
+        findings.append(Finding("ok", "Scope boundaries defined"))
+
+    # requires_confirmation
+    if not requires_confirmation:
+        findings.append(Finding(
+            get_severity(config, "no_scope"),
+            "No confirmation-required actions defined in scope",
+        ))
+    else:
+        findings.append(Finding("ok", "Confirmation requirements defined"))
 
 
 def run_preflight(project_path: str | Path, config_path: str | Path | None = None) -> list[Finding]:
@@ -61,10 +104,7 @@ def run_preflight(project_path: str | Path, config_path: str | Path | None = Non
     else:
         findings.append(Finding("ok", "Owner defined"))
 
-    if not config.get("scope", "").strip():
-        findings.append(Finding(get_severity(config, "no_scope"), "No agent scope defined"))
-    else:
-        findings.append(Finding("ok", "Scope defined"))
+    _check_scope(config, findings)
 
     escalation = config.get("escalation", {})
     if not escalation.get("contact", "").strip():
@@ -136,9 +176,18 @@ def run_preflight(project_path: str | Path, config_path: str | Path | None = Non
                 "No external API research rule in CLAUDE.md/AGENTS.md",
             ))
     else:
-        findings.append(Finding(get_severity(config, "no_loop_detection"), "No loop detection directive (no instruction file)"))
-        findings.append(Finding(get_severity(config, "no_root_cause_rule"), "No root-cause analysis rule (no instruction file)"))
-        findings.append(Finding(get_severity(config, "no_api_research_rule"), "No external API research rule (no instruction file)"))
+        findings.append(Finding(
+            get_severity(config, "no_loop_detection"),
+            "No loop detection directive (fix: create CLAUDE.md first)",
+        ))
+        findings.append(Finding(
+            get_severity(config, "no_root_cause_rule"),
+            "No root-cause analysis rule (fix: create CLAUDE.md first)",
+        ))
+        findings.append(Finding(
+            get_severity(config, "no_api_research_rule"),
+            "No external API research rule (fix: create CLAUDE.md first)",
+        ))
 
     # ── Harness checks (scan Python source) ──────────────────────────────────
 

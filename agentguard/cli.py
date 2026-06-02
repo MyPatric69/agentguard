@@ -21,6 +21,33 @@ from agentguard.output.renderer import (
 )
 
 
+def _update_claude_md(dest: Path, template_content: str) -> tuple[str, str]:
+    """Write or append governance block to CLAUDE.md.
+
+    Returns (action, message): action is 'created' or 'updated'.
+    If dest exists, the original content is always preserved — only the block is appended.
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sep = "## ─────────────────────────────────────────"
+    append_block = (
+        f"\n\n## AgentGuard Governance Block\n"
+        f"## Added by: agentguard init --interactive\n"
+        f"## Date: {timestamp}\n"
+        f"{sep}\n"
+        f"\n"
+        f"{template_content}\n"
+        f"{sep}\n"
+        f"## End AgentGuard Governance Block\n"
+    )
+    if dest.exists():
+        existing = dest.read_text()
+        dest.write_text(existing + append_block)
+        return "updated", "Updated: CLAUDE.md (AgentGuard governance block appended)"
+    else:
+        dest.write_text(template_content)
+        return "created", "Created: CLAUDE.md"
+
+
 @click.group()
 @click.version_option(__version__, prog_name="agentguard")
 def main() -> None:
@@ -101,18 +128,37 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
 
     click.echo("AgentGuard — Interactive Setup\n")
     owner = click.prompt("Agent owner (name or role)")
-    scope = click.prompt("Agent scope (what is this agent authorized to do)")
-    escalation = click.prompt("Escalation contact (email, Slack handle, or name)")
-    killswitch = click.prompt("Killswitch (e.g. 'Ctrl+C', 'kill PID', or endpoint URL)")
 
-    gov_yaml = f"""# AgentGuard Governance Configuration
-owner: "{owner}"
-scope: "{scope}"
-escalation:
-  contact: "{escalation}"
-  trigger: "2+ critical failures or loop detected"
-killswitch: "{killswitch}"
-"""
+    click.echo("\nAgent scope — answer these three questions:")
+    scope_authorized = click.prompt("  What tasks is this agent authorized to perform?")
+    scope_prohibited = click.prompt("  What is explicitly NOT allowed?")
+    scope_confirmation = click.prompt("  What requires human confirmation before execution?")
+
+    escalation_contact = click.prompt("\nEscalation contact (email, Slack handle, or name)")
+
+    click.echo("\nEscalation method:")
+    click.echo("  [1] Log to agentguard.log only (default, no external tools required)")
+    click.echo("  [2] Print to terminal (visible in CI/CD output)")
+    click.echo("  [3] Write to escalation.txt (for external tooling to pick up)")
+    method_choice = click.prompt("  Choose [1-3]", default="1")
+    method_map = {"1": "log", "2": "terminal", "3": "file"}
+    escalation_method = method_map.get(method_choice, "log")
+
+    killswitch = click.prompt("\nKillswitch (e.g. 'Ctrl+C', 'kill PID', or endpoint URL)")
+
+    gov_yaml = (
+        "# AgentGuard Governance Configuration\n"
+        f'owner: "{owner}"\n'
+        "scope:\n"
+        f'  authorized: "{scope_authorized}"\n'
+        f'  prohibited: "{scope_prohibited}"\n'
+        f'  requires_confirmation: "{scope_confirmation}"\n'
+        "escalation:\n"
+        f'  contact: "{escalation_contact}"\n'
+        f'  method: "{escalation_method}"\n'
+        '  trigger: "2+ critical failures or loop detected"\n'
+        f'killswitch: "{killswitch}"\n'
+    )
 
     gov_dest = Path("governance.yaml")
     if gov_dest.exists():
@@ -126,18 +172,8 @@ killswitch: "{killswitch}"
         gov_dest.write_text(gov_yaml)
         click.echo("Created: governance.yaml")
 
-    claude_dest = Path("CLAUDE.md")
-    if not claude_dest.exists():
-        claude_dest.write_text(claude_template.read_text())
-        click.echo("Created: CLAUDE.md")
-    else:
-        block_text = claude_template.read_text()
-        existing = claude_dest.read_text()
-        if "AgentGuard" not in existing:
-            claude_dest.write_text(existing + "\n\n" + block_text)
-            click.echo("Appended AgentGuard block to: CLAUDE.md")
-        else:
-            click.echo("[SKIP] AgentGuard block already in CLAUDE.md.")
+    _, msg = _update_claude_md(Path("CLAUDE.md"), claude_template.read_text())
+    click.echo(msg)
 
     click.echo("\nSetup complete. Run: agentguard check")
 

@@ -1,12 +1,19 @@
 # AgentGuard Governance Configuration Example
 # Copy this file to governance.yaml and fill in the required fields.
-#
+
 # Required fields (CRITICAL if missing)
-owner: "Jane Smith"              # Name or role of the person responsible
-scope: "Refactor authentication module — read/write Python files only"
+owner: "Jane Smith"
+
+scope:
+  authorized: "Refactor authentication module — read/write Python files in ./auth only"
+  prohibited: "no database schema changes, no external API calls, no file deletion outside ./auth"
+  requires_confirmation: "any git push, any file rename, any change outside ./auth"
+
 escalation:
   contact: "jane@example.com"   # Email, Slack handle, or name
+  method: "log"                  # log | terminal | file
   trigger: "2+ critical failures or loop detected"
+
 killswitch: "Ctrl+C"             # How to stop: "Ctrl+C", "kill PID", "endpoint URL"
 
 # Optional configuration

@@ -9,9 +9,14 @@ import yaml
 
 DEFAULTS: dict[str, Any] = {
     "owner": "",
-    "scope": "",
+    "scope": {
+        "authorized": "",
+        "prohibited": "",
+        "requires_confirmation": "",
+    },
     "escalation": {
         "contact": "",
+        "method": "log",
         "trigger": "2+ critical failures or loop detected",
     },
     "killswitch": "",

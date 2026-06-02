@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import textwrap
 from datetime import datetime
 from typing import NamedTuple
 
@@ -25,6 +26,18 @@ SEVERITY_STYLE = {
     "ok": "green",
 }
 
+# Panel content width = panel width(56) - 2 borders - 2 padding = 52.
+# Prefix display width = 2 leading spaces + emoji(2) + icon text(9) + 3 trailing = 16.
+# Available message width = 52 - 16 = 36.
+_MSG_WRAP = 36
+_MSG_INDENT = " " * 16
+
+
+def _wrap_message(text: str) -> str:
+    """Wrap message to fit panel; indent continuation lines to align with text start."""
+    lines = textwrap.wrap(text, width=_MSG_WRAP, break_long_words=True, break_on_hyphens=False)
+    return ("\n" + _MSG_INDENT).join(lines) if lines else text
+
 
 class Finding(NamedTuple):
     severity: str   # critical | warning | info | ok
@@ -45,7 +58,7 @@ def render_preflight(project_path: str, findings: list[Finding]) -> None:
         style = SEVERITY_STYLE.get(finding.severity, "white")
         line = Text()
         line.append(f"  {icon}   ", style=style)
-        line.append(finding.message)
+        line.append(_wrap_message(finding.message))
         lines.append(line)
 
     lines.append(Text(""))
