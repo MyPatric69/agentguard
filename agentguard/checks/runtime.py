@@ -1,0 +1,79 @@
+"""Layer 2: Runtime loop detection and progress monitoring."""
+
+from __future__ import annotations
+
+import json
+import time
+from collections import Counter
+from collections.abc import Iterator
+from pathlib import Path
+
+from agentguard.output.renderer import render_watch_event
+
+
+def _iter_log_lines(log_path: Path, poll_interval: float) -> Iterator[dict]:
+    """Yield new JSON lines from a growing log file."""
+    with open(log_path) as f:
+        while True:
+            line = f.readline()
+            if line:
+                line = line.strip()
+                if line:
+                    try:
+                        yield json.loads(line)
+                    except json.JSONDecodeError:
+                        pass
+            else:
+                time.sleep(poll_interval)
+
+
+def watch(
+    log_path: str | Path,
+    interval: float = 10.0,
+    loop_threshold: int = 2,
+    token_burn_threshold: int = 5000,
+    output_log: str | Path = "agentguard.log",
+) -> None:
+    """Watch a JSON tool-call log for loop, stall, and burn events."""
+    log = Path(log_path)
+    out = Path(output_log)
+
+    tool_calls: list[str] = []
+    total_tokens: int = 0
+    last_progress_check: int = 0
+
+    def _emit(event_type: str, message: str) -> None:
+        render_watch_event(event_type, message)
+        with open(out, "a") as f:
+            f.write(json.dumps({"event": event_type, "message": message}) + "\n")
+
+    for entry in _iter_log_lines(log, poll_interval=interval):
+        tool_name = entry.get("tool", "")
+        tokens = entry.get("tokens", 0)
+
+        if tool_name:
+            tool_calls.append(tool_name)
+            total_tokens += tokens
+
+        window = tool_calls[-10:]
+        counts = Counter(window)
+        for name, count in counts.items():
+            if count >= loop_threshold * 2:
+                _emit("LOOP_WARNING", f"Tool '{name}' called {count}x in last 10 calls — possible loop")
+
+        if total_tokens >= token_burn_threshold:
+            _emit("BURN_WARNING", f"Token usage reached {total_tokens} (threshold: {token_burn_threshold})")
+            total_tokens = 0
+
+        if len(tool_calls) - last_progress_check >= 10:
+            last_progress_check = len(tool_calls)
+            unique_recent = len(set(tool_calls[-10:]))
+            if unique_recent <= 2:
+                _emit("STALL_WARNING", f"Low tool diversity in last 10 calls ({unique_recent} unique) — possible stall")
+
+
+def detect_loop(tool_call_history: list[str], threshold: int = 2) -> bool:
+    """Return True if any tool appears >= threshold*2 times in the last 10 calls."""
+    window = tool_call_history[-10:]
+    counts = Counter(window)
+    return any(count >= threshold * 2 for count in counts.values())

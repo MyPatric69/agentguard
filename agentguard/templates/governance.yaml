@@ -1,0 +1,33 @@
+# AgentGuard Governance Configuration
+# Required fields (CRITICAL if missing)
+owner: ""                    # Name or role of the person responsible
+scope: ""                    # What this agent is authorized to do
+escalation:
+  contact: ""                # Email, Slack handle, or name
+  trigger: "2+ critical failures or loop detected"
+killswitch: ""               # How to stop: "Ctrl+C", "kill PID", "endpoint URL"
+
+# Optional configuration
+severity:
+  no_owner: critical
+  no_scope: critical
+  no_escalation: critical
+  no_killswitch: critical
+  no_instruction_file: critical
+  no_loop_detection: warning
+  no_root_cause_rule: warning
+  no_api_research_rule: info
+  no_attempt_counter: warning
+  no_action_log: warning
+  no_skill_md: warning
+
+runtime:
+  loop_threshold: 2
+  progress_check_interval: 10   # every N tool calls
+  token_burn_threshold: 5000
+  progress_scoring: false        # requires ANTHROPIC_API_KEY if true
+
+override:
+  allowed: true
+  require_reason: true
+  log_overrides: true
