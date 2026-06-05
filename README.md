@@ -5,7 +5,7 @@
 > "You wouldn't launch a rocket without a pre-launch checklist. Why run an autonomous agent without one?"
 
 [![CI](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml/badge.svg)](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/agentguard.svg)](https://badge.fury.io/py/agentguard)
+![PyPI — coming soon](https://img.shields.io/badge/PyPI-coming%20soon-lightgrey)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -183,7 +183,10 @@ Override log is written to `agentguard-overrides.log`.
 ```yaml
 # Required (CRITICAL if missing)
 owner: "Jane Smith"
-scope: "Refactor authentication module — read/write Python files only"
+scope:
+  authorized: "Refactor authentication module — read/write Python files only"
+  prohibited: "No database operations, no deletions outside ./src"
+  requires_confirmation: "Any git push, any file deletion"
 escalation:
   contact: "jane@example.com"
   trigger: "2+ critical failures or loop detected"
