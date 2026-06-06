@@ -70,27 +70,26 @@ agentguard check
 If your project lacks governance prerequisites, you'll see:
 
 ```
-╔══════════════════════════════════════════════════╗
-║           AGENTGUARD — PRE-FLIGHT CHECK          ║
-╠══════════════════════════════════════════════════╣
-║  Project:  ./my-agent-project                    ║
-║  Checked:  2026-06-02 21:14:33                   ║
-╠══════════════════════════════════════════════════╣
-║  🔴 CRITICAL   No agent owner defined            ║
-║  🔴 CRITICAL   No escalation path configured     ║
-║  🟡 WARNING    No loop detection in CLAUDE.md    ║
-║  🟡 WARNING    No attempt counter in harness     ║
-║  🟢 OK         CLAUDE.md present                 ║
-║  🟢 OK         Scope defined                     ║
-╠══════════════════════════════════════════════════╣
-║  RESULT: BLOCKED — 2 critical gaps               ║
-║                                                  ║
-║  This agent cannot start until governance        ║
-║  gaps are resolved or explicitly overridden.     ║
-║                                                  ║
-║  agentguard init --interactive                   ║
-║  agentguard override --reason "..."              ║
-╚══════════════════════════════════════════════════╝
+╭─────────── AGENTGUARD — PRE-FLIGHT CHECK ────────────╮
+│   Project:  ./my-agent-project                       │
+│   Checked:  2026-06-06 15:00:00                      │
+│                                                      │
+│   🔴 CRITICAL   No agent owner defined               │
+│   🔴 CRITICAL   No authorized scope defined          │
+│   🔴 CRITICAL   No prohibited actions defined        │
+│   🔴 CRITICAL   No escalation path configured        │
+│   🔴 CRITICAL   No killswitch defined                │
+│   🔴 CRITICAL   No CLAUDE.md or AGENTS.md found      │
+│                 (fix: create CLAUDE.md first)        │
+│                                                      │
+│   RESULT: BLOCKED — 6 critical gaps                  │
+│                                                      │
+│   This agent cannot start until governance           │
+│   gaps are resolved or explicitly overridden.        │
+│                                                      │
+│   agentguard init --interactive                      │
+│   agentguard override --reason "..."                 │
+╰──────────────────────────────────────────────────────╯
 ```
 
 Fix it interactively:
@@ -112,12 +111,16 @@ agentguard check                          # check current directory
 agentguard check --path ./my-project      # check a specific path
 agentguard check --config ./gov.yaml      # use a specific governance.yaml
 agentguard check --format json            # machine-readable output
+agentguard check --ai-review              # include AI-powered scope quality review
 ```
 
 **Exit codes:**
-- `0` — OK or warnings only
+- `0` — OK or warnings only (with or without AI review)
 - `1` — CRITICAL findings found
 - `2` — Config error
+
+> `--ai-review` requires `AGENTGUARD_AI_PROVIDER` and `AGENTGUARD_AI_API_KEY`
+> in `.env` or environment. Without them, AI review is silently skipped.
 
 ---
 
@@ -126,9 +129,19 @@ agentguard check --format json            # machine-readable output
 Initialize governance for a project.
 
 ```bash
-agentguard init --interactive   # guided Q&A, generates governance.yaml + CLAUDE.md block
+agentguard init --interactive   # guided Q&A with inline examples,
+                                # generates governance.yaml + CLAUDE.md block
 agentguard init --template-only # copies governance.yaml.example to ./governance.yaml
 ```
+
+Interactive mode guides you through:
+- Agent owner, scope (authorized / prohibited / confirmation-required)
+- Escalation contact with format validation
+- Escalation method (log / terminal / file)
+- Killswitch definition
+
+All free-text inputs are sanitized — quote characters are stripped
+automatically to prevent YAML parse errors.
 
 ---
 
@@ -224,6 +237,7 @@ scope:
   requires_confirmation: "Any git push, any file deletion"
 escalation:
   contact: "jane@example.com"
+  method: "log"              # log | terminal | file
   trigger: "2+ critical failures or loop detected"
 killswitch: "Ctrl+C"
 

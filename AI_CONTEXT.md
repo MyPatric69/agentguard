@@ -19,7 +19,7 @@ before observability tools do.
 
 - Python 3.11+
 - Click (CLI), Rich (output), PyYAML (config)
-- Optional: Anthropic API (progress scoring in runtime watch)
+- Optional: Anthropic / OpenAI / Anysphere API (AI-powered scope review via --ai-review flag, provider-agnostic)
 - Build: hatchling, PyPI distribution planned
 
 ## Current State (v0.2.0)
@@ -36,7 +36,7 @@ before observability tools do.
 - Post-session report: Markdown governance summary
 - agentguard init: interactive + template-only modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
-- 74/74 tests passing, ruff clean
+- 83/83 tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
 ## Open Items (v0.3.0)
@@ -67,4 +67,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-06 – Auto-synced 1 commit(s) to 57552b6
+2026-06-06 – Auto-synced 1 commit(s) to 71df90d
