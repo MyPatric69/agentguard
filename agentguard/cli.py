@@ -156,23 +156,26 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
         return
 
     click.echo("AgentGuard — Interactive Setup\n")
-    _console.print('  [dim italic]e.g. "Jane Smith", "DevOps Team Lead", "AI Platform Team"[/dim italic]')
-    owner = click.prompt("Agent owner (name or role)")
+    _console.print("Agent owner (name or role):")
+    _console.print('  e.g. "Jane Smith", "DevOps Team Lead", "AI Platform Team"', style="bright_yellow")
+    owner = click.prompt("> ", prompt_suffix="")
 
     click.echo("\nAgent scope — answer these three questions:")
-    _console.print('  [dim italic]e.g. "Read and modify Python files in ./src, run pytest suite"[/dim italic]')
-    scope_authorized = click.prompt("  What tasks is this agent authorized to perform?")
-    _console.print('  [dim italic]e.g. "No database writes, no deletion outside ./tmp, no git push"[/dim italic]')
-    scope_prohibited = click.prompt("  What is explicitly NOT allowed?")
+    _console.print("  What tasks is this agent authorized to perform?")
+    _console.print('  e.g. "Read and modify Python files in ./src, run pytest suite"', style="bright_yellow")
+    scope_authorized = click.prompt("> ", prompt_suffix="")
+    _console.print("  What is explicitly NOT allowed?")
+    _console.print('  e.g. "No database writes, no deletion outside ./tmp, no git push"', style="bright_yellow")
+    scope_prohibited = click.prompt("> ", prompt_suffix="")
+    _console.print("  What requires human confirmation before execution?")
     _console.print(
-        '  [dim italic]e.g. "Any file deletion, any production deployment, any git push"[/dim italic]'
+        '  e.g. "Any file deletion, any production deployment, any git push"', style="bright_yellow"
     )
-    scope_confirmation = click.prompt("  What requires human confirmation before execution?")
+    scope_confirmation = click.prompt("> ", prompt_suffix="")
 
-    _console.print(
-        '\n  [dim italic]e.g. "jane@example.com", "@jane-smith (Slack)", "Jane Smith"[/dim italic]'
-    )
-    escalation_contact = click.prompt("Escalation contact (email, Slack handle, or full name)")
+    _console.print("\nEscalation contact (email, Slack handle, or full name):")
+    _console.print('  e.g. "jane@example.com", "@jane-smith (Slack)", "Jane Smith"', style="bright_yellow")
+    escalation_contact = click.prompt("> ", prompt_suffix="")
 
     click.echo("\nEscalation method:")
     click.echo("  [1] Log to agentguard.log only (default)")
@@ -182,10 +185,11 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
     method_map = {"1": "log", "2": "terminal", "3": "file"}
     escalation_method = method_map.get(method_choice, "log")
 
+    _console.print("\nKillswitch (how to stop this agent):")
     _console.print(
-        '\n  [dim italic]e.g. "Ctrl+C", "kill $(pgrep -f agent.py)", "POST /api/agent/stop"[/dim italic]'
+        '  e.g. "Ctrl+C", "kill $(pgrep -f agent.py)", "POST /api/agent/stop"', style="bright_yellow"
     )
-    killswitch = click.prompt("Killswitch (how to stop this agent)")
+    killswitch = click.prompt("> ", prompt_suffix="")
 
     gov_yaml = (
         "# AgentGuard Governance Configuration\n"
