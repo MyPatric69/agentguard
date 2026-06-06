@@ -26,9 +26,10 @@ Rules must be specific, measurable, and actionable — no vague terms.
 
 Respond in JSON only, no markdown:
 {{
-  "authorized": "specific actions the agent may perform",
-  "prohibited": "specific actions the agent must never do, using no/never language",
-  "requires_confirmation": "actions requiring explicit human confirmation",
+  "authorized": "concrete text for scope.authorized — what the agent may do",
+  "prohibited": "concrete text for scope.prohibited — what the agent must never do, using no/never language",
+  "requires_confirmation": "concrete text for scope.requires_confirmation — actions needing human confirmation before execution",
+  "enforcement_notes": "how AgentGuard enforces these rules technically",
   "confidence": "HIGH|MEDIUM|LOW",
   "ambiguities": ["remaining ambiguities if any"]
 }}

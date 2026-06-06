@@ -184,6 +184,55 @@ def test_guided_adjustment_loop_max_3_rounds_saves_as_is():
         assert Path("governance.yaml").exists()
 
 
+# ── 9. Escalation: invalid contact triggers re-entry ────────────────────────
+
+def test_guided_escalation_invalid_contact_triggers_reentry():
+    runner = CliRunner()
+    user_input = (
+        "Jane Smith\n"             # step 1: owner
+        "implement features\n"     # step 2: mission
+        "1\n"                      # accept mission
+        "no production writes\n"   # step 3: hard limits
+        "1\n"                      # accept hard limits
+        "invalidname\n"            # step 4: escalation (invalid — single word, no @)
+        "n\n"                      # decline override
+        "owner@example.com\n"      # step 4: escalation (valid — has @)
+        "Ctrl+C\n"                 # step 5: killswitch
+        "1\n"                      # final review: save
+    )
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=user_input)
+
+        assert result.exit_code == 0, result.output
+        assert "Invalid contact" in result.output
+        gov = Path("governance.yaml").read_text()
+
+    assert 'contact: "owner@example.com"' in gov
+
+
+# ── 10. Bug 4: Confirms field populated in governance.yaml ───────────────────
+
+def test_guided_confirms_field_written_to_governance_yaml():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+        assert result.exit_code == 0, result.output
+        gov = Path("governance.yaml").read_text()
+
+    assert 'requires_confirmation: "Any file deletion outside ./tmp"' in gov
+
+
 # ── 8. Ctrl+C: save-progress prompt is shown ─────────────────────────────────
 
 def test_guided_ctrl_c_shows_save_progress_prompt():

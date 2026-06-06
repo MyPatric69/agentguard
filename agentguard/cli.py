@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import json
 import sys
+import textwrap
 from datetime import datetime
 from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.text import Text
 
 from agentguard import __version__
-from agentguard.checks.preflight import has_criticals, run_preflight
+from agentguard.checks.preflight import _is_invalid_contact, has_criticals, run_preflight
 from agentguard.checks.report import generate_report
 from agentguard.checks.runtime import watch as runtime_watch
 from agentguard.config.loader import find_config
@@ -135,6 +137,17 @@ GUIDED_STEPS = [
 ]
 
 
+_GUIDED_LINE_WIDTH = 55
+
+
+def _wrap_guided_line(prefix: str, text: str) -> Text:
+    """Wrap a labeled panel line to fit within the guided panel (total width 55)."""
+    avail = max(_GUIDED_LINE_WIDTH - len(prefix), 10)
+    parts = textwrap.wrap(text or "(empty)", width=avail, break_long_words=True, break_on_hyphens=False)
+    indent = " " * len(prefix)
+    return Text(prefix + ("\n" + indent).join(parts) if parts else prefix + "(empty)")
+
+
 def _store_concretized(field: str, step: dict, ai_result: dict, results: dict) -> None:
     if step.get("splits_into"):
         results["scope.authorized"] = ai_result.get("authorized", "")
@@ -157,15 +170,18 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
 
     if step.get("splits_into"):
         lines = [
-            Text(f"  Authorized:   {ai_result.get('authorized', '')[:56]}"),
-            Text(f"  Prohibited:   {ai_result.get('prohibited', '')[:56]}"),
-            Text(f"  Confirmation: {ai_result.get('requires_confirmation', '')[:56]}"),
+            _wrap_guided_line("  Authorized:   ", ai_result.get("authorized", "")),
+            _wrap_guided_line("  Prohibited:   ", ai_result.get("prohibited", "")),
+            _wrap_guided_line("  Confirmation: ", ai_result.get("requires_confirmation", "")),
         ]
     else:
-        lines = [Text(f"  Rule: {ai_result.get('concretized', '')[:58]}")]
-        notes = ai_result.get("enforcement_notes", "")
-        if notes:
-            lines.append(Text(f"  Enforcement: {notes[:55]}", style="dim"))
+        lines = [_wrap_guided_line("  Rule: ", ai_result.get("concretized", ""))]
+
+    notes = ai_result.get("enforcement_notes", "")
+    if notes:
+        enf_line = _wrap_guided_line("  Enforcement:  ", notes)
+        enf_line.stylize("dim")
+        lines.append(enf_line)
 
     conf_text = Text()
     conf_text.append(f"  Confidence: {confidence}", style=conf_style)
@@ -175,7 +191,9 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
     if ambiguities:
         lines.append(Text("  Ambiguities:", style="yellow"))
         for a in ambiguities[:3]:
-            lines.append(Text(f"    • {str(a)[:55]}", style="yellow"))
+            amb_line = _wrap_guided_line("    • ", str(a))
+            amb_line.stylize("yellow")
+            lines.append(amb_line)
 
     content = Text("\n").join(lines)
     _console.print(Panel(content, title="[bold]Concretized Rule[/bold]", border_style="cyan", expand=False, width=64))
@@ -190,6 +208,16 @@ def _run_guided_step(step: dict, results: dict) -> None:
     user_input = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     if not step.get("concretize"):
+        if step["field"] == "escalation":
+            while _is_invalid_contact(user_input):
+                _console.print(
+                    "  ⚠️  Invalid contact — use an email address, @handle, or full name.",
+                    style="bright_yellow",
+                )
+                if click.confirm("  Use as-is anyway?", default=False):
+                    break
+                _console.print(f"  {step['example']}", style="bright_yellow")
+                user_input = _strip_quotes(click.prompt("> ", prompt_suffix=""))
         results[step["field"]] = user_input
         return
 
