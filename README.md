@@ -226,6 +226,41 @@ offline with no API calls and no external dependencies.
 
 ---
 
+## How AgentGuard Enforces — Layer 2
+
+After `agentguard init`, your project contains `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+      "hooks": [{"type": "command", "command": "agentguard enforce"}]
+    }]
+  }
+}
+```
+
+Every tool call Claude Code attempts fires `agentguard enforce` first.
+AgentGuard reads your `governance.yaml` and checks:
+
+- Does this action violate the **prohibited scope**?
+- Does this action require **human confirmation**?
+
+If yes → `exit 2`. Claude Code receives the denial reason and cannot
+proceed with that action. This is deterministic — it fires every time,
+regardless of model behavior or context length.
+
+All enforcement decisions are logged to `agentguard-enforcement.log`.
+
+### What AgentGuard cannot do
+
+AgentGuard enforces at the tool execution layer. It cannot prevent
+Claude from *reasoning* toward a blocked action — only from *executing* it.
+For production systems, combine with OS-level sandboxing.
+
+---
+
 ## governance.yaml Reference
 
 ```yaml

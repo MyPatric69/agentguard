@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.2.0  
+**Version:** 0.3.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight checks,
 runtime loop detection, and post-session reporting.
@@ -22,7 +22,7 @@ before observability tools do.
 - Optional: Anthropic / OpenAI / Anysphere API (AI-powered scope review via --ai-review flag, provider-agnostic)
 - Build: hatchling, PyPI distribution planned
 
-## Current State (v0.2.0)
+## Current State (v0.3.0)
 
 - Pre-flight check: checks across 3 layers (governance, prompt, harness)
 - AI-powered scope quality review via `--ai-review` flag (opt-in)
@@ -34,22 +34,28 @@ before observability tools do.
 - Inline examples for all `agentguard init --interactive` prompts
 - Runtime watch: loop, stall, burn detection via JSON log
 - Post-session report: Markdown governance summary
-- agentguard init: interactive + template-only modes
+- agentguard enforce: PreToolUse hook handler (exit 0=allow, exit 2=block)
+  - Prohibited scope matching against tool input (rm -rf, git push, SQL ops)
+  - Confirmation-required detection (Write/Edit tools, git push, deletion)
+  - Enforcement log: agentguard-enforcement.log (deny decisions only)
+- agentguard init: generates .claude/settings.json with PreToolUse hook
+  - Merge-safe: existing hooks preserved when settings.json exists
+  - interactive + template-only modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
-- 83/83 tests passing, ruff clean
+- 95/95 tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
-## Open Items (v0.3.0)
+## Open Items (v0.3.0 Part B)
 
 - PyPI publish
 - Homebrew formula
-- Git hook (auto-trigger on claude command)
 - OpenAI Agents + LangChain support
 - SKILL.md validation improvements
-- agentguard watch: direct Claude Code log integration
+- Runtime Watch via native JSONL (direct Claude Code log integration)
 
 ## Key Files
 
+- `agentguard/enforcement/enforcer.py` — PreToolUse hook enforcement logic
 - `agentguard/checks/preflight.py` — Layer 1 check logic
 - `agentguard/checks/runtime.py` — Layer 2 loop/stall/burn detection
 - `agentguard/checks/report.py` — Layer 3 governance report
@@ -67,4 +73,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-06 – Auto-synced 1 commit(s) to 71df90d
+2026-06-06 – Auto-synced 1 commit(s) to 48cc8b2

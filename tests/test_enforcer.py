@@ -1,0 +1,244 @@
+"""Tests for agentguard/enforcement/enforcer.py and _write_hook_config."""
+
+from __future__ import annotations
+
+import io
+import json
+
+import pytest
+
+from agentguard.cli import _write_hook_config
+from agentguard.enforcement.enforcer import run_enforce
+
+# ── Shared governance configs ─────────────────────────────────────────────────
+
+_GOV_PROHIBITED = (
+    "owner: Alice\n"
+    "scope:\n"
+    "  authorized: read Python files in ./src only\n"
+    "  prohibited: no deletion outside ./tmp, no git push, no database operations\n"
+    "  requires_confirmation: ''\n"
+    "escalation:\n  contact: alice@example.com\n"
+    "killswitch: Ctrl+C\n"
+)
+
+_GOV_CONFIRMATION = (
+    "owner: Alice\n"
+    "scope:\n"
+    "  authorized: read Python files in ./src only\n"
+    "  prohibited: ''\n"
+    "  requires_confirmation: any write operation, any git push, any file deletion\n"
+    "escalation:\n  contact: alice@example.com\n"
+    "killswitch: Ctrl+C\n"
+)
+
+_GOV_LEGACY_SCOPE = (
+    "owner: Alice\n"
+    "scope: read files\n"
+    "escalation:\n  contact: alice@example.com\n"
+    "killswitch: Ctrl+C\n"
+)
+
+
+def _hook(tool_name: str, tool_input: dict, cwd: str, session_id: str = "test") -> str:
+    return json.dumps(
+        {"tool_name": tool_name, "tool_input": tool_input, "cwd": cwd, "session_id": session_id}
+    )
+
+
+# ── 1. Allow: clean Bash command ──────────────────────────────────────────────
+
+def test_allow_clean_command(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Bash", {"command": "pytest"}, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+
+
+# ── 2. Block: rm -rf matches prohibited ───────────────────────────────────────
+
+def test_block_rm_rf_prohibited(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(_hook("Bash", {"command": "rm -rf dist"}, str(tmp_path)))
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "AgentGuard" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── 3. Block: git push matches prohibited ─────────────────────────────────────
+
+def test_block_git_push_prohibited(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "git push origin main"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 4. Block: Write tool triggers requires_confirmation ───────────────────────
+
+def test_block_write_tool_requires_confirmation(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
+    tool_input = {"path": "/outside/src/config.yaml", "content": "key: value"}
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path)))
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "confirmation" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── 5. Allow: governance.yaml not found ───────────────────────────────────────
+
+def test_allow_no_governance_yaml(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(_hook("Bash", {"command": "rm -rf /"}, str(tmp_path)))
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+
+
+# ── 6. Allow: malformed stdin JSON ────────────────────────────────────────────
+
+def test_allow_malformed_stdin(monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", io.StringIO("not valid json {{{"))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+
+
+# ── 7. Allow: legacy string scope ────────────────────────────────────────────
+
+def test_allow_legacy_string_scope(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_LEGACY_SCOPE)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "rm -rf /"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+
+
+# ── 8. Logging: deny decision appended to enforcement log ────────────────────
+
+def test_deny_logged_to_enforcement_log(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "rm -rf dist"}, str(tmp_path), session_id="sess-42")),
+    )
+    with pytest.raises(SystemExit):
+        run_enforce()
+
+    log_path = tmp_path / "agentguard-enforcement.log"
+    assert log_path.exists()
+    entries = [json.loads(line) for line in log_path.read_text().splitlines()]
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry["decision"] == "deny"
+    assert entry["tool"] == "Bash"
+    assert entry["session_id"] == "sess-42"
+    assert "rm -rf dist" in entry["input_summary"]
+
+
+# ── 9. Block: SQL DROP matches prohibited ────────────────────────────────────
+
+def test_block_sql_drop_prohibited(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "DROP TABLE users"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 10. init: .claude/settings.json created when not present ─────────────────
+
+def test_write_hook_config_creates_settings_json(tmp_path):
+    result = _write_hook_config(tmp_path)
+
+    settings_file = tmp_path / ".claude" / "settings.json"
+    assert settings_file.exists()
+    data = json.loads(settings_file.read_text())
+    pre_hooks = data["hooks"]["PreToolUse"]
+    commands = [h.get("command") for entry in pre_hooks for h in entry.get("hooks", [])]
+    assert "agentguard enforce" in commands
+    assert "Created" in result
+
+
+# ── 11. init: .claude/settings.json merged when existing without agentguard ──
+
+def test_write_hook_config_merges_existing_settings(tmp_path):
+    settings_dir = tmp_path / ".claude"
+    settings_dir.mkdir()
+    existing = {
+        "theme": "dark",
+        "hooks": {
+            "PreToolUse": [
+                {"matcher": "Bash", "hooks": [{"type": "command", "command": "other-tool"}]}
+            ]
+        },
+    }
+    (settings_dir / "settings.json").write_text(json.dumps(existing))
+
+    result = _write_hook_config(tmp_path)
+
+    data = json.loads((settings_dir / "settings.json").read_text())
+    pre_hooks = data["hooks"]["PreToolUse"]
+    commands = [h.get("command") for entry in pre_hooks for h in entry.get("hooks", [])]
+    assert "other-tool" in commands
+    assert "agentguard enforce" in commands
+    assert data.get("theme") == "dark"
+    assert "Updated" in result
+
+
+# ── 12. init: .claude/settings.json skipped when agentguard already present ──
+
+def test_write_hook_config_skips_if_already_present(tmp_path):
+    settings_dir = tmp_path / ".claude"
+    settings_dir.mkdir()
+    existing = {
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+                    "hooks": [{"type": "command", "command": "agentguard enforce"}],
+                }
+            ]
+        }
+    }
+    (settings_dir / "settings.json").write_text(json.dumps(existing))
+
+    result = _write_hook_config(tmp_path)
+
+    data = json.loads((settings_dir / "settings.json").read_text())
+    pre_hooks = data["hooks"]["PreToolUse"]
+    enforce_count = sum(
+        1
+        for entry in pre_hooks
+        for h in entry.get("hooks", [])
+        if h.get("command") == "agentguard enforce"
+    )
+    assert enforce_count == 1
+    assert "Skipped" in result

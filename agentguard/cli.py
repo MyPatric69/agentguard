@@ -29,6 +29,35 @@ def _strip_quotes(value: str) -> str:
     return value.strip().strip('"\'')
 
 
+def _write_hook_config(project_path: Path) -> str:
+    """Generate .claude/settings.json with AgentGuard PreToolUse hook."""
+    settings_dir = project_path / ".claude"
+    settings_file = settings_dir / "settings.json"
+
+    agentguard_hook = {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [{"type": "command", "command": "agentguard enforce"}],
+    }
+
+    if settings_file.exists():
+        existing = json.loads(settings_file.read_text())
+        hooks = existing.setdefault("hooks", {})
+        pre = hooks.setdefault("PreToolUse", [])
+        already_present = any(
+            any(h.get("command") == "agentguard enforce" for h in entry.get("hooks", []))
+            for entry in pre
+        )
+        if not already_present:
+            pre.append(agentguard_hook)
+            settings_file.write_text(json.dumps(existing, indent=2))
+            return "Updated: .claude/settings.json (AgentGuard hook added)"
+        return "Skipped: .claude/settings.json (AgentGuard hook already present)"
+
+    settings_dir.mkdir(exist_ok=True)
+    settings = {"hooks": {"PreToolUse": [agentguard_hook]}}
+    settings_file.write_text(json.dumps(settings, indent=2))
+    return "Created: .claude/settings.json (AgentGuard PreToolUse hook)"
+
 
 def _update_claude_md(dest: Path, template_content: str) -> tuple[str, str]:
     """Write or append governance block to CLAUDE.md.
@@ -225,7 +254,22 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
     _, msg = _update_claude_md(Path("CLAUDE.md"), claude_template.read_text())
     click.echo(msg)
 
+    click.echo(_write_hook_config(Path(".")))
+
     click.echo("\nSetup complete. Run: agentguard check")
+
+
+@main.command("enforce")
+def enforce_cmd() -> None:
+    """PreToolUse hook handler — called by Claude Code automatically.
+
+    Do not call this manually. Configure via agentguard init.
+    Reads JSON from stdin, checks against governance.yaml, exits 0 (allow)
+    or 2 (block) with JSON denial reason on stdout.
+    """
+    from agentguard.enforcement.enforcer import run_enforce
+
+    run_enforce()
 
 
 @main.command()
