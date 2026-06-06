@@ -36,7 +36,7 @@ before observability tools do.
 - Post-session report: Markdown governance summary
 - agentguard init: interactive + template-only modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
-- Tests passing, ruff clean
+- 74/74 tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
 ## Open Items (v0.3.0)
@@ -67,4 +67,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-06 – v0.2.0: AI scope review, contact validation, init examples
+2026-06-06 – Auto-synced 1 commit(s) to 57552b6
