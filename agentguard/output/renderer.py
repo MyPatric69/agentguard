@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import textwrap
 from datetime import datetime
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from rich.console import Console
 from rich.panel import Panel
@@ -124,6 +124,77 @@ def render_watch_event(event_type: str, message: str) -> None:
     }
     style = style_map.get(event_type, "white")
     console.print(f"[{style}][{event_type}][/{style}] {message}")
+
+
+_VERDICT_ICON = {
+    "STRONG": "🟢",
+    "ACCEPTABLE": "🟡",
+    "WEAK": "🟠",
+    "INSUFFICIENT": "🔴",
+}
+
+_VERDICT_STYLE = {
+    "STRONG": "bold green",
+    "ACCEPTABLE": "bold yellow",
+    "WEAK": "bold dark_orange",
+    "INSUFFICIENT": "bold red",
+}
+
+
+def _short_model(model: str) -> str:
+    if model.startswith("claude-"):
+        parts = model.split("-")
+        return f"{parts[0]}-{parts[1]}"
+    return model
+
+
+def render_ai_review(result: dict[str, Any]) -> None:
+    """Print AI scope review panel to the console."""
+    provider = result.get("_provider", "unknown")
+    model = result.get("_model", "unknown")
+    score = result.get("score", 0)
+    verdict = result.get("verdict", "UNKNOWN")
+    issues = result.get("issues", [])
+    suggestion = result.get("suggestion", "")
+
+    model_short = _short_model(model)
+    icon = _VERDICT_ICON.get(verdict, "⚪")
+    vstyle = _VERDICT_STYLE.get(verdict, "white")
+
+    lines: list[Text] = [
+        Text(f"   Provider:  {provider} ({model_short})"),
+        Text(f"   Score:     {score}/10"),
+    ]
+    verdict_line = Text("   Verdict:   ")
+    verdict_line.append(f"{icon} {verdict}", style=vstyle)
+    lines.append(verdict_line)
+
+    if issues:
+        lines.append(Text(""))
+        lines.append(Text("   Issues:"))
+        for issue in issues:
+            wrapped = textwrap.wrap(issue, width=40, break_long_words=True)
+            for i, part in enumerate(wrapped):
+                prefix = "   • " if i == 0 else "     "
+                lines.append(Text(f"{prefix}{part}"))
+
+    if suggestion:
+        lines.append(Text(""))
+        wrapped = textwrap.wrap(f"Suggestion: {suggestion}", width=43, break_long_words=True)
+        for i, part in enumerate(wrapped):
+            prefix = "   " if i == 0 else "   "
+            lines.append(Text(f"{prefix}{part}"))
+
+    content = Text("\n").join(lines)
+
+    panel = Panel(
+        content,
+        title="[bold]AI SCOPE REVIEW[/bold]",
+        border_style="white",
+        expand=False,
+        width=56,
+    )
+    console.print(panel)
 
 
 def render_override_confirmation(reason: str, log_path: str) -> None:

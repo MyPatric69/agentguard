@@ -17,7 +17,6 @@ ACTION_LOG_PATTERNS = [r"action_log", r"log_action", r"append.*log"]
 ERROR_PATTERN_PATTERNS = [r"same_error", r"error_pattern", r"consecutive_errors"]
 
 _SCOPE_BOUNDARY_WORDS = ["no", "not", "never", "kein", "ohne"]
-_SCOPE_MIN_AUTHORIZED_LEN = 20
 
 
 def _read_text(path: Path) -> str:
@@ -42,7 +41,18 @@ def _collect_py_content(project_path: Path) -> str:
     return "\n".join(parts)
 
 
-def _check_scope(config: dict, findings: list[Finding]) -> None:
+def _is_invalid_contact(contact: str) -> bool:
+    """Return True if escalation contact looks like an invalid placeholder."""
+    if "@" in contact:
+        return False
+    if any(domain in contact.lower() for domain in ("slack.com", "teams.microsoft.com", "discord")):
+        return False
+    if " " in contact.strip():
+        return False
+    return True
+
+
+def _check_scope(config: dict, findings: list[Finding], *, ai_review: bool = False) -> None:
     """Validate structured scope fields and append findings."""
     raw_scope = config.get("scope", {})
 
@@ -59,10 +69,13 @@ def _check_scope(config: dict, findings: list[Finding]) -> None:
     # authorized
     if not authorized:
         findings.append(Finding(get_severity(config, "no_scope"), "No authorized scope defined"))
-    elif len(authorized) < _SCOPE_MIN_AUTHORIZED_LEN:
-        findings.append(Finding("warning", "Scope too vague — be specific (authorized field < 20 chars)"))
     else:
         findings.append(Finding("ok", "Authorized scope defined"))
+        if not ai_review:
+            findings.append(Finding(
+                "info",
+                "Run agentguard check --ai-review for AI-powered scope quality assessment",
+            ))
 
     # prohibited
     if not prohibited:
@@ -82,7 +95,12 @@ def _check_scope(config: dict, findings: list[Finding]) -> None:
         findings.append(Finding("ok", "Confirmation requirements defined"))
 
 
-def run_preflight(project_path: str | Path, config_path: str | Path | None = None) -> list[Finding]:
+def run_preflight(
+    project_path: str | Path,
+    config_path: str | Path | None = None,
+    *,
+    ai_review: bool = False,
+) -> list[Finding]:
     """Run all pre-flight checks and return a list of Findings."""
     base = Path(project_path).resolve()
 
@@ -104,13 +122,20 @@ def run_preflight(project_path: str | Path, config_path: str | Path | None = Non
     else:
         findings.append(Finding("ok", "Owner defined"))
 
-    _check_scope(config, findings)
+    _check_scope(config, findings, ai_review=ai_review)
 
     escalation = config.get("escalation", {})
-    if not escalation.get("contact", "").strip():
+    contact = escalation.get("contact", "").strip()
+    if not contact:
         findings.append(Finding(get_severity(config, "no_escalation"), "No escalation path configured"))
     else:
         findings.append(Finding("ok", "Escalation path configured"))
+        if _is_invalid_contact(contact):
+            findings.append(Finding(
+                "warning",
+                "Escalation contact appears invalid — provide email (name@domain.com),"
+                " Slack handle (@name or channel), or full name",
+            ))
 
     if not config.get("killswitch", "").strip():
         findings.append(Finding(get_severity(config, "no_killswitch"), "No killswitch defined"))

@@ -178,6 +178,41 @@ Override log is written to `agentguard-overrides.log`.
 
 ---
 
+## AI-Powered Scope Review (Optional)
+
+AgentGuard can use an AI provider to assess the quality of your governance
+scope — catching vague, incomplete, or ungovernable definitions that
+string-based checks miss.
+
+### Setup
+
+Create a `.env` file in your project root (see `.env.example`):
+
+```bash
+AGENTGUARD_AI_PROVIDER=anthropic
+AGENTGUARD_AI_API_KEY=your-api-key-here
+```
+
+Supported providers:
+
+| Provider | Value | Default Model |
+|---|---|---|
+| Anthropic | `anthropic` | claude-haiku-4-5-20251001 |
+| OpenAI | `openai` | gpt-4o-mini |
+| Anysphere (Cursor) | `anysphere` | cursor-small |
+| OpenAI-compatible | `openai-compatible` | set `AGENTGUARD_AI_MODEL` |
+
+### Usage
+
+```bash
+agentguard check --ai-review
+```
+
+AI review is always opt-in. Without `--ai-review`, AgentGuard runs fully
+offline with no API calls and no external dependencies.
+
+---
+
 ## governance.yaml Reference
 
 ```yaml

@@ -23,14 +23,16 @@ dependencies = [
     "click>=8.0",
     "rich>=13.0",
     "pyyaml>=6.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.25"]
 dev = [
     "pytest>=7.0",
     "ruff>=0.4",
 ]
+ai = ["anthropic>=0.25", "openai>=1.0"]
+all = ["anthropic>=0.25", "openai>=1.0"]
 
 [project.scripts]
 agentguard = "agentguard.cli:main"

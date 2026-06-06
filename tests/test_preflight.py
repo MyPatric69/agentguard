@@ -103,11 +103,11 @@ def test_agents_md_accepted_as_instruction_file(tmp_path):
 
 # ── Scope quality validation ──────────────────────────────────────────────────
 
-def test_scope_authorized_too_short_triggers_warning(tmp_path):
+def test_scope_authorized_short_shows_ai_review_hint(tmp_path):
     gov = (
         "owner: Alice\n"
         "scope:\n"
-        "  authorized: read files\n"  # < 20 chars
+        "  authorized: read files\n"
         "  prohibited: no database operations\n"
         "  requires_confirmation: any deletion\n"
         "escalation:\n  contact: alice@example.com\n"
@@ -115,7 +115,8 @@ def test_scope_authorized_too_short_triggers_warning(tmp_path):
     )
     proj = _make_project(tmp_path, governance_yaml=gov, claude_md=_FULL_CLAUDE)
     findings = run_preflight(proj)
-    assert _find(findings, "warning", "vague")
+    assert not _find(findings, "warning", "vague")
+    assert _find(findings, "info", "--ai-review")
 
 
 def test_scope_no_boundary_words_triggers_warning(tmp_path):
@@ -240,3 +241,51 @@ def test_has_criticals_false():
     from agentguard.output.renderer import Finding
     findings = [Finding("warning", "something"), Finding("ok", "other")]
     assert has_criticals(findings) is False
+
+
+# ── Escalation contact validation ─────────────────────────────────────────────
+
+def _gov_with_contact(contact: str) -> str:
+    return (
+        "owner: Alice\n"
+        + _VALID_SCOPE
+        + f"escalation:\n  contact: \"{contact}\"\n"
+        + "killswitch: Ctrl+C\n"
+    )
+
+
+def test_escalation_contact_email_ok(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("alice@example.com"), claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert not _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_slack_handle_ok(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("@alice-smith"), claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert not _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_full_name_ok(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("Jane Smith"), claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert not _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_single_word_email_triggers_warning(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("email"), claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_single_word_tbd_triggers_warning(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("tbd"), claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_invalid_is_warning_not_critical(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("me"), claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "warning", "escalation contact appears invalid")
+    assert not _find(findings, "critical", "escalation contact")

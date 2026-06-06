@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from rich.console import Console
 
 from agentguard import __version__
 from agentguard.checks.preflight import has_criticals, run_preflight
@@ -15,10 +16,13 @@ from agentguard.checks.report import generate_report
 from agentguard.checks.runtime import watch as runtime_watch
 from agentguard.config.loader import find_config
 from agentguard.output.renderer import (
+    render_ai_review,
     render_json,
     render_override_confirmation,
     render_preflight,
 )
+
+_console = Console()
 
 
 def _update_claude_md(dest: Path, template_content: str) -> tuple[str, str]:
@@ -65,12 +69,18 @@ def main() -> None:
     show_default=True,
     help="Output format.",
 )
-def check(path: str, config_path: str | None, fmt: str) -> None:
+@click.option(
+    "--ai-review",
+    is_flag=True,
+    default=False,
+    help="Enable AI-powered scope quality review (requires API key in .env)",
+)
+def check(path: str, config_path: str | None, fmt: str, ai_review: bool) -> None:
     """Run pre-flight governance check."""
     resolved_config = config_path or find_config(path)
 
     try:
-        findings = run_preflight(path, config_path=resolved_config)
+        findings = run_preflight(path, config_path=resolved_config, ai_review=ai_review)
     except Exception as exc:
         click.echo(f"[ERROR] Config error: {exc}", err=True)
         sys.exit(2)
@@ -79,6 +89,25 @@ def check(path: str, config_path: str | None, fmt: str) -> None:
         click.echo(render_json(findings))
     else:
         render_preflight(path, findings)
+
+        if ai_review:
+            from agentguard.ai_review import review_scope
+            from agentguard.config.loader import DEFAULTS, _deep_merge, load_config
+
+            cfg = load_config(resolved_config) if resolved_config else _deep_merge(DEFAULTS, {})
+            raw_scope = cfg.get("scope", {})
+            if isinstance(raw_scope, str):
+                scope: dict = {"authorized": raw_scope, "prohibited": "", "requires_confirmation": ""}
+            else:
+                scope = raw_scope
+
+            ai_result = review_scope(
+                scope.get("authorized", ""),
+                scope.get("prohibited", ""),
+                scope.get("requires_confirmation", ""),
+            )
+            if ai_result:
+                render_ai_review(ai_result)
 
     sys.exit(1 if has_criticals(findings) else 0)
 
@@ -127,24 +156,36 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
         return
 
     click.echo("AgentGuard — Interactive Setup\n")
+    _console.print('  [dim italic]e.g. "Jane Smith", "DevOps Team Lead", "AI Platform Team"[/dim italic]')
     owner = click.prompt("Agent owner (name or role)")
 
     click.echo("\nAgent scope — answer these three questions:")
+    _console.print('  [dim italic]e.g. "Read and modify Python files in ./src, run pytest suite"[/dim italic]')
     scope_authorized = click.prompt("  What tasks is this agent authorized to perform?")
+    _console.print('  [dim italic]e.g. "No database writes, no deletion outside ./tmp, no git push"[/dim italic]')
     scope_prohibited = click.prompt("  What is explicitly NOT allowed?")
+    _console.print(
+        '  [dim italic]e.g. "Any file deletion, any production deployment, any git push"[/dim italic]'
+    )
     scope_confirmation = click.prompt("  What requires human confirmation before execution?")
 
-    escalation_contact = click.prompt("\nEscalation contact (email, Slack handle, or name)")
+    _console.print(
+        '\n  [dim italic]e.g. "jane@example.com", "@jane-smith (Slack)", "Jane Smith"[/dim italic]'
+    )
+    escalation_contact = click.prompt("Escalation contact (email, Slack handle, or full name)")
 
     click.echo("\nEscalation method:")
-    click.echo("  [1] Log to agentguard.log only (default, no external tools required)")
-    click.echo("  [2] Print to terminal (visible in CI/CD output)")
-    click.echo("  [3] Write to escalation.txt (for external tooling to pick up)")
+    click.echo("  [1] Log to agentguard.log only (default)")
+    click.echo("  [2] Print to terminal")
+    click.echo("  [3] Write to escalation.txt")
     method_choice = click.prompt("  Choose [1-3]", default="1")
     method_map = {"1": "log", "2": "terminal", "3": "file"}
     escalation_method = method_map.get(method_choice, "log")
 
-    killswitch = click.prompt("\nKillswitch (e.g. 'Ctrl+C', 'kill PID', or endpoint URL)")
+    _console.print(
+        '\n  [dim italic]e.g. "Ctrl+C", "kill $(pgrep -f agent.py)", "POST /api/agent/stop"[/dim italic]'
+    )
+    killswitch = click.prompt("Killswitch (how to stop this agent)")
 
     gov_yaml = (
         "# AgentGuard Governance Configuration\n"

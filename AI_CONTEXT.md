@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.1.0  
+**Version:** 0.2.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight checks,
 runtime loop detection, and post-session reporting.
@@ -22,17 +22,24 @@ before observability tools do.
 - Optional: Anthropic API (progress scoring in runtime watch)
 - Build: hatchling, PyPI distribution planned
 
-## Current State (v0.1.0)
+## Current State (v0.2.0)
 
-- Pre-flight check: 10 checks across 3 layers (governance, prompt, harness)
+- Pre-flight check: checks across 3 layers (governance, prompt, harness)
+- AI-powered scope quality review via `--ai-review` flag (opt-in)
+  - Provider-agnostic: Anthropic, OpenAI, Anysphere, OpenAI-compatible
+  - Config via .env / environment variables (python-dotenv)
+  - Graceful degradation: API failure never blocks main check
+  - Score 1-10 with STRONG/ACCEPTABLE/WEAK/INSUFFICIENT verdict
+- Escalation contact format validation (email/Slack/name heuristic)
+- Inline examples for all `agentguard init --interactive` prompts
 - Runtime watch: loop, stall, burn detection via JSON log
 - Post-session report: Markdown governance summary
 - agentguard init: interactive + template-only modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
-- 48/48 tests passing, ruff clean
+- Tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
-## Open Items (v0.2.0)
+## Open Items (v0.3.0)
 
 - PyPI publish
 - Homebrew formula
@@ -60,4 +67,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-05 — v0.1.0 complete, CI green, 7 test scenarios validated
+2026-06-06 – v0.2.0: AI scope review, contact validation, init examples
