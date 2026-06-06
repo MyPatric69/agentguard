@@ -9,7 +9,11 @@ from unittest import mock
 from click.testing import CliRunner
 
 from agentguard.cli import main
-from agentguard.guided.concretizer import concretize_field, concretize_mission
+from agentguard.guided.concretizer import (
+    _split_mission_concretized,
+    concretize_field,
+    concretize_mission,
+)
 
 # ── Shared mock AI results ────────────────────────────────────────────────────
 
@@ -255,3 +259,86 @@ def test_guided_ctrl_c_shows_save_progress_prompt():
 
     assert "Save progress" in result.output
     assert result.exit_code == 0
+
+
+# ── 11. Mission Format A: three explicit fields mapped correctly ──────────────
+
+def test_concretize_mission_format_a_maps_three_fields(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "authorized": "Read and write Python files in ./src",
+        "prohibited": "No database writes, no git push to main",
+        "requires_confirmation": "Any file deletion",
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
+        result = concretize_mission("implement features safely")
+
+    assert result["authorized"] == "Read and write Python files in ./src"
+    assert result["prohibited"] == "No database writes, no git push to main"
+    assert result["requires_confirmation"] == "Any file deletion"
+    assert result["confidence"] == "HIGH"
+    assert not result.get("_fallback")
+    assert not result.get("_format_b")
+
+
+# ── 12. Mission Format B: single concretized split into three fields ──────────
+
+def test_concretize_mission_format_b_split_into_three_fields(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "concretized": (
+            "Read and write Python files in ./src. "
+            "Must never delete production data. "
+            "Any deployment requires human approval."
+        ),
+        "confidence": "MEDIUM",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
+        result = concretize_mission("implement features")
+
+    assert "authorized" in result
+    assert "prohibited" in result
+    assert "requires_confirmation" in result
+    assert result.get("_format_b") is True
+    assert not result.get("_fallback")
+    assert "never" in result["prohibited"].lower()
+    assert "approval" in result["requires_confirmation"].lower()
+
+
+# ── 13. _split_mission_concretized: prohibited sentences extracted ────────────
+
+def test_split_mission_concretized_extracts_prohibited_sentences():
+    text = (
+        "May read Python files in ./src. "
+        "Must never write to ./production directory. "
+        "Run pytest to verify changes."
+    )
+    authorized, prohibited, confirmation = _split_mission_concretized(text)
+
+    assert "Must never" in prohibited
+    assert "never" not in authorized.lower()
+    assert confirmation == ""
+
+
+# ── 14. _split_mission_concretized: confirmation sentences extracted ──────────
+
+def test_split_mission_concretized_extracts_confirmation_sentences():
+    text = (
+        "Modify Python files in ./src. "
+        "Any deployment requires human approval. "
+        "Run tests automatically."
+    )
+    authorized, prohibited, confirmation = _split_mission_concretized(text)
+
+    assert "approval" in confirmation.lower()
+    assert "approval" not in authorized.lower()
+    assert prohibited == ""
