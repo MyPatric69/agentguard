@@ -74,10 +74,9 @@ before observability tools do.
 ## Related
 
 - Dev.to article: https://dev.to/mypatric69/the-blind-spot-of-agentic-ai-systems-when-nobody-notices-the-agent-is-stuck-1hkb
-- LinkedIn: https://www.linkedin.com/posts/patric-hayna-6b7b55134_the-blind-spot-of-agentic-ai-systems-when-activity-7467668285891821568-ZXtx
 
 ---
 
 ## Last updated
 
-2026-06-06 – v0.4.0: agentguard init --guided, guided/concretizer.py, 8 new tests (103 total)
+2026-06-06 – Auto-synced 1 commit(s) to 26ccf22
