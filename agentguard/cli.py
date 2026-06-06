@@ -25,6 +25,11 @@ from agentguard.output.renderer import (
 _console = Console()
 
 
+def _strip_quotes(value: str) -> str:
+    return value.strip().strip('"\'')
+
+
+
 def _update_claude_md(dest: Path, template_content: str) -> tuple[str, str]:
     """Write or append governance block to CLAUDE.md.
 
@@ -158,24 +163,24 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
     click.echo("AgentGuard — Interactive Setup\n")
     _console.print("Agent owner (name or role):")
     _console.print('  e.g. "Jane Smith", "DevOps Team Lead", "AI Platform Team"', style="bright_yellow")
-    owner = click.prompt("> ", prompt_suffix="")
+    owner = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     click.echo("\nAgent scope — answer these three questions:")
     _console.print("  What tasks is this agent authorized to perform?")
     _console.print('  e.g. "Read and modify Python files in ./src, run pytest suite"', style="bright_yellow")
-    scope_authorized = click.prompt("> ", prompt_suffix="")
+    scope_authorized = _strip_quotes(click.prompt("> ", prompt_suffix=""))
     _console.print("  What is explicitly NOT allowed?")
     _console.print('  e.g. "No database writes, no deletion outside ./tmp, no git push"', style="bright_yellow")
-    scope_prohibited = click.prompt("> ", prompt_suffix="")
+    scope_prohibited = _strip_quotes(click.prompt("> ", prompt_suffix=""))
     _console.print("  What requires human confirmation before execution?")
     _console.print(
         '  e.g. "Any file deletion, any production deployment, any git push"', style="bright_yellow"
     )
-    scope_confirmation = click.prompt("> ", prompt_suffix="")
+    scope_confirmation = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     _console.print("\nEscalation contact (email, Slack handle, or full name):")
     _console.print('  e.g. "jane@example.com", "@jane-smith (Slack)", "Jane Smith"', style="bright_yellow")
-    escalation_contact = click.prompt("> ", prompt_suffix="")
+    escalation_contact = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     click.echo("\nEscalation method:")
     click.echo("  [1] Log to agentguard.log only (default)")
@@ -189,7 +194,7 @@ def init_cmd(interactive: bool, template_only: bool) -> None:
     _console.print(
         '  e.g. "Ctrl+C", "kill $(pgrep -f agent.py)", "POST /api/agent/stop"', style="bright_yellow"
     )
-    killswitch = click.prompt("> ", prompt_suffix="")
+    killswitch = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     gov_yaml = (
         "# AgentGuard Governance Configuration\n"
