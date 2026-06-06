@@ -86,6 +86,307 @@ def _update_claude_md(dest: Path, template_content: str) -> tuple[str, str]:
         return "created", "Created: CLAUDE.md"
 
 
+GUIDED_STEPS = [
+    {
+        "step": 1,
+        "title": "Owner",
+        "question": "Who is responsible for this agent session?",
+        "example": 'e.g. "Jane Smith", "DevOps Team Lead"',
+        "field": "owner",
+        "concretize": False,
+    },
+    {
+        "step": 2,
+        "title": "Mission",
+        "question": (
+            "What should this agent accomplish?\n"
+            "Describe freely — AgentGuard will make it concrete."
+        ),
+        "example": 'e.g. "implement features in ./src, run tests, no external calls"',
+        "field": "mission",
+        "concretize": True,
+        "splits_into": ["scope.authorized", "scope.prohibited", "scope.requires_confirmation"],
+    },
+    {
+        "step": 3,
+        "title": "Hard Limits",
+        "question": "What should the agent NEVER do, regardless of instructions?",
+        "example": 'e.g. "delete production data, push to main without me"',
+        "field": "hard_limits",
+        "concretize": True,
+        "appends_to": "scope.prohibited",
+    },
+    {
+        "step": 4,
+        "title": "Escalation",
+        "question": "How should AgentGuard reach you when something goes wrong?",
+        "example": 'e.g. "email owner@example.com", "log to file"',
+        "field": "escalation",
+        "concretize": False,
+    },
+    {
+        "step": 5,
+        "title": "Killswitch",
+        "question": "How is this agent stopped if AgentGuard detects a violation?",
+        "example": 'e.g. "AgentGuard stops it automatically", "Ctrl+C"',
+        "field": "killswitch",
+        "concretize": False,
+    },
+]
+
+
+def _store_concretized(field: str, step: dict, ai_result: dict, results: dict) -> None:
+    if step.get("splits_into"):
+        results["scope.authorized"] = ai_result.get("authorized", "")
+        results["scope.prohibited"] = ai_result.get("prohibited", "")
+        results["scope.requires_confirmation"] = ai_result.get("requires_confirmation", "")
+    else:
+        results[field] = ai_result.get("concretized", "")
+
+
+def _show_concretized(step: dict, ai_result: dict) -> None:
+    from rich.panel import Panel
+    from rich.text import Text
+
+    if ai_result.get("_fallback"):
+        _console.print("  ⚠️  Could not concretize — saved as-is.", style="yellow")
+        return
+
+    confidence = ai_result.get("confidence", "?")
+    conf_style = {"HIGH": "green", "MEDIUM": "yellow", "LOW": "red"}.get(confidence, "white")
+
+    if step.get("splits_into"):
+        lines = [
+            Text(f"  Authorized:   {ai_result.get('authorized', '')[:56]}"),
+            Text(f"  Prohibited:   {ai_result.get('prohibited', '')[:56]}"),
+            Text(f"  Confirmation: {ai_result.get('requires_confirmation', '')[:56]}"),
+        ]
+    else:
+        lines = [Text(f"  Rule: {ai_result.get('concretized', '')[:58]}")]
+        notes = ai_result.get("enforcement_notes", "")
+        if notes:
+            lines.append(Text(f"  Enforcement: {notes[:55]}", style="dim"))
+
+    conf_text = Text()
+    conf_text.append(f"  Confidence: {confidence}", style=conf_style)
+    lines.append(conf_text)
+
+    ambiguities = ai_result.get("ambiguities") or []
+    if ambiguities:
+        lines.append(Text("  Ambiguities:", style="yellow"))
+        for a in ambiguities[:3]:
+            lines.append(Text(f"    • {str(a)[:55]}", style="yellow"))
+
+    content = Text("\n").join(lines)
+    _console.print(Panel(content, title="[bold]Concretized Rule[/bold]", border_style="cyan", expand=False, width=64))
+
+
+def _run_guided_step(step: dict, results: dict) -> None:
+    from agentguard.guided.concretizer import concretize_field, concretize_mission
+
+    _console.print(f"\n[bold]Step {step['step']}/5 — {step['title']}[/bold]")
+    _console.print(step["question"])
+    _console.print(f"  {step['example']}", style="bright_yellow")
+    user_input = _strip_quotes(click.prompt("> ", prompt_suffix=""))
+
+    if not step.get("concretize"):
+        results[step["field"]] = user_input
+        return
+
+    max_rounds = 3
+    current_input = user_input
+    ai_result: dict = {}
+
+    for round_num in range(max_rounds):
+        _console.print("\n[dim]Concretizing with AI...[/dim]")
+
+        if step.get("splits_into"):
+            ai_result = concretize_mission(current_input)
+        else:
+            ai_result = concretize_field(step["field"], current_input)
+
+        _show_concretized(step, ai_result)
+
+        if ai_result.get("_fallback"):
+            _store_concretized(step["field"], step, ai_result, results)
+            return
+
+        click.echo("\n  [1] Yes — use this")
+        click.echo("  [2] Adjust — I want to change something")
+        click.echo("  [3] Re-enter — start over")
+        choice = click.prompt("  Choose [1-3]", default="1")
+
+        if choice == "1":
+            _store_concretized(step["field"], step, ai_result, results)
+            return
+
+        if choice == "3":
+            _console.print(f"  {step['example']}", style="bright_yellow")
+            current_input = _strip_quotes(click.prompt("> ", prompt_suffix=""))
+            continue
+
+        # choice == "2" (adjust)
+        if round_num < max_rounds - 1:
+            _console.print("  What would you like to change?", style="bright_yellow")
+            adjustment = _strip_quotes(click.prompt("> ", prompt_suffix=""))
+            current_input = f"{current_input}. Adjustment: {adjustment}"
+        else:
+            _console.print(
+                "  ⚠️  Maximum adjustments reached — saved as-is. Run --ai-review to check quality.",
+                style="yellow",
+            )
+            _store_concretized(step["field"], step, ai_result, results)
+            return
+
+    _store_concretized(step["field"], step, ai_result, results)
+
+
+def _show_guided_review(results: dict) -> str:
+    from rich.panel import Panel
+    from rich.text import Text
+
+    def _short(text: str, n: int = 50) -> str:
+        return text[:n] + "…" if len(text) > n else text
+
+    prohibited = results.get("scope.prohibited", "")
+    hard_limits = results.get("hard_limits", "")
+    if hard_limits:
+        prohibited = f"{prohibited}, {hard_limits}".strip(", ") if prohibited else hard_limits
+
+    lines = [
+        Text(""),
+        Text(f"  Owner:      {_short(results.get('owner', '(not set)'))}"),
+        Text(f"  Authorized: {_short(results.get('scope.authorized', '(not set)'))}"),
+        Text(f"  Prohibited: {_short(prohibited or '(not set)')}"),
+        Text(f"  Confirms:   {_short(results.get('scope.requires_confirmation', '(not set)'))}"),
+        Text(f"  Escalation: {_short(results.get('escalation', '(not set)'))}"),
+        Text(f"  Killswitch: {_short(results.get('killswitch', '(not set)'))}"),
+        Text(""),
+        Text("  [1] Save — generate governance.yaml + hook config"),
+        Text("  [2] Adjust — review individual fields"),
+        Text("  [3] Start over"),
+    ]
+
+    content = Text("\n").join(lines)
+    _console.print(
+        Panel(
+            content,
+            title="[bold]GOVERNANCE REVIEW — confirm before saving[/bold]",
+            border_style="white",
+            expand=False,
+            width=64,
+        )
+    )
+
+    choice = click.prompt("  Choose [1-3]", default="1")
+
+    if choice == "1":
+        return "save"
+    if choice == "3":
+        return "restart"
+
+    # choice == "2": let user pick a field to redo
+    _adjustable = [
+        ("owner", "Owner", 0),
+        ("scope.authorized", "Authorized scope", 1),
+        ("scope.prohibited", "Prohibited scope", 2),
+        ("scope.requires_confirmation", "Requires confirmation", 1),
+        ("escalation", "Escalation", 3),
+        ("killswitch", "Killswitch", 4),
+    ]
+    for i, (_, label, _step_idx) in enumerate(_adjustable, 1):
+        click.echo(f"    [{i}] {label}")
+    field_choice = click.prompt("  Which field to adjust?", default="1")
+    try:
+        idx = int(field_choice) - 1
+        _key, _label, step_idx = _adjustable[idx]
+    except (ValueError, IndexError):
+        return "save"
+
+    _run_guided_step(GUIDED_STEPS[step_idx], results)
+    return _show_guided_review(results)
+
+
+def _save_guided(results: dict) -> None:
+    from datetime import date
+
+    from agentguard.ai_review import _DEFAULT_MODELS, _get_env
+
+    provider, _, _, model_override = _get_env()
+    model = (model_override or _DEFAULT_MODELS.get(provider or "")) if provider else "unknown"
+    concretization_note = f"AI-assisted ({provider}/{model})" if provider else "manual"
+
+    prohibited = results.get("scope.prohibited", "")
+    hard_limits = results.get("hard_limits", "")
+    if hard_limits:
+        prohibited = f"{prohibited}, {hard_limits}".strip(", ") if prohibited else hard_limits
+
+    today = date.today().isoformat()
+    gov_yaml = (
+        "# Generated by: agentguard init --guided\n"
+        f"# Date: {today}\n"
+        f"# Concretization: {concretization_note}\n"
+        "# Review with: agentguard check --ai-review\n"
+        f'owner: "{results.get("owner", "")}"\n'
+        "scope:\n"
+        f'  authorized: "{results.get("scope.authorized", "")}"\n'
+        f'  prohibited: "{prohibited}"\n'
+        f'  requires_confirmation: "{results.get("scope.requires_confirmation", "")}"\n'
+        "escalation:\n"
+        f'  contact: "{results.get("escalation", "")}"\n'
+        '  method: "log"\n'
+        '  trigger: "2+ critical failures or loop detected"\n'
+        f'killswitch: "{results.get("killswitch", "")}"\n'
+    )
+
+    Path("governance.yaml").write_text(gov_yaml)
+    _console.print("✅ governance.yaml — AI-concretized, ready for enforcement", style="green")
+    _console.print(f"✅ {_write_hook_config(Path('.'))}", style="green")
+
+    templates_dir = Path(__file__).parent / "templates"
+    _, msg = _update_claude_md(Path("CLAUDE.md"), (templates_dir / "claude_md_block.md").read_text())
+    _console.print(f"✅ {msg}", style="green")
+
+    _console.print("\nRun: agentguard check --ai-review to validate quality", style="dim")
+
+
+def _run_guided_init() -> None:
+    from agentguard.guided.concretizer import _ai_available
+
+    if not _ai_available():
+        click.echo(
+            "agentguard init --guided requires an AI provider.\n"
+            "Set AGENTGUARD_AI_PROVIDER and AGENTGUARD_AI_API_KEY in .env\n"
+            "or use: agentguard init --interactive",
+            err=True,
+        )
+        return
+
+    _console.print("[bold]AgentGuard — Guided Governance Setup[/bold]\n")
+    _console.print(
+        "Answer 5 questions. AgentGuard translates your intent into enforceable rules.\n",
+        style="dim",
+    )
+
+    results: dict = {}
+
+    try:
+        for step in GUIDED_STEPS:
+            _run_guided_step(step, results)
+
+        decision = _show_guided_review(results)
+
+        if decision == "save":
+            _save_guided(results)
+        elif decision == "restart":
+            _run_guided_init()
+
+    except KeyboardInterrupt:
+        click.echo("\n")
+        if results and click.confirm("Save progress so far?", default=False):
+            _save_guided(results)
+
+
 @click.group()
 @click.version_option(__version__, prog_name="agentguard")
 def main() -> None:
@@ -174,8 +475,18 @@ def report(session_log: str, output_path: str) -> None:
 @main.command("init")
 @click.option("--interactive", is_flag=True, default=False, help="Guided Q&A setup.")
 @click.option("--template-only", is_flag=True, default=False, help="Copy template governance.yaml only.")
-def init_cmd(interactive: bool, template_only: bool) -> None:
+@click.option(
+    "--guided",
+    is_flag=True,
+    default=False,
+    help="AI-powered guided concretization (requires API key in .env).",
+)
+def init_cmd(interactive: bool, template_only: bool, guided: bool) -> None:
     """Initialize AgentGuard in the current project."""
+    if guided:
+        _run_guided_init()
+        return
+
     templates_dir = Path(__file__).parent / "templates"
     gov_template = templates_dir / "governance.yaml"
     claude_template = templates_dir / "claude_md_block.md"

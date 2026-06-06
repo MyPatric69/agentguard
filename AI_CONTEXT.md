@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.3.0  
+**Version:** 0.4.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight checks,
 runtime loop detection, and post-session reporting.
@@ -22,7 +22,7 @@ before observability tools do.
 - Optional: Anthropic / OpenAI / Anysphere API (AI-powered scope review via --ai-review flag, provider-agnostic)
 - Build: hatchling, PyPI distribution planned
 
-## Current State (v0.3.0)
+## Current State (v0.4.0)
 
 - Pre-flight check: checks across 3 layers (governance, prompt, harness)
 - AI-powered scope quality review via `--ai-review` flag (opt-in)
@@ -38,14 +38,20 @@ before observability tools do.
   - Prohibited scope matching against tool input (rm -rf, git push, SQL ops)
   - Confirmation-required detection (Write/Edit tools, git push, deletion)
   - Enforcement log: agentguard-enforcement.log (deny decisions only)
+- agentguard init --guided: AI-powered 5-step guided concretization
+  - Transforms vague intent into enforceable rules (provider-agnostic)
+  - Per-field adjustment loop (max 3 rounds) with fallback to raw input
+  - Final review panel before saving; field-level re-do support
+  - Writes governance.yaml (with metadata), settings.json, CLAUDE.md
+  - Ctrl+C save-progress prompt; graceful on API failure
 - agentguard init: generates .claude/settings.json with PreToolUse hook
   - Merge-safe: existing hooks preserved when settings.json exists
-  - interactive + template-only modes
+  - interactive + template-only + guided modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
-- 95/95 tests passing, ruff clean
+- 103/103 tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
-## Open Items (v0.3.0 Part B)
+## Open Items
 
 - PyPI publish
 - Homebrew formula
@@ -55,6 +61,7 @@ before observability tools do.
 
 ## Key Files
 
+- `agentguard/guided/concretizer.py` — AI concretization logic for --guided
 - `agentguard/enforcement/enforcer.py` — PreToolUse hook enforcement logic
 - `agentguard/checks/preflight.py` — Layer 1 check logic
 - `agentguard/checks/runtime.py` — Layer 2 loop/stall/burn detection
@@ -73,4 +80,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-06 – Auto-synced 1 commit(s) to 48cc8b2
+2026-06-06 – v0.4.0: agentguard init --guided, guided/concretizer.py, 8 new tests (103 total)
