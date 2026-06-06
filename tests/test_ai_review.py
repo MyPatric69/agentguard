@@ -110,6 +110,32 @@ def test_api_failure_does_not_raise(monkeypatch):
             pytest.fail(f"review_scope raised unexpectedly: {exc}")
 
 
+# ── Markdown fence stripping ──────────────────────────────────────────────────
+
+def test_strip_fences_json_fenced_response(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    fenced = '```json\n{"score": 8, "verdict": "STRONG", "issues": [], "suggestion": "Good."}\n```'
+    with mock.patch("agentguard.ai_review._call_provider", return_value=fenced):
+        result = review_scope("authorized", "prohibited", "confirmation")
+    assert result is not None
+    assert result["score"] == 8
+    assert result["verdict"] == "STRONG"
+
+
+def test_strip_fences_plain_json_unchanged(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    plain = '{"score": 5, "verdict": "WEAK", "issues": ["too vague"], "suggestion": "Be specific."}'
+    with mock.patch("agentguard.ai_review._call_provider", return_value=plain):
+        result = review_scope("authorized", "prohibited", "confirmation")
+    assert result is not None
+    assert result["score"] == 5
+    assert result["verdict"] == "WEAK"
+
+
 # ── Invalid JSON — warning printed, returns None ──────────────────────────────
 
 def test_invalid_json_returns_none(monkeypatch, capsys):

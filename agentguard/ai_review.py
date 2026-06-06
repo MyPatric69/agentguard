@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -86,8 +87,9 @@ def review_scope(authorized: str, prohibited: str, requires_confirmation: str) -
         print(f"[AgentGuard AI Review] API call failed: {exc}")
         return None
 
+    text = _strip_fences(raw)
     try:
-        result: dict[str, Any] = json.loads(raw)
+        result: dict[str, Any] = json.loads(text)
     except json.JSONDecodeError:
         print(f"[AgentGuard AI Review] Invalid JSON response: {raw[:200]}")
         return None
@@ -95,6 +97,13 @@ def review_scope(authorized: str, prohibited: str, requires_confirmation: str) -
     result["_provider"] = provider
     result["_model"] = model
     return result
+
+
+def _strip_fences(text: str) -> str:
+    """Remove markdown code fences a model may wrap JSON in despite instructions."""
+    text = re.sub(r'^```(?:json)?\s*', '', text.strip())
+    text = re.sub(r'\s*```$', '', text)
+    return text.strip()
 
 
 def _call_provider(
@@ -116,7 +125,7 @@ def _call_anthropic(api_key: str, model: str, prompt: str) -> str:
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model=model,
-        max_tokens=512,
+        max_tokens=500,
         messages=[{"role": "user", "content": prompt}],
     )
     return message.content[0].text
@@ -136,6 +145,6 @@ def _call_openai_compat(api_key: str, base_url: str | None, model: str, prompt: 
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=512,
+        max_tokens=500,
     )
     return response.choices[0].message.content
