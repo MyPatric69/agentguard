@@ -201,3 +201,14 @@ def test_valid_json_response_returns_result(monkeypatch):
     assert result["verdict"] == "ACCEPTABLE"
     assert result["_provider"] == "anthropic"
     assert result["_model"] == "claude-haiku-4-5-20251001"
+
+
+# ── dotenv loading ────────────────────────────────────────────────────────────
+
+def test_load_dotenv_called_with_usecwd_true():
+    from agentguard.ai_review import _load_env
+
+    with mock.patch("agentguard.ai_review.find_dotenv", return_value="") as mock_find:
+        with mock.patch("agentguard.ai_review.load_dotenv"):
+            _load_env()
+    mock_find.assert_called_once_with(usecwd=True)

@@ -8,14 +8,17 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
-try:
-    from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-    load_dotenv()
-except ImportError:
-    pass
+
+def _load_env() -> None:
+    load_dotenv(dotenv_path=find_dotenv(usecwd=True) or Path.cwd() / ".env", override=True)
+
+
+_load_env()
 
 _DEFAULT_MODELS: dict[str, str] = {
     "anthropic": "claude-haiku-4-5-20251001",
