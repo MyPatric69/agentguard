@@ -255,6 +255,15 @@ def run_preflight(
         if _scan_patterns(py_content, ERROR_PATTERN_PATTERNS):
             findings.append(Finding("ok", "Error pattern detection found in harness"))
 
+    # ── Security documentation check ────────────────────────────────────────
+
+    security_files = ["security.md", "SECURITY.md", ".security.md"]
+    if not any((base / f).exists() for f in security_files):
+        findings.append(Finding(
+            "info",
+            "No security.md found — consider documenting security policies",
+        ))
+
     return findings
 
 

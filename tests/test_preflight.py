@@ -363,3 +363,25 @@ killswitch: "Ctrl+C"
     proj = _make_project(tmp_path, governance_yaml=gov, claude_md=_FULL_CLAUDE)
     findings = run_preflight(proj)
     assert _find(findings, "critical", "prohibited")
+
+
+# ── Security documentation check ─────────────────────────────────────────────
+
+def test_security_md_absent_triggers_info(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "info", "security.md")
+
+
+def test_security_md_present_no_info_check(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    (proj / "SECURITY.md").write_text("# Security Policy\n")
+    findings = run_preflight(proj)
+    assert not _find(findings, "info", "security.md")
+
+
+def test_security_md_lowercase_accepted(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    (proj / "security.md").write_text("# Security\n")
+    findings = run_preflight(proj)
+    assert not _find(findings, "info", "security.md")

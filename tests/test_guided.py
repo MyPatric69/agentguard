@@ -763,3 +763,154 @@ def test_concretize_mission_empty_response_uses_fallback_not_invalid(monkeypatch
     assert result.get("_fallback") is True
     assert "empty response" in result["ambiguities"][0]
     assert result["authorized"][0]["action"] == "implement features"
+
+
+# ── 34. Metadata comment uses actual mission model after save ─────────────────
+
+def test_save_guided_metadata_shows_mission_model():
+    from pathlib import Path
+
+    from agentguard.cli import _save_guided
+
+    results = {
+        "owner": "Alice",
+        "scope.authorized": [{"action": "Read files", "reason": "Core task"}],
+        "scope.prohibited": [],
+        "scope.requires_confirmation": [],
+        "escalation": "alice@example.com",
+        "killswitch": "Ctrl+C",
+        "_mission_model": "claude-sonnet-4-20250514",
+        "_mission_provider": "anthropic",
+    }
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.cli._write_hook_config", return_value="ok"),
+            mock.patch("agentguard.cli._update_claude_md", return_value=("created", "ok")),
+        ):
+            _save_guided(results)
+        gov = Path("governance.yaml").read_text()
+
+    assert "claude-sonnet-4-20250514" in gov
+    assert "anthropic/claude-sonnet-4-20250514" in gov
+
+
+# ── 35. Panel shows all items without truncation ──────────────────────────────
+
+def test_show_concretized_no_truncation():
+    from io import StringIO
+
+    from rich.console import Console
+
+    from agentguard.cli import _show_concretized
+
+    step = {"splits_into": ["scope.authorized", "scope.prohibited", "scope.requires_confirmation"]}
+    ai_result = {
+        "authorized": [
+            {"action": f"Action {i}", "reason": "Reason"} for i in range(5)
+        ],
+        "prohibited": [
+            {"action": f"Block {i}", "reason": "Risk", "severity": "HARD_LIMIT"} for i in range(4)
+        ],
+        "requires_confirmation": [
+            {"action": "Confirm deploy", "reason": "Needs sign-off"}
+        ],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    }
+
+    buf = StringIO()
+    from agentguard import cli as cli_module
+    original_console = cli_module._console
+    cli_module._console = Console(file=buf, force_terminal=False)
+    try:
+        _show_concretized(step, ai_result)
+    finally:
+        cli_module._console = original_console
+
+    output = buf.getvalue()
+    for i in range(5):
+        assert f"Action {i}" in output
+    for i in range(4):
+        assert f"Block {i}" in output
+    assert "(+5 more)" not in output
+    assert "(+4 more)" not in output
+    assert "(+3 more)" not in output
+
+
+# ── 36. Ambiguities accumulated across adjustment rounds, deduped ─────────────
+
+def test_guided_ambiguities_accumulated_across_rounds():
+    runner = CliRunner()
+
+    round_1_result = {
+        "authorized": [{"action": "Read files", "reason": "Core task"}],
+        "prohibited": [],
+        "requires_confirmation": [],
+        "confidence": "MEDIUM",
+        "ambiguities": ["Round-1 ambiguity: scope of files unclear"],
+        "_provider": "anthropic",
+        "_model": "claude-sonnet-4-20250514",
+    }
+    round_2_result = {
+        "authorized": [{"action": "Read Python files in ./src", "reason": "Core task"}],
+        "prohibited": [],
+        "requires_confirmation": [],
+        "confidence": "MEDIUM",
+        "ambiguities": [
+            "Round-2 ambiguity: time constraints not specified",
+            "Round-1 ambiguity: scope of files unclear",  # duplicate — should appear once
+        ],
+        "_provider": "anthropic",
+        "_model": "claude-sonnet-4-20250514",
+    }
+
+    calls = []
+    ambiguity_panel_args = []
+
+    def side_effect_mission(user_input):
+        calls.append(user_input)
+        return round_1_result if len(calls) == 1 else round_2_result
+
+    def mock_ambiguity_panel(ambiguities):
+        ambiguity_panel_args.append(list(ambiguities))
+        return "1"  # Proceed
+
+    _MOCK_FIELD_HIGH = {
+        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "confidence": "HIGH",
+        "ambiguities": [],
+        "_provider": "anthropic",
+        "_model": "claude-haiku-4-5-20251001",
+    }
+
+    user_input = (
+        "\n"                       # pre-inquiry
+        "Jane Smith\n"             # step 1: owner
+        "implement features\n"     # step 2: mission (round 1 → MEDIUM)
+        "2\n"                      # adjust
+        "be more specific\n"       # adjustment
+        "1\n"                      # accept round 2 (MEDIUM) → ambiguity panel (mocked, no prompt consumed)
+        "no production writes\n"   # step 3: hard limits
+        "1\n"                      # accept
+        "owner@example.com\n"      # step 4: escalation
+        "Ctrl+C\n"                 # step 5: killswitch
+        "1\n"                      # final review: save
+    )
+
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", side_effect=side_effect_mission),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD_HIGH),
+            mock.patch("agentguard.cli._show_ambiguity_panel", side_effect=mock_ambiguity_panel),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=user_input)
+
+    assert result.exit_code == 0, result.output
+    assert len(ambiguity_panel_args) == 1
+    panel_ambs = ambiguity_panel_args[0]
+    assert "Round-1 ambiguity: scope of files unclear" in panel_ambs
+    assert "Round-2 ambiguity: time constraints not specified" in panel_ambs
+    assert panel_ambs.count("Round-1 ambiguity: scope of files unclear") == 1

@@ -153,6 +153,10 @@ def _store_concretized(field: str, step: dict, ai_result: dict, results: dict) -
         results["scope.authorized"] = ai_result.get("authorized", [])
         results["scope.prohibited"] = ai_result.get("prohibited", [])
         results["scope.requires_confirmation"] = ai_result.get("requires_confirmation", [])
+        if ai_result.get("_model"):
+            results["_mission_model"] = ai_result["_model"]
+        if ai_result.get("_provider"):
+            results["_mission_provider"] = ai_result["_provider"]
     else:
         # hard_limits returns a structured prohibited list; other fields return concretized string
         prohibited = ai_result.get("prohibited")
@@ -173,6 +177,20 @@ def _items_summary(items: object, max_items: int = 2) -> str:
     return str(items or "")
 
 
+def _field_lines(label: str, items: object) -> list[Text]:
+    """Render all items for a field label — no truncation."""
+    if isinstance(items, list):
+        if not items:
+            return [_wrap_guided_line(f"  {label}: ", "(none)")]
+        lines = []
+        for i, item in enumerate(items):
+            action = item.get("action", "") if isinstance(item, dict) else str(item)
+            prefix = f"  {label}: " if i == 0 else "    • "
+            lines.append(_wrap_guided_line(prefix, action))
+        return lines
+    return [_wrap_guided_line(f"  {label}: ", str(items or "(none)"))]
+
+
 def _show_concretized(step: dict, ai_result: dict) -> None:
     from rich.panel import Panel
     from rich.text import Text
@@ -185,15 +203,17 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
     conf_style = {"HIGH": "green", "MEDIUM": "yellow", "LOW": "red"}.get(confidence, "white")
 
     if step.get("splits_into"):
-        lines = [
-            _wrap_guided_line("  Authorized:   ", _items_summary(ai_result.get("authorized", []))),
-            _wrap_guided_line("  Prohibited:   ", _items_summary(ai_result.get("prohibited", []))),
-            _wrap_guided_line("  Confirmation: ", _items_summary(ai_result.get("requires_confirmation", []))),
-        ]
+        lines = (
+            _field_lines("Authorized", ai_result.get("authorized", []))
+            + _field_lines("Prohibited", ai_result.get("prohibited", []))
+            + _field_lines("Confirmation", ai_result.get("requires_confirmation", []))
+        )
     else:
         prohibited = ai_result.get("prohibited")
-        rule_text = _items_summary(prohibited) if isinstance(prohibited, list) else ai_result.get("concretized", "")
-        lines = [_wrap_guided_line("  Rule: ", rule_text)]
+        if isinstance(prohibited, list):
+            lines = _field_lines("Rule", prohibited)
+        else:
+            lines = [_wrap_guided_line("  Rule: ", ai_result.get("concretized", ""))]
 
     notes = ai_result.get("enforcement_notes", "")
     if notes:
@@ -208,7 +228,7 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
     ambiguities = ai_result.get("ambiguities") or []
     if ambiguities:
         lines.append(Text("  Ambiguities:", style="yellow"))
-        for a in ambiguities[:3]:
+        for a in ambiguities:
             amb_line = _wrap_guided_line("    • ", str(a))
             amb_line.stylize("yellow")
             lines.append(amb_line)
@@ -225,7 +245,7 @@ def _show_ambiguity_panel(ambiguities: list) -> str:
         Text(""),
         Text("  The following points remain unclear:", style="yellow"),
     ]
-    for a in ambiguities[:5]:
+    for a in ambiguities:
         line = Text(f"  • {a}", style="yellow")
         lines.append(line)
     lines += [
@@ -274,6 +294,7 @@ def _run_guided_step(step: dict, results: dict) -> None:
     max_rounds = 3
     current_input = user_input
     ai_result: dict = {}
+    accumulated_ambiguities: list[str] = []
 
     for round_num in range(max_rounds):
         _console.print("\n[dim]Concretizing with AI...[/dim]")
@@ -289,6 +310,11 @@ def _run_guided_step(step: dict, results: dict) -> None:
             _store_concretized(step["field"], step, ai_result, results)
             return
 
+        for a in (ai_result.get("ambiguities") or []):
+            a_str = str(a)
+            if a_str and a_str not in accumulated_ambiguities:
+                accumulated_ambiguities.append(a_str)
+
         click.echo("\n  [1] Yes — use this")
         click.echo("  [2] Adjust — I want to change something")
         click.echo("  [3] Re-enter — start over")
@@ -296,19 +322,19 @@ def _run_guided_step(step: dict, results: dict) -> None:
 
         if choice == "1":
             confidence = ai_result.get("confidence", "HIGH")
-            ambiguities = ai_result.get("ambiguities") or []
-            if confidence in ("MEDIUM", "LOW") and ambiguities:
-                amb_choice = _show_ambiguity_panel(ambiguities)
+            if confidence in ("MEDIUM", "LOW") and accumulated_ambiguities:
+                amb_choice = _show_ambiguity_panel(accumulated_ambiguities)
                 if amb_choice == "2":
                     _console.print("  What would you like to clarify?", style="bright_yellow")
                     clarification = _strip_quotes(click.prompt("> ", prompt_suffix=""))
                     current_input = f"{current_input}. Clarification: {clarification}"
                     continue
-                results.setdefault("_ambiguities", []).extend(ambiguities)
+                results.setdefault("_ambiguities", []).extend(accumulated_ambiguities)
             _store_concretized(step["field"], step, ai_result, results)
             return
 
         if choice == "3":
+            accumulated_ambiguities = []
             _console.print(f"  {step['example']}", style="bright_yellow")
             current_input = _strip_quotes(click.prompt("> ", prompt_suffix=""))
             continue
@@ -434,9 +460,14 @@ def _save_guided(results: dict) -> None:
     from agentguard import __version__
     from agentguard.ai_review import _DEFAULT_MODELS, _get_env
 
-    provider, _, _, model_override = _get_env()
-    model = (model_override or _DEFAULT_MODELS.get(provider or "")) if provider else "unknown"
-    concretization_note = f"AI-assisted ({provider}/{model})" if provider else "manual"
+    mission_model = results.get("_mission_model")
+    mission_provider = results.get("_mission_provider")
+    if mission_provider and mission_model:
+        concretization_note = f"AI-assisted ({mission_provider}/{mission_model})"
+    else:
+        provider, _, _, model_override = _get_env()
+        model = (model_override or _DEFAULT_MODELS.get(provider or "")) if provider else "unknown"
+        concretization_note = f"AI-assisted ({provider}/{model})" if provider else "manual"
     today = date.today().isoformat()
 
     def _with_date(items: object) -> list:
