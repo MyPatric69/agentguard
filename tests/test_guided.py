@@ -10,6 +10,7 @@ from click.testing import CliRunner
 
 from agentguard.cli import main
 from agentguard.guided.concretizer import (
+    _normalize_from_concretized,
     _split_mission_concretized,
     concretize_field,
     concretize_mission,
@@ -560,3 +561,91 @@ def test_concretize_mission_format_b_has_auto_reason(monkeypatch):
     for item in result["authorized"] + result["prohibited"]:
         assert "reason" in item
         assert item["reason"] == "Extracted from governance definition — review and refine"
+
+
+# ── 23. Two-shot prompt produces Format A correctly ───────────────────────────
+
+def test_concretize_mission_two_shot_returns_format_a(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "authorized": [{"action": "Review performance metrics", "reason": "Core task"}],
+        "prohibited": [{"action": "Deploy without approval", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "requires_confirmation": [{"action": "Add new dependencies", "reason": "Security surface"}],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
+        result = concretize_mission("improve system performance")
+
+    assert isinstance(result["authorized"], list)
+    assert isinstance(result["prohibited"], list)
+    assert isinstance(result["requires_confirmation"], list)
+    assert result["prohibited"][0]["severity"] == "HARD_LIMIT"
+    assert not result.get("_format_b")
+    assert not result.get("_fallback")
+
+
+# ── 24. _normalize_from_concretized: "never" → prohibited HARD_LIMIT ─────────
+
+def test_normalize_from_concretized_hard_limit_sentence():
+    text = "Read Python files in ./src. The agent must never push to main."
+    parts = _normalize_from_concretized(text)
+
+    assert any(item.get("severity") == "HARD_LIMIT" for item in parts["prohibited"])
+    assert any("Read Python" in item["action"] for item in parts["authorized"])
+
+
+# ── 25. _normalize_from_concretized: "must not" → prohibited WARNING ──────────
+
+def test_normalize_from_concretized_must_not_is_warning():
+    text = "Read source files in ./src. The agent must not write to ./production."
+    parts = _normalize_from_concretized(text)
+
+    prohibited = parts["prohibited"]
+    assert len(prohibited) >= 1
+    assert any(item.get("severity") == "WARNING" for item in prohibited)
+    assert not any(item.get("severity") == "HARD_LIMIT" for item in prohibited)
+
+
+# ── 26. _normalize_from_concretized: "requires confirmation" → confirmation ───
+
+def test_normalize_from_concretized_requires_confirmation():
+    text = "Run pytest suite. Any deployment requires human approval."
+    parts = _normalize_from_concretized(text)
+
+    assert len(parts["requires_confirmation"]) >= 1
+    assert any("approval" in item["action"].lower() for item in parts["requires_confirmation"])
+
+
+# ── 27. _normalize_from_concretized: plain sentence → authorized ──────────────
+
+def test_normalize_from_concretized_plain_sentence_is_authorized():
+    text = "Read and write Python files in ./src. Run the test suite."
+    parts = _normalize_from_concretized(text)
+
+    assert len(parts["authorized"]) >= 1
+    assert parts["prohibited"] == []
+    assert parts["requires_confirmation"] == []
+
+
+# ── 28. concretize_mission uses max_tokens=800 ────────────────────────────────
+
+def test_concretize_mission_uses_max_tokens_800(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "authorized": [{"action": "Read files", "reason": "Core task"}],
+        "prohibited": [],
+        "requires_confirmation": [],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        concretize_mission("implement features")
+
+    assert mock_call.call_args.kwargs.get("max_tokens") == 800

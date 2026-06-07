@@ -107,16 +107,16 @@ def _strip_fences(text: str) -> str:
 
 
 def _call_provider(
-    provider: str, api_key: str, base_url: str | None, model: str, prompt: str
+    provider: str, api_key: str, base_url: str | None, model: str, prompt: str, max_tokens: int = 500
 ) -> str:
     if provider == "anthropic":
-        return _call_anthropic(api_key, model, prompt)
+        return _call_anthropic(api_key, model, prompt, max_tokens=max_tokens)
     if provider in ("openai", "anysphere", "openai-compatible"):
-        return _call_openai_compat(api_key, base_url, model, prompt)
+        return _call_openai_compat(api_key, base_url, model, prompt, max_tokens=max_tokens)
     raise ValueError(f"Unknown provider: {provider}")
 
 
-def _call_anthropic(api_key: str, model: str, prompt: str) -> str:
+def _call_anthropic(api_key: str, model: str, prompt: str, max_tokens: int = 500) -> str:
     try:
         import anthropic
     except ImportError:
@@ -125,13 +125,13 @@ def _call_anthropic(api_key: str, model: str, prompt: str) -> str:
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model=model,
-        max_tokens=500,
+        max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
     )
     return message.content[0].text
 
 
-def _call_openai_compat(api_key: str, base_url: str | None, model: str, prompt: str) -> str:
+def _call_openai_compat(api_key: str, base_url: str | None, model: str, prompt: str, max_tokens: int = 500) -> str:
     try:
         import openai
     except ImportError:
@@ -145,6 +145,6 @@ def _call_openai_compat(api_key: str, base_url: str | None, model: str, prompt: 
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=500,
+        max_tokens=max_tokens,
     )
     return response.choices[0].message.content

@@ -22,22 +22,27 @@ _MISSION_PROMPT = """\
 You are an AI governance expert. Split this agent mission into structured
 governance rules with action/reason for each item.
 
-User intent: "{user_input}"
+You MUST respond with exactly this JSON structure.
+Here is an example of the correct format:
 
-You MUST respond with exactly this JSON structure, no other format:
 {{
   "authorized": [
-    {{"action": "concrete action description", "reason": "why this action is authorized — business or technical rationale"}}
+    {{"action": "Read source files in ./src", "reason": "Agent needs to understand codebase before making changes"}},
+    {{"action": "Run pytest test suite", "reason": "Verify changes don't break existing functionality"}}
   ],
   "prohibited": [
-    {{"action": "concrete prohibition", "reason": "why this is prohibited — risk or policy rationale", "severity": "HARD_LIMIT|CRITICAL|WARNING"}}
+    {{"action": "Deploy to production", "reason": "Production changes require human sign-off", "severity": "HARD_LIMIT"}},
+    {{"action": "Commit to main branch", "reason": "All changes must go through review", "severity": "HARD_LIMIT"}}
   ],
   "requires_confirmation": [
-    {{"action": "action requiring confirmation", "reason": "why human confirmation is needed"}}
+    {{"action": "Add new dependencies", "reason": "Dependencies affect security and maintenance burden"}}
   ],
-  "confidence": "HIGH|MEDIUM|LOW",
-  "ambiguities": ["list any unclear points"]
+  "confidence": "HIGH",
+  "ambiguities": []
 }}
+
+Now apply this exact structure to the following agent mission:
+"{user_input}"
 
 Rules:
 - Be specific: file paths, command names, patterns — no vague terms
@@ -64,8 +69,12 @@ All severity values MUST be "HARD_LIMIT". Be specific and actionable."""
 
 # Sentence-level classifiers for Format B splitting
 _PROHIBITED_RE = re.compile(r"\b(not|never|deny|block|must\s+not)\b", re.IGNORECASE)
-_CONFIRMATION_RE = re.compile(r"\b(confirmation|approval|human)\b", re.IGNORECASE)
+_CONFIRMATION_RE = re.compile(r"\b(confirmation|approval|human|requires)\b", re.IGNORECASE)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+# Classifiers for _normalize_from_concretized (priority order: HARD_LIMIT > CONFIRMATION > WARNING)
+_HARD_LIMIT_SENTENCE_RE = re.compile(r"\b(HARD_LIMIT|DENY|never|prohibited)\b", re.IGNORECASE)
+_SOFT_PROHIBITED_RE = re.compile(r"\b(must\s+not|cannot|blocked|restricted)\b|\bno\s+\w+", re.IGNORECASE)
 
 
 def _ai_available() -> bool:
@@ -123,6 +132,43 @@ def _split_mission_concretized(text: str) -> tuple[list[dict], list[dict], list[
     return authorized, prohibited, confirmation
 
 
+def _normalize_from_concretized(text: str) -> dict[str, list[dict]]:
+    """Split a flat concretized text into structured authorized/prohibited/confirmation lists.
+
+    Priority order:
+    1. HARD_LIMIT keywords (never, prohibited, HARD_LIMIT, DENY) → prohibited HARD_LIMIT
+    2. Confirmation keywords (confirmation, approval, human, requires) → requires_confirmation
+    3. Soft prohibitive keywords (must not, cannot, no X, blocked, restricted) → prohibited WARNING
+    4. Everything else → authorized
+    """
+    sentences = [s.strip() for s in _SENTENCE_SPLIT_RE.split(text) if s.strip()]
+    if not sentences:
+        return {
+            "authorized": [{"action": text, "reason": _AUTO_REASON}],
+            "prohibited": [],
+            "requires_confirmation": [],
+        }
+
+    authorized: list[dict] = []
+    prohibited: list[dict] = []
+    confirmation: list[dict] = []
+
+    for sentence in sentences:
+        if _HARD_LIMIT_SENTENCE_RE.search(sentence):
+            prohibited.append({"action": sentence, "reason": _AUTO_REASON, "severity": "HARD_LIMIT"})
+        elif _CONFIRMATION_RE.search(sentence):
+            confirmation.append({"action": sentence, "reason": _AUTO_REASON})
+        elif _SOFT_PROHIBITED_RE.search(sentence):
+            prohibited.append({"action": sentence, "reason": _AUTO_REASON, "severity": "WARNING"})
+        else:
+            authorized.append({"action": sentence, "reason": _AUTO_REASON})
+
+    if not authorized and not prohibited and not confirmation:
+        authorized = [{"action": text, "reason": _AUTO_REASON}]
+
+    return {"authorized": authorized, "prohibited": prohibited, "requires_confirmation": confirmation}
+
+
 def concretize_mission(user_input: str) -> dict[str, Any]:
     """Concretize mission description into structured authorized/prohibited/confirmation rules."""
     provider, api_key, base_url, model_override = _get_env()
@@ -135,7 +181,7 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
 
     prompt = _MISSION_PROMPT.format(user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, model, prompt)
+        raw = _call_provider(provider, api_key, base_url, model, prompt, max_tokens=800)
         parsed: dict[str, Any] = json.loads(_strip_fences(raw))
 
         # Format A — preferred: response already has explicit three-field structure
@@ -147,13 +193,13 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
             parsed["_model"] = model
             return parsed
 
-        # Format B — fallback: response used single concretized field; split it
+        # Format B — fallback: response used single concretized field; split with robust classifier
         concretized = parsed.get("concretized", "")
-        authorized, prohibited, confirmation = _split_mission_concretized(concretized)
+        parts = _normalize_from_concretized(concretized)
         return {
-            "authorized": authorized,
-            "prohibited": prohibited,
-            "requires_confirmation": confirmation,
+            "authorized": parts["authorized"],
+            "prohibited": parts["prohibited"],
+            "requires_confirmation": parts["requires_confirmation"],
             "enforcement_notes": parsed.get("enforcement_notes", ""),
             "confidence": parsed.get("confidence", "MEDIUM"),
             "ambiguities": (parsed.get("ambiguities") or [])
