@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.4.1  
+**Version:** 0.5.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight checks,
 runtime loop detection, and post-session reporting.
@@ -22,7 +22,7 @@ before observability tools do.
 - Optional: Anthropic / OpenAI / Anysphere API (AI-powered scope review via --ai-review flag, provider-agnostic)
 - Build: hatchling, PyPI distribution planned
 
-## Current State (v0.4.1)
+## Current State (v0.5.0)
 
 - Pre-flight check: checks across 3 layers (governance, prompt, harness)
 - AI-powered scope quality review via `--ai-review` flag (opt-in)
@@ -47,6 +47,8 @@ before observability tools do.
   - Ctrl+C save-progress prompt; graceful on API failure
   - Pre-inquiry screen shown before Step 1 (realistic expectations)
   - Ambiguity confirmation when confidence MEDIUM/LOW
+  - Metadata comment shows actual model used (not env default)
+  - Ambiguities accumulated across all adjustment rounds (deduplicated)
 - **New in v0.4.1: Structured governance.yaml schema**
   - scope.authorized/prohibited/requires_confirmation are lists of objects
   - Each rule has: action + reason + severity (prohibited) + added date
@@ -54,11 +56,22 @@ before observability tools do.
   - unresolved_ambiguities as structured list with status
   - Backward compatible: legacy flat-string format still supported
   - AI concretization generates reason for every rule automatically
+- **New in v0.5.0: agentguard review command**
+  - Interactive field-by-field governance review
+  - Keep / Add / Remove / Replace rules for any scope field
+  - Mark ambiguities as resolved with audit timestamp
+  - --guided flag: AI-assisted rule concretization via concretize_field
+  - --field flag: single field review without going through full menu
+  - governance_history entry appended on every save (date, tool, changed_fields)
+  - View full governance.yaml with Rich syntax highlighting
+  - Module: agentguard/review/reviewer.py
 - agentguard init: generates .claude/settings.json with PreToolUse hook
   - Merge-safe: existing hooks preserved when settings.json exists
   - interactive + template-only + guided modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
-- 129/129 tests passing, ruff clean
+- security.md absence triggers INFO check in preflight
+- MISSION_MODEL_OVERRIDES: sonnet for mission concretization (haiku for other fields)
+- 166/166 tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
 ## Open Items
@@ -68,11 +81,11 @@ before observability tools do.
 - OpenAI Agents + LangChain support
 - SKILL.md validation improvements
 - Runtime Watch via native JSONL (direct Claude Code log integration)
-- agentguard review command
 
 ## Key Files
 
 - `agentguard/guided/concretizer.py` — AI concretization logic for --guided
+- `agentguard/review/reviewer.py` — Governance reviewer (load, review, save)
 - `agentguard/enforcement/enforcer.py` — PreToolUse hook enforcement logic
 - `agentguard/checks/preflight.py` — Layer 1 check logic
 - `agentguard/checks/runtime.py` — Layer 2 loop/stall/burn detection
@@ -90,4 +103,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-07 – v0.4.1: structured governance.yaml with action/reason/history
+2026-06-07 – v0.5.0: agentguard review command, security.md check, mission model improvements

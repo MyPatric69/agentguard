@@ -217,6 +217,28 @@ agentguard report --session ./run1.log --output r.md   # custom paths
 
 ---
 
+### `agentguard review`
+
+Review and update existing governance.yaml interactively.
+
+```bash
+agentguard review                          # interactive field-by-field review
+agentguard review --guided                 # AI-assisted rule concretization
+agentguard review --field authorized       # review a specific field only
+agentguard review --path ./my-project      # review a project in another directory
+```
+
+Shows a summary of current governance, then offers:
+- **Review all fields** — walk through each scope field, keep/add/remove/replace rules
+- **Review specific field** — focus on one field
+- **Add new rules** — append to an existing field
+- **Mark ambiguities as resolved** — close open ambiguities with an audit timestamp
+- **View full governance.yaml** — Rich syntax-highlighted display
+
+All changes are logged in `governance_history` with the date, tool, and changed fields.
+
+---
+
 ### `agentguard override`
 
 Override CRITICAL findings and proceed. The `--reason` flag is mandatory and the override is logged.
@@ -297,6 +319,8 @@ All enforcement decisions are logged to `agentguard-enforcement.log`.
 AgentGuard enforces at the tool execution layer. It cannot prevent
 Claude from *reasoning* toward a blocked action — only from *executing* it.
 For production systems, combine with OS-level sandboxing.
+
+See [What AgentGuard Cannot Do](#what-agentguard-cannot-do) for the full list.
 
 ---
 
@@ -413,6 +437,73 @@ is institutional memory.
 | Attempt counter | `attempt_count`, `retry_count`, `max_attempts` |
 | Action log | `action_log`, `log_action`, `append.*log` |
 | Error pattern detection | `same_error`, `error_pattern`, `consecutive_errors` |
+
+---
+
+## Governance Review Cycle
+
+Governance defined today may not fit your project in three months.
+`agentguard review` ensures governance stays current.
+
+```bash
+# Review all governance fields interactively
+agentguard review
+
+# Review with AI-assisted concretization
+agentguard review --guided
+
+# Review a specific field only
+agentguard review --field authorized
+
+# Review a project in another directory
+agentguard review --path ./my-project
+```
+
+Use `agentguard review` when:
+- The project scope has changed significantly
+- Team members have changed (handover situation)
+- Unresolved ambiguities need to be addressed
+- A governance audit is due
+- The agent produced unexpected results
+
+All changes are logged in `governance_history` — full audit trail
+of when governance changed, what changed, and which tool was used.
+
+---
+
+## Pre-Inquiry — Quality In, Quality Out
+
+The quality of your governance is directly proportional to the
+quality of your preparation.
+
+AgentGuard cannot fill knowledge gaps — it exposes them.
+The owner bears responsibility for what they define.
+
+Before running `agentguard init --guided`, know:
+- Which directories and files the agent may touch
+- Which external APIs or services are involved
+- What success looks like — in measurable terms
+- Who is accountable when something goes wrong
+- What the agent must never do — without exceptions
+
+Vague input produces vague governance. Vague governance produces
+unenforceable rules. Unenforceable rules produce incidents.
+
+---
+
+## What AgentGuard Cannot Do
+
+- **Guarantee model behavior** — AgentGuard enforces at the tool
+  execution layer. It cannot prevent Claude from reasoning toward
+  a blocked action, only from executing it.
+- **Fill knowledge gaps** — Ambiguities in your governance definition
+  reflect real gaps in your understanding of the agent's scope.
+  AgentGuard documents them; you must resolve them.
+- **Replace security practices** — For production systems, combine
+  AgentGuard with OS-level sandboxing (Docker, seccomp, file ACLs).
+- **Enforce on non-hook frameworks** — Enforcement requires Claude
+  Code hooks. For other frameworks, use `agentguard enforce`
+  manually in your own harness.
 
 ---
 
