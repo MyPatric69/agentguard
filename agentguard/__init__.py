@@ -1,4 +1,10 @@
 """AgentGuard — Governance layer for autonomous AI agents."""
 
-__version__ = "0.4.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("agentguard")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
+
 __author__ = "AgentGuard Contributors"

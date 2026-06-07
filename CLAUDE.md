@@ -42,3 +42,9 @@ If the same approach fails 2+ times in a row:
 - All new behavior must have a corresponding test
 - Tests live in `tests/` and mirror the module structure
 - Use `tmp_path` pytest fixture for file system tests — never write to the real project root in tests
+
+## Version Management
+- Version is defined ONLY in `pyproject.toml`
+- `agentguard/__init__.py` reads version dynamically via importlib.metadata
+- Never hardcode version in __init__.py
+- On release: update pyproject.toml version only

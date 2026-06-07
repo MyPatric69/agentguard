@@ -102,3 +102,22 @@ def test_claude_md_appended_multiple_times_stacks_blocks(tmp_path):
 
     result = dest.read_text()
     assert result.count("## AgentGuard Governance Block\n") == 2
+
+
+# ── Version management ────────────────────────────────────────────────────────
+
+def test_version_is_not_dev_sentinel():
+    from agentguard import __version__
+    assert __version__ != "0.0.0-dev"
+
+
+def test_version_matches_pyproject_toml():
+    import re
+    from pathlib import Path
+
+    from agentguard import __version__
+
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    match = re.search(r'^version\s*=\s*"([^"]+)"', pyproject.read_text(), re.MULTILINE)
+    assert match, "version not found in pyproject.toml"
+    assert __version__ == match.group(1)
