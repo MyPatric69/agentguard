@@ -75,88 +75,98 @@ def _extract_keywords(text: str) -> list[str]:
     return keywords
 
 
-def check_prohibited(tool_name: str, tool_input: dict, scope: dict) -> str | None:
-    prohibited_text = scope.get("prohibited", "").lower()
-    if not prohibited_text:
-        return None
-
-    tool_str = _flatten_input(tool_input).lower()
-    input_summary = tool_str[:100]
-    prohibited_full = scope.get("prohibited", "")
-
-    # rm -rf / recursive deletion
+def _match_prohibited_text(tool_name: str, tool_str: str, prohibited_text: str) -> bool:
+    """Return True if tool_str matches the given prohibited text string."""
     if re.search(r"\brm\s+-\S*[rf]", tool_str):
         if any(kw in prohibited_text for kw in _DELETION_SCOPE_WORDS):
-            return (
-                f"Action '{tool_name}: {input_summary}' violates prohibited scope:"
-                f" {prohibited_full}"
-            )
-
-    # git push
+            return True
     if "git push" in tool_str and "git push" in prohibited_text:
-        return (
-            f"Action '{tool_name}: {input_summary}' violates prohibited scope:"
-            f" {prohibited_full}"
-        )
-
-    # SQL / database operations
+        return True
     words = set(re.findall(r"\b\w+\b", tool_str))
     if words & _DB_OPS and any(kw in prohibited_text for kw in _DB_SCOPE_WORDS):
+        return True
+    for keyword in _extract_keywords(prohibited_text):
+        if len(keyword) > 3 and keyword in tool_str:
+            return True
+    return False
+
+
+def _match_confirmation_text(tool_name: str, tool_str: str, confirmation_text: str) -> bool:
+    """Return True if tool_str matches the given confirmation text string."""
+    if re.search(r"\brm\s+-\S*[rf]", tool_str) or "rm -f" in tool_str:
+        if any(kw in confirmation_text for kw in _DELETION_SCOPE_WORDS):
+            return True
+    if "git push" in tool_str and "git push" in confirmation_text:
+        return True
+    if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        if any(kw in confirmation_text for kw in _WRITE_SCOPE_WORDS):
+            return True
+    for keyword in _extract_keywords(confirmation_text):
+        if len(keyword) > 3 and keyword in tool_str:
+            return True
+    return False
+
+
+def check_prohibited(tool_name: str, tool_input: dict, scope: dict) -> str | None:
+    prohibited = scope.get("prohibited", "")
+    tool_str = _flatten_input(tool_input).lower()
+    input_summary = tool_str[:100]
+
+    if isinstance(prohibited, list):
+        for item in prohibited:
+            if not isinstance(item, dict):
+                continue
+            action = item.get("action", "")
+            severity = item.get("severity", "")
+            if _match_prohibited_text(tool_name, tool_str, action.lower()):
+                prefix = "HARD_LIMIT: " if severity == "HARD_LIMIT" else ""
+                return (
+                    f"{prefix}Action '{tool_name}: {input_summary}' violates prohibited scope:"
+                    f" {action}"
+                )
+        return None
+
+    # Legacy string path
+    prohibited_text = str(prohibited or "").lower()
+    if not prohibited_text:
+        return None
+    prohibited_full = str(prohibited or "")
+
+    if _match_prohibited_text(tool_name, tool_str, prohibited_text):
         return (
             f"Action '{tool_name}: {input_summary}' violates prohibited scope:"
             f" {prohibited_full}"
         )
-
-    # General keyword matching extracted from prohibited text
-    for keyword in _extract_keywords(prohibited_text):
-        if len(keyword) > 3 and keyword in tool_str:
-            return (
-                f"Action '{tool_name}: {input_summary}' violates prohibited scope:"
-                f" {prohibited_full}"
-            )
-
     return None
 
 
 def check_confirmation(tool_name: str, tool_input: dict, scope: dict) -> str | None:
-    confirmation_text = scope.get("requires_confirmation", "").lower()
-    if not confirmation_text:
-        return None
-
+    confirmation = scope.get("requires_confirmation", "")
     tool_str = _flatten_input(tool_input).lower()
     input_summary = tool_str[:100]
 
-    # rm -rf / deletion commands
-    if re.search(r"\brm\s+-\S*[rf]", tool_str) or "rm -f" in tool_str:
-        if any(kw in confirmation_text for kw in _DELETION_SCOPE_WORDS):
-            return (
-                f"Action '{tool_name}: {input_summary}' requires human confirmation"
-                " per governance.yaml"
-            )
+    if isinstance(confirmation, list):
+        for item in confirmation:
+            if not isinstance(item, dict):
+                continue
+            action = item.get("action", "")
+            if _match_confirmation_text(tool_name, tool_str, action.lower()):
+                return (
+                    f"Action '{tool_name}: {input_summary}' requires human confirmation"
+                    " per governance.yaml"
+                )
+        return None
 
-    # git push
-    if "git push" in tool_str and "git push" in confirmation_text:
+    # Legacy string path
+    confirmation_text = str(confirmation or "").lower()
+    if not confirmation_text:
+        return None
+
+    if _match_confirmation_text(tool_name, tool_str, confirmation_text):
         return (
             f"Action '{tool_name}: {input_summary}' requires human confirmation"
             " per governance.yaml"
         )
-
-    # Write / Edit tools — check for write-related confirmation keywords
-    if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
-        if any(kw in confirmation_text for kw in _WRITE_SCOPE_WORDS):
-            return (
-                f"Action '{tool_name}: {input_summary}' requires human confirmation"
-                " per governance.yaml"
-            )
-
-    # General keyword matching extracted from requires_confirmation
-    for keyword in _extract_keywords(confirmation_text):
-        if len(keyword) > 3 and keyword in tool_str:
-            return (
-                f"Action '{tool_name}: {input_summary}' requires human confirmation"
-                " per governance.yaml"
-            )
-
     return None
 
 

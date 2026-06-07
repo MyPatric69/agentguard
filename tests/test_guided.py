@@ -18,9 +18,9 @@ from agentguard.guided.concretizer import (
 # ── Shared mock AI results ────────────────────────────────────────────────────
 
 _MOCK_MISSION = {
-    "authorized": "Read and write Python files in ./src",
-    "prohibited": "No database operations, no git push to main",
-    "requires_confirmation": "Any file deletion outside ./tmp",
+    "authorized": [{"action": "Read and write Python files in ./src", "reason": "Core task"}],
+    "prohibited": [{"action": "No database operations, no git push to main", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+    "requires_confirmation": [{"action": "Any file deletion outside ./tmp", "reason": "Needs human sign-off"}],
     "confidence": "HIGH",
     "ambiguities": [],
     "_provider": "anthropic",
@@ -28,7 +28,7 @@ _MOCK_MISSION = {
 }
 
 _MOCK_FIELD = {
-    "concretized": "No writes to ./production directory",
+    "prohibited": [{"action": "No writes to ./production directory", "reason": "Production writes prohibited", "severity": "HARD_LIMIT"}],
     "enforcement_notes": "Check file paths in Write tool calls",
     "confidence": "HIGH",
     "ambiguities": [],
@@ -49,9 +49,9 @@ _HAPPY_PATH_INPUT = (
 )
 
 _MOCK_MISSION_MEDIUM = {
-    "authorized": "Read and write Python files in ./src",
-    "prohibited": "No database operations, no git push to main",
-    "requires_confirmation": "Any file deletion outside ./tmp",
+    "authorized": [{"action": "Read and write Python files in ./src", "reason": "Core task"}],
+    "prohibited": [{"action": "No database operations, no git push to main", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+    "requires_confirmation": [{"action": "Any file deletion outside ./tmp", "reason": "Needs sign-off"}],
     "confidence": "MEDIUM",
     "ambiguities": ["Definition of 'features' is unclear", "Scope of file access not bounded"],
     "_provider": "anthropic",
@@ -135,7 +135,8 @@ def test_concretize_field_no_api_key_returns_fallback(monkeypatch):
     result = concretize_field("hard_limits", "no production writes")
 
     assert result["_fallback"] is True
-    assert result["concretized"] == "no production writes"
+    assert isinstance(result["prohibited"], list)
+    assert result["prohibited"][0]["action"] == "no production writes"
     assert result["confidence"] == "LOW"
 
 
@@ -152,7 +153,8 @@ def test_concretize_field_api_failure_returns_fallback(monkeypatch):
         result = concretize_field("hard_limits", "no production writes")
 
     assert result["_fallback"] is True
-    assert "no production writes" in result["concretized"]
+    assert isinstance(result["prohibited"], list)
+    assert "no production writes" in result["prohibited"][0]["action"]
 
 
 # ── 6. No API key in env: guided init shows clear error ──────────────────────
@@ -247,7 +249,7 @@ def test_guided_confirms_field_written_to_governance_yaml():
         assert result.exit_code == 0, result.output
         gov = Path("governance.yaml").read_text()
 
-    assert 'requires_confirmation: "Any file deletion outside ./tmp"' in gov
+    assert 'action: "Any file deletion outside ./tmp"' in gov
 
 
 # ── 8. Ctrl+C: save-progress prompt is shown ─────────────────────────────────
@@ -281,19 +283,24 @@ def test_concretize_mission_format_a_maps_three_fields(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
 
+    # AI returns new structured list format
     mock_response = json.dumps({
-        "authorized": "Read and write Python files in ./src",
-        "prohibited": "No database writes, no git push to main",
-        "requires_confirmation": "Any file deletion",
+        "authorized": [{"action": "Read and write Python files in ./src", "reason": "Core task"}],
+        "prohibited": [{"action": "No database writes, no git push to main", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "requires_confirmation": [{"action": "Any file deletion", "reason": "Needs sign-off"}],
         "confidence": "HIGH",
         "ambiguities": [],
     })
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("implement features safely")
 
-    assert result["authorized"] == "Read and write Python files in ./src"
-    assert result["prohibited"] == "No database writes, no git push to main"
-    assert result["requires_confirmation"] == "Any file deletion"
+    assert isinstance(result["authorized"], list)
+    assert result["authorized"][0]["action"] == "Read and write Python files in ./src"
+    assert isinstance(result["prohibited"], list)
+    assert result["prohibited"][0]["action"] == "No database writes, no git push to main"
+    assert result["prohibited"][0]["severity"] == "HARD_LIMIT"
+    assert isinstance(result["requires_confirmation"], list)
+    assert result["requires_confirmation"][0]["action"] == "Any file deletion"
     assert result["confidence"] == "HIGH"
     assert not result.get("_fallback")
     assert not result.get("_format_b")
@@ -318,13 +325,13 @@ def test_concretize_mission_format_b_split_into_three_fields(monkeypatch):
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("implement features")
 
-    assert "authorized" in result
-    assert "prohibited" in result
-    assert "requires_confirmation" in result
+    assert isinstance(result["authorized"], list)
+    assert isinstance(result["prohibited"], list)
+    assert isinstance(result["requires_confirmation"], list)
     assert result.get("_format_b") is True
     assert not result.get("_fallback")
-    assert "never" in result["prohibited"].lower()
-    assert "approval" in result["requires_confirmation"].lower()
+    assert any("never" in item.get("action", "").lower() for item in result["prohibited"])
+    assert any("approval" in item.get("action", "").lower() for item in result["requires_confirmation"])
 
 
 # ── 13. _split_mission_concretized: prohibited sentences extracted ────────────
@@ -337,9 +344,10 @@ def test_split_mission_concretized_extracts_prohibited_sentences():
     )
     authorized, prohibited, confirmation = _split_mission_concretized(text)
 
-    assert "Must never" in prohibited
-    assert "never" not in authorized.lower()
-    assert confirmation == ""
+    assert isinstance(prohibited, list)
+    assert any("Must never" in item.get("action", "") for item in prohibited)
+    assert not any("never" in item.get("action", "").lower() for item in authorized)
+    assert confirmation == []
 
 
 # ── 14. _split_mission_concretized: confirmation sentences extracted ──────────
@@ -352,9 +360,10 @@ def test_split_mission_concretized_extracts_confirmation_sentences():
     )
     authorized, prohibited, confirmation = _split_mission_concretized(text)
 
-    assert "approval" in confirmation.lower()
-    assert "approval" not in authorized.lower()
-    assert prohibited == ""
+    assert isinstance(confirmation, list)
+    assert any("approval" in item.get("action", "").lower() for item in confirmation)
+    assert not any("approval" in item.get("action", "").lower() for item in authorized)
+    assert prohibited == []
 
 
 # ── 15. Pre-inquiry screen shown before Step 1 ───────────────────────────────
@@ -422,7 +431,7 @@ def test_guided_ambiguity_prompt_not_shown_for_high_confidence():
     assert "UNRESOLVED AMBIGUITIES" not in result.output
 
 
-# ── 18. [1] Proceed: ambiguities written as comments in governance.yaml ───────
+# ── 18. [1] Proceed: ambiguities written as structured list in governance.yaml ─
 
 def test_guided_proceed_writes_ambiguities_as_yaml_comments():
     runner = CliRunner()
@@ -448,8 +457,8 @@ def test_guided_proceed_writes_ambiguities_as_yaml_comments():
 
         assert result.exit_code == 0, result.output
         gov = Path("governance.yaml").read_text()
-        assert "# Unresolved ambiguities" in gov
-        assert "# - Definition of 'features' is unclear" in gov
+        assert "unresolved_ambiguities" in gov
+        assert "Definition of 'features' is unclear" in gov
 
 
 # ── 19. [2] Address: re-concretization triggered with clarification ───────────
@@ -488,3 +497,66 @@ def test_guided_address_ambiguity_triggers_reconcretization():
     assert result.exit_code == 0, result.output
     assert len(concretize_call_args) >= 2, "concretize_mission should be called twice"
     assert "Clarification:" in concretize_call_args[1]
+
+
+# ── 20. Structured YAML: governance.yaml contains action/reason/severity ──────
+
+def test_guided_governance_yaml_has_structured_scope():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+        assert result.exit_code == 0, result.output
+        gov = Path("governance.yaml").read_text()
+
+    assert "authorized:" in gov
+    assert "prohibited:" in gov
+    assert "requires_confirmation:" in gov
+    assert 'action: "Read and write Python files in ./src"' in gov
+    assert 'severity: "HARD_LIMIT"' in gov
+    assert "governance_history:" in gov
+    assert 'action: "Initial governance created"' in gov
+
+
+# ── 21. Structured YAML: reason field present for every item ──────────────────
+
+def test_guided_governance_yaml_has_reason_fields():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+        assert result.exit_code == 0, result.output
+        gov = Path("governance.yaml").read_text()
+
+    assert "reason:" in gov
+    assert "added:" in gov
+
+
+# ── 22. Format B fallback wraps sentences with auto-generated reason ──────────
+
+def test_concretize_mission_format_b_has_auto_reason(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "concretized": "Read Python files in ./src. Must never push to main.",
+        "confidence": "MEDIUM",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
+        result = concretize_mission("implement features")
+
+    for item in result["authorized"] + result["prohibited"]:
+        assert "reason" in item
+        assert item["reason"] == "Extracted from governance definition — review and refine"

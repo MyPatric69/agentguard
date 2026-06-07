@@ -52,22 +52,36 @@ def _is_invalid_contact(contact: str) -> bool:
     return True
 
 
+def _scope_non_empty(field_value: object) -> bool:
+    """Return True if scope field has at least one non-empty value (string or structured list)."""
+    if isinstance(field_value, list):
+        return any(isinstance(item, dict) and item.get("action") for item in field_value)
+    return bool(str(field_value or "").strip())
+
+
+def _scope_text(field_value: object) -> str:
+    """Extract plain text from scope field — handles both string and structured list."""
+    if isinstance(field_value, list):
+        return " ".join(item.get("action", "") for item in field_value if isinstance(item, dict)).strip()
+    return str(field_value or "").strip()
+
+
 def _check_scope(config: dict, findings: list[Finding], *, ai_review: bool = False) -> None:
     """Validate structured scope fields and append findings."""
     raw_scope = config.get("scope", {})
 
     if isinstance(raw_scope, str):
         # Legacy single-string scope — treat as authorized only
-        scope = {"authorized": raw_scope, "prohibited": "", "requires_confirmation": ""}
+        scope: dict = {"authorized": raw_scope, "prohibited": "", "requires_confirmation": ""}
     else:
         scope = raw_scope
 
-    authorized = scope.get("authorized", "").strip()
-    prohibited = scope.get("prohibited", "").strip()
-    requires_confirmation = scope.get("requires_confirmation", "").strip()
+    authorized = scope.get("authorized")
+    prohibited = scope.get("prohibited")
+    requires_confirmation = scope.get("requires_confirmation")
 
     # authorized
-    if not authorized:
+    if not _scope_non_empty(authorized):
         findings.append(Finding(get_severity(config, "no_scope"), "No authorized scope defined"))
     else:
         findings.append(Finding("ok", "Authorized scope defined"))
@@ -78,15 +92,20 @@ def _check_scope(config: dict, findings: list[Finding], *, ai_review: bool = Fal
             ))
 
     # prohibited
-    if not prohibited:
+    if not _scope_non_empty(prohibited):
         findings.append(Finding(get_severity(config, "no_scope"), "No prohibited actions defined in scope"))
-    elif not any(word in prohibited.lower() for word in _SCOPE_BOUNDARY_WORDS):
-        findings.append(Finding("warning", "Scope has no boundaries defined (use 'no', 'not', 'never', etc.)"))
-    else:
+    elif isinstance(prohibited, list):
+        # Structured list — items are inherently prohibitions, no boundary-word check needed
         findings.append(Finding("ok", "Scope boundaries defined"))
+    else:
+        prohibited_text = _scope_text(prohibited)
+        if not any(word in prohibited_text.lower() for word in _SCOPE_BOUNDARY_WORDS):
+            findings.append(Finding("warning", "Scope has no boundaries defined (use 'no', 'not', 'never', etc.)"))
+        else:
+            findings.append(Finding("ok", "Scope boundaries defined"))
 
     # requires_confirmation
-    if not requires_confirmation:
+    if not _scope_non_empty(requires_confirmation):
         findings.append(Finding(
             get_severity(config, "no_scope"),
             "No confirmation-required actions defined in scope",

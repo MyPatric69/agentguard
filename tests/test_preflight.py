@@ -289,3 +289,77 @@ def test_escalation_contact_invalid_is_warning_not_critical(tmp_path):
     findings = run_preflight(proj)
     assert _find(findings, "warning", "escalation contact appears invalid")
     assert not _find(findings, "critical", "escalation contact")
+
+
+# ── List format scope checks ──────────────────────────────────────────────────
+
+_VALID_STRUCTURED_GOV = """\
+owner: "Alice"
+scope:
+  authorized:
+    - action: "Read and write Python files in ./src"
+      reason: "Core task"
+      added: "2026-06-07"
+  prohibited:
+    - action: "Deploy code to production without approval"
+      reason: "Production changes require sign-off"
+      severity: "HARD_LIMIT"
+      added: "2026-06-07"
+  requires_confirmation:
+    - action: "Any git push"
+      reason: "Needs human review"
+      added: "2026-06-07"
+escalation:
+  contact: alice@example.com
+killswitch: "Ctrl+C"
+"""
+
+
+def test_scope_list_format_authorized_ok(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_STRUCTURED_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "ok", "authorized scope defined")
+
+
+def test_scope_list_format_prohibited_ok(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_STRUCTURED_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "ok", "scope boundaries defined")
+
+
+def test_scope_list_format_confirmation_ok(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_STRUCTURED_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "ok", "confirmation requirements defined")
+
+
+def test_scope_list_format_no_criticals(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_STRUCTURED_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert not has_criticals(findings)
+
+
+def test_scope_legacy_string_format_still_valid(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert not has_criticals(findings)
+
+
+def test_scope_list_empty_prohibited_triggers_critical(tmp_path):
+    gov = """\
+owner: "Alice"
+scope:
+  authorized:
+    - action: "Read files"
+      reason: "Core task"
+  prohibited: []
+  requires_confirmation:
+    - action: "Any deletion"
+      reason: "Needs sign-off"
+escalation:
+  contact: alice@example.com
+killswitch: "Ctrl+C"
+"""
+    proj = _make_project(tmp_path, governance_yaml=gov, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "critical", "prohibited")

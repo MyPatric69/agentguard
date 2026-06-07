@@ -305,15 +305,40 @@ For production systems, combine with OS-level sandboxing.
 ```yaml
 # Required (CRITICAL if missing)
 owner: "Jane Smith"
+
 scope:
-  authorized: "Refactor authentication module — read/write Python files only"
-  prohibited: "No database operations, no deletions outside ./src"
-  requires_confirmation: "Any git push, any file deletion"
+  authorized:
+    - action: "Read and write Python files in ./src"
+      reason: "Core task — agent must modify source files"
+      added: "2026-06-07"
+
+  prohibited:
+    - action: "No database schema changes or production writes"
+      reason: "Production data changes require human review — no exceptions"
+      severity: "HARD_LIMIT"
+      added: "2026-06-07"
+    - action: "No git push to main branch"
+      reason: "All changes must go through pull request review"
+      severity: "HARD_LIMIT"
+      added: "2026-06-07"
+
+  requires_confirmation:
+    - action: "Any file deletion outside ./tmp"
+      reason: "File deletion is irreversible — requires explicit sign-off"
+      added: "2026-06-07"
+
 escalation:
   contact: "jane@example.com"
   method: "log"              # log | terminal | file
   trigger: "2+ critical failures or loop detected"
+
 killswitch: "Ctrl+C"
+
+governance_history:
+  - date: "2026-06-07"
+    action: "Initial governance created"
+    tool: "agentguard init --guided"
+    version: "0.4.1"
 
 # Severity overrides (critical | warning | info)
 severity:
@@ -342,6 +367,22 @@ override:
   require_reason: true
   log_overrides: true
 ```
+
+### Why structured governance matters
+
+Each governance rule includes:
+- **action** — what is allowed, prohibited, or requires confirmation
+- **reason** — why this decision was made (critical for future reference)
+- **severity** — `HARD_LIMIT`, `CRITICAL`, or `WARNING` (prohibited rules only)
+- **added** — when the rule was created
+
+Six months from now — after staff changes, project handovers, or
+simply forgetting — the `reason` field answers: "What did we mean by this?"
+
+Governance without context is a checklist. Governance with context
+is institutional memory.
+
+> Legacy flat-string format is still supported for backward compatibility.
 
 ---
 

@@ -88,3 +88,45 @@ def test_escalation_method_file(tmp_path):
     gov.write_text("escalation:\n  contact: alice@example.com\n  method: file\n")
     config = load_config(gov)
     assert config["escalation"]["method"] == "file"
+
+
+# ── New structured scope format ───────────────────────────────────────────────
+
+def test_load_config_list_scope_format(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "owner: Alice\n"
+        "scope:\n"
+        "  authorized:\n"
+        '    - action: "Read Python files"\n'
+        '      reason: "Core task"\n'
+        "  prohibited:\n"
+        '    - action: "No git push"\n'
+        '      reason: "Hard limit"\n'
+        '      severity: "HARD_LIMIT"\n'
+        "  requires_confirmation:\n"
+        '    - action: "Any deletion"\n'
+        '      reason: "Irreversible"\n'
+    )
+    config = load_config(gov)
+    assert config["owner"] == "Alice"
+    authorized = config["scope"]["authorized"]
+    assert isinstance(authorized, list)
+    assert authorized[0]["action"] == "Read Python files"
+    prohibited = config["scope"]["prohibited"]
+    assert isinstance(prohibited, list)
+    assert prohibited[0]["severity"] == "HARD_LIMIT"
+
+
+def test_load_config_legacy_string_scope_preserved(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "owner: Alice\n"
+        "scope:\n"
+        "  authorized: read and modify Python files in ./src\n"
+        "  prohibited: no database operations\n"
+        "  requires_confirmation: any file deletion\n"
+    )
+    config = load_config(gov)
+    assert config["scope"]["authorized"] == "read and modify Python files in ./src"
+    assert config["scope"]["prohibited"] == "no database operations"

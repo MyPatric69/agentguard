@@ -242,3 +242,105 @@ def test_write_hook_config_skips_if_already_present(tmp_path):
     )
     assert enforce_count == 1
     assert "Skipped" in result
+
+
+# ── List format scope: new structured governance.yaml ─────────────────────────
+
+_GOV_PROHIBITED_LIST = """\
+owner: Alice
+scope:
+  authorized:
+    - action: "Read Python files in ./src"
+      reason: "Core task"
+  prohibited:
+    - action: "Delete files outside ./tmp"
+      reason: "Prevent data loss"
+      severity: "HARD_LIMIT"
+    - action: "git push to main"
+      reason: "Requires review"
+      severity: "HARD_LIMIT"
+    - action: "No database operations"
+      reason: "No DB access"
+      severity: "CRITICAL"
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+_GOV_CONFIRMATION_LIST = """\
+owner: Alice
+scope:
+  authorized:
+    - action: "Read Python files in ./src"
+      reason: "Core task"
+  prohibited: []
+  requires_confirmation:
+    - action: "Any write operation or file modification"
+      reason: "Needs sign-off"
+    - action: "Any git push"
+      reason: "Requires review"
+    - action: "Any file deletion"
+      reason: "Irreversible"
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+
+# ── 13. List format: rm -rf matches prohibited item ──────────────────────────
+
+def test_block_rm_rf_prohibited_list_format(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED_LIST)
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(_hook("Bash", {"command": "rm -rf dist"}, str(tmp_path)))
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 14. List format: git push → HARD_LIMIT prefix in denial reason ────────────
+
+def test_block_git_push_hard_limit_prefix(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED_LIST)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "git push origin main"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    out = json.loads(capsys.readouterr().out)
+    reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "HARD_LIMIT" in reason
+
+
+# ── 15. List format: Write tool triggers requires_confirmation ────────────────
+
+def test_block_write_confirmation_list_format(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION_LIST)
+    tool_input = {"path": "/outside/src/config.yaml", "content": "key: value"}
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path)))
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert "confirmation" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── 16. List format: allow clean command when no match ───────────────────────
+
+def test_allow_clean_command_list_format(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED_LIST)
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(_hook("Bash", {"command": "pytest"}, str(tmp_path)))
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""

@@ -150,11 +150,27 @@ def _wrap_guided_line(prefix: str, text: str) -> Text:
 
 def _store_concretized(field: str, step: dict, ai_result: dict, results: dict) -> None:
     if step.get("splits_into"):
-        results["scope.authorized"] = ai_result.get("authorized", "")
-        results["scope.prohibited"] = ai_result.get("prohibited", "")
-        results["scope.requires_confirmation"] = ai_result.get("requires_confirmation", "")
+        results["scope.authorized"] = ai_result.get("authorized", [])
+        results["scope.prohibited"] = ai_result.get("prohibited", [])
+        results["scope.requires_confirmation"] = ai_result.get("requires_confirmation", [])
     else:
-        results[field] = ai_result.get("concretized", "")
+        # hard_limits returns a structured prohibited list; other fields return concretized string
+        prohibited = ai_result.get("prohibited")
+        if isinstance(prohibited, list):
+            results[field] = prohibited
+        else:
+            results[field] = ai_result.get("concretized", "")
+
+
+def _items_summary(items: object, max_items: int = 2) -> str:
+    """Extract a short display text from a list of structured items or a plain string."""
+    if isinstance(items, list):
+        texts = [item.get("action", "") for item in items[:max_items] if isinstance(item, dict)]
+        result = "; ".join(t for t in texts if t)
+        if len(items) > max_items:
+            result += f" (+{len(items) - max_items} more)"
+        return result
+    return str(items or "")
 
 
 def _show_concretized(step: dict, ai_result: dict) -> None:
@@ -170,12 +186,14 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
 
     if step.get("splits_into"):
         lines = [
-            _wrap_guided_line("  Authorized:   ", ai_result.get("authorized", "")),
-            _wrap_guided_line("  Prohibited:   ", ai_result.get("prohibited", "")),
-            _wrap_guided_line("  Confirmation: ", ai_result.get("requires_confirmation", "")),
+            _wrap_guided_line("  Authorized:   ", _items_summary(ai_result.get("authorized", []))),
+            _wrap_guided_line("  Prohibited:   ", _items_summary(ai_result.get("prohibited", []))),
+            _wrap_guided_line("  Confirmation: ", _items_summary(ai_result.get("requires_confirmation", []))),
         ]
     else:
-        lines = [_wrap_guided_line("  Rule: ", ai_result.get("concretized", ""))]
+        prohibited = ai_result.get("prohibited")
+        rule_text = _items_summary(prohibited) if isinstance(prohibited, list) else ai_result.get("concretized", "")
+        lines = [_wrap_guided_line("  Rule: ", rule_text)]
 
     notes = ai_result.get("enforcement_notes", "")
     if notes:
@@ -315,19 +333,23 @@ def _show_guided_review(results: dict) -> str:
     from rich.panel import Panel
     from rich.text import Text
 
-    def _short(text: str, n: int = 50) -> str:
+    def _short(value: object, n: int = 50) -> str:
+        text = _items_summary(value) if isinstance(value, list) else str(value or "(not set)")
+        if not text:
+            text = "(not set)"
         return text[:n] + "…" if len(text) > n else text
 
-    prohibited = results.get("scope.prohibited", "")
-    hard_limits = results.get("hard_limits", "")
-    if hard_limits:
-        prohibited = f"{prohibited}, {hard_limits}".strip(", ") if prohibited else hard_limits
+    prohibited_raw = results.get("scope.prohibited", [])
+    hard_limits_raw = results.get("hard_limits", [])
+    all_prohibited: list = (prohibited_raw if isinstance(prohibited_raw, list) else []) + (
+        hard_limits_raw if isinstance(hard_limits_raw, list) else []
+    )
 
     lines = [
         Text(""),
         Text(f"  Owner:      {_short(results.get('owner', '(not set)'))}"),
         Text(f"  Authorized: {_short(results.get('scope.authorized', '(not set)'))}"),
-        Text(f"  Prohibited: {_short(prohibited or '(not set)')}"),
+        Text(f"  Prohibited: {_short(all_prohibited or '(not set)')}"),
         Text(f"  Confirms:   {_short(results.get('scope.requires_confirmation', '(not set)'))}"),
         Text(f"  Escalation: {_short(results.get('escalation', '(not set)'))}"),
         Text(f"  Killswitch: {_short(results.get('killswitch', '(not set)'))}"),
@@ -377,46 +399,97 @@ def _show_guided_review(results: dict) -> str:
     return _show_guided_review(results)
 
 
+def _yaml_item_block(items: list, today: str) -> str:
+    """Render a list of structured scope items as YAML block lines."""
+    if not items:
+        return "    []\n"
+    lines: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get("action", "")).replace('"', '\\"')
+        reason = str(item.get("reason", "")).replace('"', '\\"')
+        added = item.get("added", today)
+        lines.append(f'    - action: "{action}"')
+        lines.append(f'      reason: "{reason}"')
+        if "severity" in item:
+            lines.append(f'      severity: "{item["severity"]}"')
+        lines.append(f'      added: "{added}"')
+    return "\n".join(lines) + "\n"
+
+
+def _yaml_ambiguity_block(ambiguities: list, today: str) -> str:
+    lines: list[str] = []
+    for a in ambiguities:
+        text = str(a).replace('"', '\\"')
+        lines.append(f'    - text: "{text}"')
+        lines.append(f'      added: "{today}"')
+        lines.append('      status: "open"')
+    return "\n".join(lines) + "\n"
+
+
 def _save_guided(results: dict) -> None:
     from datetime import date
 
+    from agentguard import __version__
     from agentguard.ai_review import _DEFAULT_MODELS, _get_env
 
     provider, _, _, model_override = _get_env()
     model = (model_override or _DEFAULT_MODELS.get(provider or "")) if provider else "unknown"
     concretization_note = f"AI-assisted ({provider}/{model})" if provider else "manual"
-
-    prohibited = results.get("scope.prohibited", "")
-    hard_limits = results.get("hard_limits", "")
-    if hard_limits:
-        prohibited = f"{prohibited}, {hard_limits}".strip(", ") if prohibited else hard_limits
-
     today = date.today().isoformat()
 
+    def _with_date(items: object) -> list:
+        if not isinstance(items, list):
+            return []
+        return [{**item, "added": today} if "added" not in item else item for item in items if isinstance(item, dict)]
+
+    authorized_items = _with_date(results.get("scope.authorized", []))
+    prohibited_items = _with_date(results.get("scope.prohibited", []))
+    confirmation_items = _with_date(results.get("scope.requires_confirmation", []))
+
+    hard_limits = results.get("hard_limits", [])
+    if isinstance(hard_limits, list):
+        prohibited_items = prohibited_items + _with_date(hard_limits)
+    elif hard_limits:
+        prohibited_items.append({
+            "action": str(hard_limits),
+            "reason": "Hard limit — manually specified",
+            "severity": "HARD_LIMIT",
+            "added": today,
+        })
+
     accumulated_ambiguities = results.get("_ambiguities", [])
-    ambiguity_block = ""
-    if accumulated_ambiguities:
-        amb_lines = [f"  # Unresolved ambiguities ({today}):"]
-        for a in accumulated_ambiguities:
-            amb_lines.append(f"  # - {a}")
-        ambiguity_block = "\n".join(amb_lines) + "\n"
+    amb_section = (
+        "  unresolved_ambiguities:\n" + _yaml_ambiguity_block(accumulated_ambiguities, today)
+        if accumulated_ambiguities
+        else ""
+    )
 
     gov_yaml = (
         "# Generated by: agentguard init --guided\n"
         f"# Date: {today}\n"
         f"# Concretization: {concretization_note}\n"
-        "# Review with: agentguard check --ai-review\n"
-        f'owner: "{results.get("owner", "")}"\n'
+        "# Review with: agentguard check --ai-review\n\n"
+        f'owner: "{results.get("owner", "")}"\n\n'
         "scope:\n"
-        f'  authorized: "{results.get("scope.authorized", "")}"\n'
-        f'  prohibited: "{prohibited}"\n'
-        f'  requires_confirmation: "{results.get("scope.requires_confirmation", "")}"\n'
-        f"{ambiguity_block}"
-        "escalation:\n"
-        f'  contact: "{results.get("escalation", "")}"\n'
-        '  method: "log"\n'
-        '  trigger: "2+ critical failures or loop detected"\n'
-        f'killswitch: "{results.get("killswitch", "")}"\n'
+        "  authorized:\n"
+        + _yaml_item_block(authorized_items, today)
+        + "  prohibited:\n"
+        + _yaml_item_block(prohibited_items, today)
+        + "  requires_confirmation:\n"
+        + _yaml_item_block(confirmation_items, today)
+        + amb_section
+        + "\nescalation:\n"
+        + f'  contact: "{results.get("escalation", "")}"\n'
+        + '  method: "log"\n'
+        + '  trigger: "2+ critical failures or loop detected"\n\n'
+        + f'killswitch: "{results.get("killswitch", "")}"\n\n'
+        + "governance_history:\n"
+        + f'  - date: "{today}"\n'
+        + '    action: "Initial governance created"\n'
+        + '    tool: "agentguard init --guided"\n'
+        + f'    version: "{__version__}"\n'
     )
 
     Path("governance.yaml").write_text(gov_yaml)
