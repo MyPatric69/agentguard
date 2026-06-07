@@ -6,6 +6,7 @@ Uses AI provider (from .env) to concretize each governance field.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
@@ -17,6 +18,12 @@ from agentguard.ai_review import (
 )
 
 _AUTO_REASON = "Extracted from governance definition — review and refine"
+
+MISSION_MODEL_OVERRIDES: dict[str, str] = {
+    "anthropic": "claude-sonnet-4-20250514",
+    "openai": "gpt-4o",
+    "anysphere": "cursor-fast",
+}
 
 _MISSION_PROMPT = """\
 You are an AI governance expert. Split this agent mission into structured
@@ -179,9 +186,15 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
     if not model:
         return _mission_fallback(user_input, "No model configured")
 
+    mission_model = (
+        os.getenv("AGENTGUARD_MISSION_MODEL")
+        or MISSION_MODEL_OVERRIDES.get(provider)
+        or model
+    )
+
     prompt = _MISSION_PROMPT.format(user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, model, prompt, max_tokens=800)
+        raw = _call_provider(provider, api_key, base_url, mission_model, prompt, max_tokens=800)
         parsed: dict[str, Any] = json.loads(_strip_fences(raw))
 
         # Format A — preferred: response already has explicit three-field structure
@@ -190,24 +203,28 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
             parsed["prohibited"] = _normalize_items(parsed.get("prohibited"), "HARD_LIMIT")
             parsed["requires_confirmation"] = _normalize_items(parsed.get("requires_confirmation"))
             parsed["_provider"] = provider
-            parsed["_model"] = model
+            parsed["_model"] = mission_model
             return parsed
 
-        # Format B — fallback: response used single concretized field; split with robust classifier
-        concretized = parsed.get("concretized", "")
-        parts = _normalize_from_concretized(concretized)
-        return {
-            "authorized": parts["authorized"],
-            "prohibited": parts["prohibited"],
-            "requires_confirmation": parts["requires_confirmation"],
-            "enforcement_notes": parsed.get("enforcement_notes", ""),
-            "confidence": parsed.get("confidence", "MEDIUM"),
-            "ambiguities": (parsed.get("ambiguities") or [])
-            + ["Response used single-field format — auto-split applied"],
-            "_provider": provider,
-            "_model": model,
-            "_format_b": True,
-        }
+        # Format B — response used single concretized field; split with robust classifier
+        if "concretized" in parsed:
+            concretized = parsed["concretized"]
+            parts = _normalize_from_concretized(concretized)
+            return {
+                "authorized": parts["authorized"],
+                "prohibited": parts["prohibited"],
+                "requires_confirmation": parts["requires_confirmation"],
+                "enforcement_notes": parsed.get("enforcement_notes", ""),
+                "confidence": parsed.get("confidence", "MEDIUM"),
+                "ambiguities": (parsed.get("ambiguities") or [])
+                + ["Response used single-field format — auto-split applied"],
+                "_provider": provider,
+                "_model": mission_model,
+                "_format_b": True,
+            }
+
+        # Truly empty response — neither Format A nor Format B
+        return _mission_fallback(user_input, "empty response")
     except Exception as exc:
         return _mission_fallback(user_input, str(exc))
 

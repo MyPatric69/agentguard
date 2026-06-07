@@ -10,6 +10,7 @@ from click.testing import CliRunner
 
 from agentguard.cli import main
 from agentguard.guided.concretizer import (
+    MISSION_MODEL_OVERRIDES,
     _normalize_from_concretized,
     _split_mission_concretized,
     concretize_field,
@@ -649,3 +650,116 @@ def test_concretize_mission_uses_max_tokens_800(monkeypatch):
         concretize_mission("implement features")
 
     assert mock_call.call_args.kwargs.get("max_tokens") == 800
+
+
+# ── 29. Mission uses sonnet model for anthropic provider ──────────────────────
+
+def test_concretize_mission_uses_sonnet_for_anthropic(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "authorized": [{"action": "Read files", "reason": "Core task"}],
+        "prohibited": [],
+        "requires_confirmation": [],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_mission("implement features")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == MISSION_MODEL_OVERRIDES["anthropic"]
+    assert result["_model"] == MISSION_MODEL_OVERRIDES["anthropic"]
+    assert not result.get("_fallback")
+
+
+# ── 30. Mission uses gpt-4o for openai provider ───────────────────────────────
+
+def test_concretize_mission_uses_gpt4o_for_openai(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "openai")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "authorized": [{"action": "Read files", "reason": "Core task"}],
+        "prohibited": [],
+        "requires_confirmation": [],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_mission("implement features")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == MISSION_MODEL_OVERRIDES["openai"]
+    assert result["_model"] == MISSION_MODEL_OVERRIDES["openai"]
+    assert not result.get("_fallback")
+
+
+# ── 31. AGENTGUARD_MISSION_MODEL env var overrides mission model ──────────────
+
+def test_concretize_mission_env_var_overrides_mission_model(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.setenv("AGENTGUARD_MISSION_MODEL", "claude-opus-4-20250514")
+
+    mock_response = json.dumps({
+        "authorized": [{"action": "Read files", "reason": "Core task"}],
+        "prohibited": [],
+        "requires_confirmation": [],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_mission("implement features")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == "claude-opus-4-20250514"
+    assert result["_model"] == "claude-opus-4-20250514"
+    assert not result.get("_fallback")
+
+
+# ── 32. Format B fallback works even when sonnet returns it ───────────────────
+
+def test_concretize_mission_format_b_fallback_no_error(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "concretized": "Read Python files in ./src. Must never push to main. Deployments require human approval.",
+        "confidence": "MEDIUM",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
+        result = concretize_mission("implement features")
+
+    assert result.get("_format_b") is True
+    assert not result.get("_fallback")
+    assert isinstance(result["authorized"], list)
+    assert isinstance(result["prohibited"], list)
+    assert isinstance(result["requires_confirmation"], list)
+    assert result["_model"] == MISSION_MODEL_OVERRIDES["anthropic"]
+
+
+# ── 33. Empty response triggers fallback, not "Could not concretize" ─────────
+
+def test_concretize_mission_empty_response_uses_fallback_not_invalid(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({"confidence": "LOW", "ambiguities": []})
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
+        result = concretize_mission("implement features")
+
+    assert result.get("_fallback") is True
+    assert "empty response" in result["ambiguities"][0]
+    assert result["authorized"][0]["action"] == "implement features"
