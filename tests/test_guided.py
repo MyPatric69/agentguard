@@ -37,6 +37,7 @@ _MOCK_FIELD = {
 }
 
 _HAPPY_PATH_INPUT = (
+    "\n"                  # pre-inquiry screen: press ENTER
     "Jane Smith\n"        # step 1: owner
     "implement features\n"  # step 2: mission
     "1\n"                 # accept mission concretization
@@ -46,6 +47,16 @@ _HAPPY_PATH_INPUT = (
     "Ctrl+C\n"            # step 5: killswitch
     "1\n"                 # final review: save
 )
+
+_MOCK_MISSION_MEDIUM = {
+    "authorized": "Read and write Python files in ./src",
+    "prohibited": "No database operations, no git push to main",
+    "requires_confirmation": "Any file deletion outside ./tmp",
+    "confidence": "MEDIUM",
+    "ambiguities": ["Definition of 'features' is unclear", "Scope of file access not bounded"],
+    "_provider": "anthropic",
+    "_model": "claude-haiku-4-5-20251001",
+}
 
 
 # ── 1. Complete happy path: governance.yaml created ───────────────────────────
@@ -162,6 +173,7 @@ def test_guided_adjustment_loop_max_3_rounds_saves_as_is():
     runner = CliRunner()
     # Input for hard_limits: enter → adjust×2 → 3rd "2" → save as-is automatically
     user_input = (
+        "\n"                       # pre-inquiry screen: press ENTER
         "Jane Smith\n"             # step 1: owner
         "implement features\n"     # step 2: mission
         "1\n"                      # accept mission
@@ -193,6 +205,7 @@ def test_guided_adjustment_loop_max_3_rounds_saves_as_is():
 def test_guided_escalation_invalid_contact_triggers_reentry():
     runner = CliRunner()
     user_input = (
+        "\n"                       # pre-inquiry screen: press ENTER
         "Jane Smith\n"             # step 1: owner
         "implement features\n"     # step 2: mission
         "1\n"                      # accept mission
@@ -255,7 +268,7 @@ def test_guided_ctrl_c_shows_save_progress_prompt():
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
             mock.patch("agentguard.cli._run_guided_step", side_effect=step_side_effect),
         ):
-            result = runner.invoke(main, ["init", "--guided"], input="n\n")
+            result = runner.invoke(main, ["init", "--guided"], input="\nn\n")
 
     assert "Save progress" in result.output
     assert result.exit_code == 0
@@ -342,3 +355,136 @@ def test_split_mission_concretized_extracts_confirmation_sentences():
     assert "approval" in confirmation.lower()
     assert "approval" not in authorized.lower()
     assert prohibited == ""
+
+
+# ── 15. Pre-inquiry screen shown before Step 1 ───────────────────────────────
+
+def test_guided_shows_pre_inquiry_screen_before_step_1():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+    assert result.exit_code == 0, result.output
+    assert "BEFORE YOU START" in result.output
+    assert "Press ENTER to continue" in result.output
+    pre_idx = result.output.index("BEFORE YOU START")
+    step1_idx = result.output.index("Step 1/5")
+    assert pre_idx < step1_idx
+
+
+# ── 16. Ambiguity prompt shown when confidence MEDIUM + ambiguities present ───
+
+def test_guided_ambiguity_prompt_shown_for_medium_confidence():
+    runner = CliRunner()
+    # After accepting [1] mission, ambiguity panel appears → choose [1] Proceed
+    user_input = (
+        "\n"                       # pre-inquiry ENTER
+        "Jane Smith\n"             # step 1: owner
+        "implement features\n"     # step 2: mission
+        "1\n"                      # accept concretized mission
+        "1\n"                      # ambiguity panel: [1] Proceed
+        "no production writes\n"   # step 3: hard limits
+        "1\n"                      # accept hard limits
+        "owner@example.com\n"      # step 4: escalation
+        "Ctrl+C\n"                 # step 5: killswitch
+        "1\n"                      # final review: save
+    )
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION_MEDIUM),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=user_input)
+
+    assert result.exit_code == 0, result.output
+    assert "UNRESOLVED AMBIGUITIES" in result.output
+
+
+# ── 17. Ambiguity prompt NOT shown when confidence HIGH + no ambiguities ──────
+
+def test_guided_ambiguity_prompt_not_shown_for_high_confidence():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+    assert result.exit_code == 0, result.output
+    assert "UNRESOLVED AMBIGUITIES" not in result.output
+
+
+# ── 18. [1] Proceed: ambiguities written as comments in governance.yaml ───────
+
+def test_guided_proceed_writes_ambiguities_as_yaml_comments():
+    runner = CliRunner()
+    user_input = (
+        "\n"
+        "Jane Smith\n"
+        "implement features\n"
+        "1\n"                      # accept mission
+        "1\n"                      # ambiguity: [1] Proceed
+        "no production writes\n"
+        "1\n"                      # accept hard limits (HIGH, no ambiguity panel)
+        "owner@example.com\n"
+        "Ctrl+C\n"
+        "1\n"
+    )
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION_MEDIUM),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=user_input)
+
+        assert result.exit_code == 0, result.output
+        gov = Path("governance.yaml").read_text()
+        assert "# Unresolved ambiguities" in gov
+        assert "# - Definition of 'features' is unclear" in gov
+
+
+# ── 19. [2] Address: re-concretization triggered with clarification ───────────
+
+def test_guided_address_ambiguity_triggers_reconcretization():
+    runner = CliRunner()
+    user_input = (
+        "\n"
+        "Jane Smith\n"
+        "implement features\n"
+        "1\n"                      # accept mission (round 0)
+        "2\n"                      # ambiguity: [2] Address
+        "features means Python files in ./src only\n"  # clarification
+        "1\n"                      # accept re-concretized mission (round 1)
+        "1\n"                      # ambiguity panel again: [1] Proceed (MEDIUM again)
+        "no production writes\n"
+        "1\n"
+        "owner@example.com\n"
+        "Ctrl+C\n"
+        "1\n"
+    )
+    concretize_call_args = []
+
+    def tracking_concretize_mission(user_input):
+        concretize_call_args.append(user_input)
+        return _MOCK_MISSION_MEDIUM
+
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", side_effect=tracking_concretize_mission),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=user_input)
+
+    assert result.exit_code == 0, result.output
+    assert len(concretize_call_args) >= 2, "concretize_mission should be called twice"
+    assert "Clarification:" in concretize_call_args[1]
