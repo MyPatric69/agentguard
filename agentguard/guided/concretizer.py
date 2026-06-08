@@ -19,7 +19,7 @@ from agentguard.ai_review import (
 
 _AUTO_REASON = "Extracted from governance definition — review and refine"
 
-MISSION_MODEL_OVERRIDES: dict[str, str] = {
+CONCRETIZATION_MODEL_OVERRIDES: dict[str, str] = {
     "anthropic": "claude-sonnet-4-20250514",
     "openai": "gpt-4o",
     "anysphere": "cursor-fast",
@@ -186,15 +186,15 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
     if not model:
         return _mission_fallback(user_input, "No model configured")
 
-    mission_model = (
+    concretization_model = (
         os.getenv("AGENTGUARD_MISSION_MODEL")
-        or MISSION_MODEL_OVERRIDES.get(provider)
+        or CONCRETIZATION_MODEL_OVERRIDES.get(provider)
         or model
     )
 
     prompt = _MISSION_PROMPT.format(user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, mission_model, prompt, max_tokens=800)
+        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, max_tokens=800)
         parsed: dict[str, Any] = json.loads(_strip_fences(raw))
 
         # Format A — preferred: response already has explicit three-field structure
@@ -203,7 +203,7 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
             parsed["prohibited"] = _normalize_items(parsed.get("prohibited"), "HARD_LIMIT")
             parsed["requires_confirmation"] = _normalize_items(parsed.get("requires_confirmation"))
             parsed["_provider"] = provider
-            parsed["_model"] = mission_model
+            parsed["_model"] = concretization_model
             return parsed
 
         # Format B — response used single concretized field; split with robust classifier
@@ -219,7 +219,7 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
                 "ambiguities": (parsed.get("ambiguities") or [])
                 + ["Response used single-field format — auto-split applied"],
                 "_provider": provider,
-                "_model": mission_model,
+                "_model": concretization_model,
                 "_format_b": True,
             }
 
@@ -241,6 +241,12 @@ def concretize_field(field_name: str, user_input: str) -> dict[str, Any]:
     model = model_override or _DEFAULT_MODELS.get(provider)
     if not model:
         return _field_fallback(user_input, "No model configured")
+
+    concretization_model = (
+        os.getenv("AGENTGUARD_MISSION_MODEL")
+        or CONCRETIZATION_MODEL_OVERRIDES.get(provider)
+        or model
+    )
 
     from agentguard.ai_review import _strip_fences as _sf
 
@@ -266,10 +272,10 @@ Confidence: HIGH = fully concrete, MEDIUM = mostly concrete, LOW = still vague."
 
     prompt = _FIELD_PROMPT.format(field_name=field_name, user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, model, prompt)
+        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt)
         result: dict[str, Any] = json.loads(_sf(raw))
         result["_provider"] = provider
-        result["_model"] = model
+        result["_model"] = concretization_model
         return result
     except Exception as exc:
         return _field_fallback(user_input, str(exc))
@@ -285,14 +291,20 @@ def _concretize_hard_limits(user_input: str) -> dict[str, Any]:
     if not model:
         return _hard_limits_fallback(user_input, "No model configured")
 
+    concretization_model = (
+        os.getenv("AGENTGUARD_MISSION_MODEL")
+        or CONCRETIZATION_MODEL_OVERRIDES.get(provider)
+        or model
+    )
+
     prompt = _HARD_LIMITS_PROMPT.format(user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, model, prompt)
-        parsed: dict[str, Any] = json.loads(_strip_fences(raw))
-        parsed["prohibited"] = _normalize_items(parsed.get("prohibited"), "HARD_LIMIT")
-        parsed["_provider"] = provider
-        parsed["_model"] = model
-        return parsed
+        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt)
+        result: dict[str, Any] = json.loads(_strip_fences(raw))
+        result["prohibited"] = _normalize_items(result.get("prohibited"), "HARD_LIMIT")
+        result["_provider"] = provider
+        result["_model"] = concretization_model
+        return result
     except Exception as exc:
         return _hard_limits_fallback(user_input, str(exc))
 

@@ -10,7 +10,7 @@ from click.testing import CliRunner
 
 from agentguard.cli import main
 from agentguard.guided.concretizer import (
-    MISSION_MODEL_OVERRIDES,
+    CONCRETIZATION_MODEL_OVERRIDES,
     _normalize_from_concretized,
     _split_mission_concretized,
     concretize_field,
@@ -671,8 +671,8 @@ def test_concretize_mission_uses_sonnet_for_anthropic(monkeypatch):
         result = concretize_mission("implement features")
 
     called_model = mock_call.call_args.args[3]
-    assert called_model == MISSION_MODEL_OVERRIDES["anthropic"]
-    assert result["_model"] == MISSION_MODEL_OVERRIDES["anthropic"]
+    assert called_model == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
+    assert result["_model"] == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
     assert not result.get("_fallback")
 
 
@@ -695,8 +695,8 @@ def test_concretize_mission_uses_gpt4o_for_openai(monkeypatch):
         result = concretize_mission("implement features")
 
     called_model = mock_call.call_args.args[3]
-    assert called_model == MISSION_MODEL_OVERRIDES["openai"]
-    assert result["_model"] == MISSION_MODEL_OVERRIDES["openai"]
+    assert called_model == CONCRETIZATION_MODEL_OVERRIDES["openai"]
+    assert result["_model"] == CONCRETIZATION_MODEL_OVERRIDES["openai"]
     assert not result.get("_fallback")
 
 
@@ -745,7 +745,7 @@ def test_concretize_mission_format_b_fallback_no_error(monkeypatch):
     assert isinstance(result["authorized"], list)
     assert isinstance(result["prohibited"], list)
     assert isinstance(result["requires_confirmation"], list)
-    assert result["_model"] == MISSION_MODEL_OVERRIDES["anthropic"]
+    assert result["_model"] == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
 
 
 # ── 33. Empty response triggers fallback, not "Could not concretize" ─────────
@@ -914,3 +914,112 @@ def test_guided_ambiguities_accumulated_across_rounds():
     assert "Round-1 ambiguity: scope of files unclear" in panel_ambs
     assert "Round-2 ambiguity: time constraints not specified" in panel_ambs
     assert panel_ambs.count("Round-1 ambiguity: scope of files unclear") == 1
+
+
+# ── 37. hard_limits uses sonnet model for anthropic provider ──────────────────
+
+def test_concretize_hard_limits_uses_sonnet_for_anthropic(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_field("hard_limits", "no production writes")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
+    assert result["_model"] == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
+    assert not result.get("_fallback")
+
+
+# ── 38. concretize_field uses sonnet model for anthropic provider ─────────────
+
+def test_concretize_field_non_hard_limits_uses_sonnet_for_anthropic(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "concretized": "Email owner@example.com when 2+ failures occur",
+        "enforcement_notes": "Check escalation trigger",
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_field("escalation", "email me on failure")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
+    assert result["_model"] == CONCRETIZATION_MODEL_OVERRIDES["anthropic"]
+    assert not result.get("_fallback")
+
+
+# ── 39. AGENTGUARD_MISSION_MODEL env var overrides hard_limits and field ──────
+
+def test_concretize_hard_limits_env_var_overrides_model(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.setenv("AGENTGUARD_MISSION_MODEL", "claude-opus-4-20250514")
+
+    mock_response = json.dumps({
+        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_field("hard_limits", "no production writes")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == "claude-opus-4-20250514"
+    assert result["_model"] == "claude-opus-4-20250514"
+    assert not result.get("_fallback")
+
+
+def test_concretize_field_env_var_overrides_model(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.setenv("AGENTGUARD_MISSION_MODEL", "claude-opus-4-20250514")
+
+    mock_response = json.dumps({
+        "concretized": "Email owner@example.com",
+        "enforcement_notes": "",
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        result = concretize_field("escalation", "email me on failure")
+
+    called_model = mock_call.call_args.args[3]
+    assert called_model == "claude-opus-4-20250514"
+    assert result["_model"] == "claude-opus-4-20250514"
+    assert not result.get("_fallback")
+
+
+# ── 40. hard_limits fallback returns valid prohibited list on exception ────────
+
+def test_concretize_hard_limits_fallback_has_valid_prohibited_list(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider",
+        side_effect=Exception("network error"),
+    ):
+        result = concretize_field("hard_limits", "no writes to production")
+
+    assert result["_fallback"] is True
+    assert isinstance(result["prohibited"], list)
+    assert len(result["prohibited"]) > 0
+    assert result["prohibited"][0]["action"] == "no writes to production"
+    assert result["prohibited"][0]["severity"] == "HARD_LIMIT"
+    assert "network error" in result["ambiguities"][0]
