@@ -1023,3 +1023,13 @@ def test_concretize_hard_limits_fallback_has_valid_prohibited_list(monkeypatch):
     assert result["prohibited"][0]["action"] == "no writes to production"
     assert result["prohibited"][0]["severity"] == "HARD_LIMIT"
     assert "network error" in result["ambiguities"][0]
+
+
+# ── 41. Step 2 question text references Claude Code ───────────────────────────
+
+def test_guided_step2_question_references_claude_code():
+    from agentguard.cli import GUIDED_STEPS
+
+    step2 = next(s for s in GUIDED_STEPS if s["step"] == 2)
+    assert "Claude Code authorized" in step2["question"]
+    assert "no calls to external APIs" in step2["example"]

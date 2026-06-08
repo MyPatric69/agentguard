@@ -101,10 +101,10 @@ GUIDED_STEPS = [
         "step": 2,
         "title": "Mission",
         "question": (
-            "What should this agent accomplish?\n"
-            "Describe freely — AgentGuard will make it concrete."
+            "What is Claude Code authorized to do in this project?\n"
+            "Describe the tasks, files, and systems it may work with."
         ),
-        "example": 'e.g. "implement features in ./src, run tests, no external calls"',
+        "example": 'e.g. "implement features in ./src, run tests, no calls to external APIs"',
         "field": "mission",
         "concretize": True,
         "splits_into": ["scope.authorized", "scope.prohibited", "scope.requires_confirmation"],
@@ -562,7 +562,7 @@ def _run_guided_init() -> None:
         Text("  it exposes them."),
         Text(""),
         Text("  For best results, know:"),
-        Text("  • What your agent is allowed to touch (paths, APIs)"),
+        Text("  • What Claude Code is allowed to touch (paths, APIs, systems)"),
         Text("  • What success looks like (measurable outcome)"),
         Text("  • Who is accountable when something goes wrong"),
         Text(""),
