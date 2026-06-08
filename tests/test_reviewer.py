@@ -313,10 +313,70 @@ def test_count_hard_limits():
 
 def test_count_open_ambiguities():
     governance = {
-        "unresolved_ambiguities": [
-            {"text": "Open 1", "status": "open"},
-            {"text": "Open 2", "status": "open"},
-            {"text": "Resolved", "status": "resolved"},
-        ]
+        "scope": {
+            "unresolved_ambiguities": [
+                {"text": "Open 1", "status": "open"},
+                {"text": "Open 2", "status": "open"},
+                {"text": "Resolved", "status": "resolved"},
+            ]
+        }
     }
     assert _count_open_ambiguities(governance) == 2
+
+
+# ── 16. show_governance_summary: ambiguity display ───────────────────────────
+
+def _capture_summary(governance: dict) -> str:
+    buf = StringIO()
+    original = reviewer_module._console
+    reviewer_module._console = Console(file=buf, force_terminal=False)
+    try:
+        show_governance_summary(governance)
+    finally:
+        reviewer_module._console = original
+    return buf.getvalue()
+
+
+def test_show_governance_summary_three_open_ambiguities():
+    governance = {
+        "owner": "Alice",
+        "scope": {
+            "authorized": [],
+            "prohibited": [],
+            "requires_confirmation": [],
+            "unresolved_ambiguities": [
+                {"text": "Amb 1", "status": "open"},
+                {"text": "Amb 2", "status": "open"},
+                {"text": "Amb 3", "status": "open"},
+            ],
+        },
+    }
+    assert "3 open" in _capture_summary(governance)
+
+
+def test_show_governance_summary_no_ambiguities_shows_none():
+    governance = {
+        "owner": "Alice",
+        "scope": {
+            "authorized": [],
+            "prohibited": [],
+            "requires_confirmation": [],
+        },
+    }
+    assert "none" in _capture_summary(governance)
+
+
+def test_show_governance_summary_all_resolved_shows_none():
+    governance = {
+        "owner": "Alice",
+        "scope": {
+            "authorized": [],
+            "prohibited": [],
+            "requires_confirmation": [],
+            "unresolved_ambiguities": [
+                {"text": "Amb 1", "status": "resolved"},
+                {"text": "Amb 2", "status": "resolved"},
+            ],
+        },
+    }
+    assert "none" in _capture_summary(governance)

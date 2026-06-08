@@ -41,7 +41,7 @@ def _count_hard_limits(prohibited: object) -> int:
 
 
 def _count_open_ambiguities(governance: dict) -> int:
-    ambs = governance.get("unresolved_ambiguities", [])
+    ambs = governance.get("scope", {}).get("unresolved_ambiguities", [])
     if not isinstance(ambs, list):
         return 0
     return sum(1 for a in ambs if isinstance(a, dict) and a.get("status") == "open")

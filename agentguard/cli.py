@@ -884,7 +884,7 @@ def _review_interactive(governance: dict, gov_path: Path, guided: bool) -> None:
     elif choice == "5":
         from rich.syntax import Syntax
         content = gov_path.read_text() if gov_path.exists() else "# governance.yaml not found"
-        _console.print(Syntax(content, "yaml", theme="monokai", line_numbers=True))
+        _console.print(Syntax(content, "yaml", theme="monokai", line_numbers=True, word_wrap=True))
         return
 
     if changed_fields:
