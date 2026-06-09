@@ -1121,13 +1121,12 @@ def review_cmd(path: str, guided: bool, field_filter: str | None) -> None:
 @click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind to.")
 @click.option("--port", default=8767, show_default=True, help="Port to listen on.")
 @click.option("--no-browser", "no_browser", is_flag=True, default=False, help="Do not open browser automatically.")
-@click.option("--path", default=".", show_default=True, help="Project path to monitor.")
-def web_cmd(host: str, port: int, no_browser: bool, path: str) -> None:
+@click.option("--path", multiple=True, default=["."], help="Project path(s) to monitor. Use multiple times for multi-project.")
+def web_cmd(host: str, port: int, no_browser: bool, path: tuple) -> None:
     """Start AgentGuard web interface.
 
-    Opens a browser-based UI for governance setup, checking, and review.
-    Runs alongside the terminal interface — same governance.yaml,
-    different interface.
+    Single project:    agentguard web
+    Multiple projects: agentguard web --path ./proj1 --path ./proj2
 
     Requires: pip install agentguard[web]
     """
@@ -1144,7 +1143,7 @@ def web_cmd(host: str, port: int, no_browser: bool, path: str) -> None:
         f"[green]AgentGuard Web[/green] starting on [bold]http://{host}:{port}[/bold]"
     )
     _console.print("[dim]Press Ctrl+C to stop[/dim]")
-    start(host=host, port=port, open_browser=not no_browser)
+    start(host=host, port=port, open_browser=not no_browser, project_paths=list(path))
 
 
 @main.command()

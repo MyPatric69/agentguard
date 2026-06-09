@@ -50,11 +50,24 @@ export default function App() {
   const [checkStatusDetail, setCheckStatusDetail] = useState(null)
   const [projectName, setProjectName] = useState('')
   const [pendingCommand, setPendingCommand] = useState(null)
+  const [projects, setProjects] = useState([])
 
   const runInTerminal = (cmd) => {
     setPendingCommand(cmd)
     setActiveTab('terminal')
   }
+
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then(data => {
+        setProjects(data.projects || [])
+        if (data.projects?.length > 0 && projectPath === '.') {
+          setProjectPath(data.projects[0].path)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch(`/api/project-info?path=${encodeURIComponent(projectPath)}`)
@@ -140,7 +153,7 @@ export default function App() {
             setActiveTab={setActiveTab}
           />
 
-          {/* Project Path */}
+          {/* Project */}
           <div style={{
             marginTop: 'auto', padding: '12px',
             borderTop: '1px solid var(--border)'
@@ -150,24 +163,54 @@ export default function App() {
               letterSpacing: '0.08em', textTransform: 'uppercase',
               marginBottom: '8px'
             }}>Project</div>
-            <input
-              value={projectPath}
-              onChange={e => setProjectPath(e.target.value)}
-              placeholder="Project path..."
-              style={{
-                width: '100%', background: 'var(--bg-base)',
-                border: '1px solid var(--border)', borderRadius: '6px',
-                padding: '6px 10px', color: 'var(--text-primary)',
-                fontSize: '12px', boxSizing: 'border-box'
-              }}
-            />
-            <div style={{
-              fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px',
-              lineHeight: '1.4'
-            }}>
-              Multiple projects: use<br/>
-              <code style={{ color: 'var(--accent)' }}>--port 8768</code>
-            </div>
+
+            {projects.length > 1 ? (
+              <select
+                value={projectPath}
+                onChange={e => setProjectPath(e.target.value)}
+                style={{
+                  width: '100%', background: 'var(--bg-base)',
+                  border: '1px solid var(--border)', borderRadius: '6px',
+                  padding: '6px 10px', color: 'var(--text-primary)',
+                  fontSize: '12px', cursor: 'pointer',
+                  appearance: 'none', boxSizing: 'border-box'
+                }}>
+                {projects.map(p => (
+                  <option key={p.path} value={p.path}>
+                    {p.name} {p.has_governance ? '✓' : '⚠'}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <div style={{
+                  fontSize: '13px', fontWeight: '600',
+                  color: 'var(--text-primary)', marginBottom: '4px'
+                }}>
+                  {projects[0]?.name || projectPath}
+                </div>
+                <input
+                  value={projectPath}
+                  onChange={e => setProjectPath(e.target.value)}
+                  placeholder="Project path..."
+                  style={{
+                    width: '100%', background: 'var(--bg-base)',
+                    border: '1px solid var(--border)', borderRadius: '6px',
+                    padding: '5px 8px', color: 'var(--text-muted)',
+                    fontSize: '11px', boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
+
+            {projects.length > 1 && (
+              <div style={{
+                fontSize: '10px', color: 'var(--text-muted)',
+                marginTop: '6px'
+              }}>
+                {projects.length} projects · ✓ has governance
+              </div>
+            )}
           </div>
         </aside>
 

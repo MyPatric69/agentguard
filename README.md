@@ -4,6 +4,10 @@
 
 > "You wouldn't launch a rocket without a pre-launch checklist. Why run an autonomous agent without one?"
 
+**Maximum instruction, minimum interpretation.**
+
+**AgentGuard doesn't eliminate the probability of failure. It reduces the impact.**
+
 [![CI](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml/badge.svg)](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml)
 ![PyPI — coming soon](https://img.shields.io/badge/PyPI-coming%20soon-lightgrey)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -342,6 +346,8 @@ Detects loops, stalls, and token burn in real time.
 | `agentguard review --guided` | AI-assisted governance update | Yes |
 | `agentguard verify` | Check governance consistency/drift | No |
 | `agentguard override` | Proceed despite critical gaps | No |
+| `agentguard web` | Browser UI — check, governance, terminal | No (API key optional) |
+| `agentguard web --path p1 --path p2` | Multi-project browser UI | No |
 
 ---
 
@@ -654,11 +660,16 @@ Click "▶ Run in Terminal" in Setup or Review to launch
 any command without leaving the browser.
 
 ```bash
-agentguard web                    # start on http://localhost:8767
-agentguard web --port 8888        # custom port
-agentguard web --no-browser       # don't auto-open browser
-agentguard web --path ./my-project
+agentguard web                                    # single project (current dir)
+agentguard web --path ./my-project                # specific project
+agentguard web --path ./proj1 --path ./proj2      # multiple projects
+agentguard web --port 8888                        # custom port
+agentguard web --no-browser                       # don't auto-open browser
 ```
+
+**Multiple projects:** pass `--path` multiple times. The sidebar shows
+a project switcher — all panels update when you switch projects.
+Projects with governance.yaml show ✓, projects without show ⚠.
 
 > Requires macOS or Linux (Python `pty` module).
 

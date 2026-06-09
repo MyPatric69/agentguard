@@ -3,7 +3,7 @@
 ## Project Purpose
 AgentGuard is a governance layer for autonomous AI agents. It provides pre-flight checks (Layer 1), runtime enforcement (Layer 2), runtime monitoring (Layer 3), and post-session reporting and audit (Layer 4). The goal is to make AI agents safer by ensuring governance prerequisites are in place before execution begins.
 
-## Architecture Overview (v0.5.1)
+## Architecture Overview (v0.7.0)
 
 ```
 agentguard/
@@ -14,16 +14,30 @@ agentguard/
 ├── enforcement/
 │   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2
 ├── guided/
-│   ├── concretizer.py    # AI concretization, temperature=0, sonnet
+│   ├── concretizer.py    # AI concretization (sonnet/gpt-4o, temperature=0)
 │   ├── validator.py      # Deterministic structural validation
 │   └── pinning.py        # SHA-256 prompt/output pinning
 ├── review/
 │   └── reviewer.py       # Governance review and update cycle
+├── web/
+│   └── server.py         # FastAPI bridge + WebSocket PTY terminal
 ├── config/
 │   └── loader.py         # governance.yaml loading, list+string compat
 ├── output/
 │   └── renderer.py       # Rich panels, severity colors
 └── cli.py                # All commands wired here
+
+web/                       # React/Vite frontend (built to web/dist/)
+├── src/
+│   ├── App.jsx            # Sidebar layout, project switcher
+│   └── components/
+│       ├── CheckPanel.jsx      # Pre-flight check + score ring
+│       ├── GovernanceView.jsx  # Color-coded scope sections
+│       ├── VerifyPanel.jsx     # Pin verification cards
+│       ├── TerminalPanel.jsx   # xterm.js + WebSocket PTY
+│       ├── InitPanel.jsx       # Setup governance (Run in Terminal)
+│       └── ReviewPanel.jsx     # Review & update (Run in Terminal)
+└── package.json
 ```
 
 ## Key Design Principles

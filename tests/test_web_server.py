@@ -102,6 +102,42 @@ def test_project_info_absolute(tmp_path):
     assert data["path"] == str(tmp_path)
 
 
+def test_projects_default():
+    resp = client.get("/api/projects")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "projects" in data
+    assert "count" in data
+    assert isinstance(data["projects"], list)
+    assert data["count"] == len(data["projects"])
+    for p in data["projects"]:
+        assert "name" in p
+        assert "path" in p
+        assert "has_governance" in p
+
+
+def test_projects_with_governance(tmp_path):
+    from agentguard.web.server import set_project_paths
+    (tmp_path / "governance.yaml").write_text("owner: Test\n")
+    set_project_paths([str(tmp_path)])
+    resp = client.get("/api/projects")
+    assert resp.status_code == 200
+    projects = resp.json()["projects"]
+    assert len(projects) == 1
+    assert projects[0]["has_governance"] is True
+    assert projects[0]["name"] == tmp_path.name
+
+
+def test_projects_without_governance(tmp_path):
+    from agentguard.web.server import set_project_paths
+    set_project_paths([str(tmp_path)])
+    resp = client.get("/api/projects")
+    assert resp.status_code == 200
+    projects = resp.json()["projects"]
+    assert len(projects) == 1
+    assert projects[0]["has_governance"] is False
+
+
 # WebSocket PTY endpoint (/ws/terminal) requires a real PTY process and cannot
 # be tested with TestClient. Manual test: open the web UI Terminal tab and
 # verify the shell connects and agentguard commands run interactively.

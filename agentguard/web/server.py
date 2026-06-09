@@ -20,6 +20,13 @@ from agentguard import __version__
 
 app = FastAPI(title="AgentGuard Web", version=__version__)
 
+_project_paths: list[str] = ["."]
+
+
+def set_project_paths(paths: list[str]) -> None:
+    global _project_paths
+    _project_paths = [str(Path(p).resolve()) for p in paths]
+
 
 @app.get("/api/check")
 async def check(path: str = "."):
@@ -94,6 +101,21 @@ async def verify_json(path: str = "."):
         }
     except Exception as e:
         return {"pins": [], "success": False, "message": str(e)}
+
+
+@app.get("/api/projects")
+async def get_projects():
+    """Return all configured project paths with names and governance status."""
+    projects = []
+    for p in _project_paths:
+        path = Path(p)
+        gov_file = path / "governance.yaml"
+        projects.append({
+            "name": path.name,
+            "path": str(path),
+            "has_governance": gov_file.exists(),
+        })
+    return {"projects": projects, "count": len(projects)}
 
 
 @app.get("/api/project-info")
@@ -179,8 +201,15 @@ if _dist.exists():
     app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")
 
 
-def start(host: str = "127.0.0.1", port: int = 8767, open_browser: bool = True) -> None:
+def start(
+    host: str = "127.0.0.1",
+    port: int = 8767,
+    open_browser: bool = True,
+    project_paths: list[str] | None = None,
+) -> None:
     """Start the AgentGuard web server."""
+    if project_paths:
+        set_project_paths(project_paths)
     if open_browser:
         import threading
         import time
