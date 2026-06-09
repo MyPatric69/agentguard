@@ -6,7 +6,6 @@ from click.testing import CliRunner
 
 from agentguard.cli import main
 
-
 _PINS_YAML = """\
 owner: "Test Owner"
 scope:

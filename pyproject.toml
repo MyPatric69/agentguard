@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentguard"
-version = "0.5.1"
+version = "0.6.0"
 description = "Governance layer for autonomous AI agents — pre-flight checks, runtime monitoring, and post-session reporting."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,9 +30,11 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "ruff>=0.4",
+    "httpx>=0.27",
 ]
 ai = ["anthropic>=0.25", "openai>=1.0"]
-all = ["anthropic>=0.25", "openai>=1.0"]
+web = ["fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.9"]
+all = ["anthropic>=0.25", "openai>=1.0", "fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.9"]
 
 [project.scripts]
 agentguard = "agentguard.cli:main"

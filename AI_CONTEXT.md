@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.5.1  
+**Version:** 0.6.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -22,9 +22,10 @@ runs before, during, and after observability tools do.
 - Python 3.11+
 - Click (CLI), Rich (output), PyYAML (config), python-dotenv (env)
 - Optional AI: Anthropic SDK, OpenAI SDK
+- Optional Web: FastAPI + uvicorn (server), React 18 + Vite 5 (frontend)
 - Build: hatchling, PyPI distribution pending
 
-## Current State (v0.5.1)
+## Current State (v0.6.0)
 
 ### Commands
 - `agentguard check` — pre-flight: 11 checks, CRITICAL/WARNING/INFO
@@ -38,6 +39,7 @@ runs before, during, and after observability tools do.
 - `agentguard review --guided` — AI-assisted field update
 - `agentguard verify` — prompt-pin drift detection
 - `agentguard override` — documented exception with mandatory reason
+- `agentguard web` — browser-based UI (requires pip install agentguard[web])
 
 ### Key Technical Decisions
 - Enforcement: deterministic, no LLM, never probabilistic
@@ -58,7 +60,7 @@ runs before, during, and after observability tools do.
 - governance_history: list of change records {date, action, tool, version}
 
 ### Tests
-- 205/205 passing
+- 212/212 passing (includes 7 web server API tests)
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 
 ## Open Items
@@ -73,6 +75,9 @@ runs before, during, and after observability tools do.
 
 ## Key Files
 
+- `agentguard/web/server.py` — FastAPI bridge (/api/check, /api/governance, /api/verify, /api/health)
+- `web/src/App.jsx` — React shell: Check / Governance / Verify tabs, dark theme
+- `web/src/components/` — CheckPanel, GovernanceView, StatusBadge
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2
 - `agentguard/checks/runtime.py` — Layer 3
@@ -95,4 +100,4 @@ runs before, during, and after observability tools do.
 
 ## Last updated
 
-2026-06-09 — v0.5.1 complete, 205/205 tests
+2026-06-09 – Auto-synced 1 commit(s) to c6d4973

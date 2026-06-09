@@ -1117,6 +1117,36 @@ def review_cmd(path: str, guided: bool, field_filter: str | None) -> None:
     _review_interactive(governance, gov_path, guided)
 
 
+@main.command("web")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind to.")
+@click.option("--port", default=8767, show_default=True, help="Port to listen on.")
+@click.option("--no-browser", "no_browser", is_flag=True, default=False, help="Do not open browser automatically.")
+@click.option("--path", default=".", show_default=True, help="Project path to monitor.")
+def web_cmd(host: str, port: int, no_browser: bool, path: str) -> None:
+    """Start AgentGuard web interface.
+
+    Opens a browser-based UI for governance setup, checking, and review.
+    Runs alongside the terminal interface — same governance.yaml,
+    different interface.
+
+    Requires: pip install agentguard[web]
+    """
+    try:
+        from agentguard.web.server import start
+    except ImportError:
+        _console.print(
+            "[red]Web dependencies not installed.[/red]\n"
+            "Run: [bold]pip install agentguard\\[web][/bold]"
+        )
+        sys.exit(1)
+
+    _console.print(
+        f"[green]AgentGuard Web[/green] starting on [bold]http://{host}:{port}[/bold]"
+    )
+    _console.print("[dim]Press Ctrl+C to stop[/dim]")
+    start(host=host, port=port, open_browser=not no_browser)
+
+
 @main.command()
 @click.option("--reason", required=True, help="Mandatory reason for overriding CRITICAL findings.")
 @click.option("--path", default=".", show_default=True, help="Project directory.")

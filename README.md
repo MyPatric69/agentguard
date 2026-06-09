@@ -630,6 +630,44 @@ AgentGuard does not provide legal compliance. It provides the **technical prereq
 
 ---
 
+## Web Interface (Optional)
+
+AgentGuard includes an optional browser-based UI.
+
+### Installation
+
+```bash
+pip install agentguard[web]
+```
+
+### Usage
+
+```bash
+agentguard web                    # start on http://localhost:8767
+agentguard web --port 8888        # custom port
+agentguard web --no-browser       # don't auto-open browser
+agentguard web --path ./my-project
+```
+
+The web interface provides:
+- **Check** — pre-flight governance validation with visual results
+- **Governance** — view governance.yaml with structured rule display
+- **Verify** — concretization pin verification
+
+The terminal interface remains fully functional alongside the web UI.
+Both use the same governance.yaml and enforcement logic.
+
+### Building the frontend (for development)
+
+```bash
+cd web
+npm install
+npm run build   # builds to web/dist/ — served by FastAPI
+npm run dev     # hot-reload dev server (proxies API to :8767)
+```
+
+---
+
 ## Development
 
 ```bash

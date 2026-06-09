@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
-
 from agentguard.guided.pinning import hash_content, pin_concretization, verify_pin
-
 
 # ── 1. hash_content returns 16-char hex string ───────────────────────────────
 
