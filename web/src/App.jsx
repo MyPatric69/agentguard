@@ -115,16 +115,21 @@ export default function App() {
         <input
           value={projectPath}
           onChange={e => setProjectPath(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && setProjectPath(e.target.value)}
+          placeholder="Enter project path..."
           style={{
             background: '#0d1117',
             border: '1px solid #30363d',
             borderRadius: '6px',
-            padding: '4px 10px',
+            padding: '6px 12px',
             color: '#e6edf3',
             fontSize: '13px',
-            width: '300px'
+            width: '400px'
           }}
         />
+        <span style={{ fontSize: '12px', color: '#484f58' }}>
+          Multiple projects: run agentguard web --port 8768 in second terminal
+        </span>
       </div>
 
       <main style={{ padding: '24px' }}>

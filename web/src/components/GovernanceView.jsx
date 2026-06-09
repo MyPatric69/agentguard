@@ -8,8 +8,11 @@ export default function GovernanceView({ projectPath }) {
     setLoading(true)
     fetch(`/api/governance?path=${encodeURIComponent(projectPath)}`)
       .then(r => r.json())
-      .then(setGov)
-      .finally(() => setLoading(false))
+      .then(data => {
+        setGov(data)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [projectPath])
 
   if (loading) return (
