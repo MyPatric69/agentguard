@@ -1,67 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import CheckPanel from './components/CheckPanel.jsx'
 import GovernanceView from './components/GovernanceView.jsx'
+import VerifyPanel from './components/VerifyPanel.jsx'
+import './index.css'
 
-function VerifyPanel({ projectPath }) {
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const runVerify = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/verify?path=${encodeURIComponent(projectPath)}`)
-      setResult(await res.json())
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0, fontSize: '16px' }}>Pin Verification</h2>
-        <button onClick={runVerify} disabled={loading} style={{
-          background: '#1f6feb', color: '#fff', border: 'none',
-          borderRadius: '6px', padding: '8px 16px', cursor: 'pointer',
-          fontSize: '13px', fontWeight: '600'
-        }}>
-          {loading ? 'Verifying...' : 'Run Verify'}
-        </button>
-      </div>
-      {result && (
-        <div style={{
-          background: '#161b22', border: '1px solid #21262d',
-          borderRadius: '8px', padding: '20px'
-        }}>
-          <div style={{
-            marginBottom: '12px', fontWeight: '700', fontSize: '14px',
-            color: result.success ? '#3fb950' : '#f85149'
-          }}>
-            {result.success ? '✅ All pins verified' : '⚠️ Pin issues detected'}
-          </div>
-          {result.output && (
-            <pre style={{
-              fontSize: '12px', color: '#8b949e', whiteSpace: 'pre-wrap',
-              fontFamily: 'monospace', lineHeight: '1.5'
-            }}>
-              {result.output}
-            </pre>
-          )}
-        </div>
-      )}
-      {!result && !loading && (
-        <div style={{
-          background: '#161b22', border: '1px solid #21262d',
-          borderRadius: '8px', padding: '40px', textAlign: 'center',
-          color: '#8b949e', fontSize: '14px'
-        }}>
-          Click "Run Verify" to check concretization pin integrity
-        </div>
-      )}
-    </div>
-  )
-}
+const NAV_ITEMS = [
+  { id: 'check', label: 'Pre-Flight Check', icon: '🛡️', group: 'monitor' },
+  { id: 'governance', label: 'Governance', icon: '📋', group: 'monitor' },
+  { id: 'verify', label: 'Verify Pins', icon: '🔐', group: 'monitor' },
+]
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('check')
@@ -69,74 +16,113 @@ export default function App() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      background: '#0d1117',
-      color: '#e6edf3',
-      fontFamily: 'system-ui, sans-serif'
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      background: 'var(--bg-base)',
+      color: 'var(--text-primary)',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
+      {/* Top Header */}
       <header style={{
-        borderBottom: '1px solid #21262d',
-        padding: '16px 24px',
+        height: '52px',
+        background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
-        gap: '16px'
+        padding: '0 20px',
+        gap: '12px',
+        flexShrink: 0
       }}>
-        <div style={{ fontSize: '20px', fontWeight: '700', color: '#58a6ff' }}>
-          🛡️ AgentGuard
-        </div>
-        <div style={{ fontSize: '12px', color: '#8b949e' }}>v0.6.0</div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-          {['check', 'governance', 'verify'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              background: activeTab === tab ? '#1f6feb' : '#21262d',
-              color: activeTab === tab ? '#fff' : '#8b949e',
-              fontSize: '13px',
-              fontWeight: activeTab === tab ? '600' : '400'
-            }}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
+        <span style={{ fontSize: '18px' }}>🛡️</span>
+        <span style={{
+          fontSize: '16px', fontWeight: '700', color: 'var(--accent)'
+        }}>AgentGuard</span>
+        <span style={{
+          fontSize: '11px', color: 'var(--text-muted)',
+          background: 'var(--bg-elevated)', padding: '2px 8px',
+          borderRadius: '10px'
+        }}>v0.6.0</span>
       </header>
 
-      <div style={{
-        padding: '12px 24px',
-        background: '#161b22',
-        borderBottom: '1px solid #21262d',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        <span style={{ fontSize: '13px', color: '#8b949e' }}>Project:</span>
-        <input
-          value={projectPath}
-          onChange={e => setProjectPath(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && setProjectPath(e.target.value)}
-          placeholder="Enter project path..."
-          style={{
-            background: '#0d1117',
-            border: '1px solid #30363d',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            color: '#e6edf3',
-            fontSize: '13px',
-            width: '400px'
-          }}
-        />
-        <span style={{ fontSize: '12px', color: '#484f58' }}>
-          Multiple projects: run agentguard web --port 8768 in second terminal
-        </span>
-      </div>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Sidebar */}
+        <aside style={{
+          width: '220px',
+          background: 'var(--bg-surface)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '16px 0',
+          flexShrink: 0
+        }}>
+          {/* Navigation */}
+          <div style={{ padding: '0 12px', marginBottom: '8px' }}>
+            <div style={{
+              fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              padding: '0 8px', marginBottom: '6px'
+            }}>Monitor</div>
+            {NAV_ITEMS.map(item => (
+              <button key={item.id} onClick={() => setActiveTab(item.id)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center',
+                  gap: '10px', padding: '8px 10px', borderRadius: '6px',
+                  border: 'none', cursor: 'pointer', marginBottom: '2px',
+                  background: activeTab === item.id
+                    ? 'var(--accent)' : 'transparent',
+                  color: activeTab === item.id
+                    ? '#fff' : 'var(--text-secondary)',
+                  fontSize: '13px', fontWeight: activeTab === item.id ? '600' : '400',
+                  textAlign: 'left', transition: 'background 0.15s'
+                }}>
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
 
-      <main style={{ padding: '24px' }}>
-        {activeTab === 'check' && <CheckPanel projectPath={projectPath} />}
-        {activeTab === 'governance' && <GovernanceView projectPath={projectPath} />}
-        {activeTab === 'verify' && <VerifyPanel projectPath={projectPath} />}
-      </main>
+          {/* Project Path */}
+          <div style={{
+            marginTop: 'auto', padding: '12px',
+            borderTop: '1px solid var(--border)'
+          }}>
+            <div style={{
+              fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              marginBottom: '8px'
+            }}>Project</div>
+            <input
+              value={projectPath}
+              onChange={e => setProjectPath(e.target.value)}
+              placeholder="Project path..."
+              style={{
+                width: '100%', background: 'var(--bg-base)',
+                border: '1px solid var(--border)', borderRadius: '6px',
+                padding: '6px 10px', color: 'var(--text-primary)',
+                fontSize: '12px', boxSizing: 'border-box'
+              }}
+            />
+            <div style={{
+              fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px',
+              lineHeight: '1.4'
+            }}>
+              Multiple projects: use<br/>
+              <code style={{ color: 'var(--accent)' }}>--port 8768</code>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main style={{
+          flex: 1, overflow: 'auto', padding: '24px',
+          background: 'var(--bg-base)'
+        }}>
+          {activeTab === 'check' && <CheckPanel projectPath={projectPath} />}
+          {activeTab === 'governance' && <GovernanceView projectPath={projectPath} />}
+          {activeTab === 'verify' && <VerifyPanel projectPath={projectPath} />}
+        </main>
+      </div>
     </div>
   )
 }
