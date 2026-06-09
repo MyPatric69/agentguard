@@ -10,6 +10,8 @@ from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.live import Live
+from rich.spinner import Spinner
 from rich.text import Text
 
 from agentguard import __version__
@@ -25,6 +27,18 @@ from agentguard.output.renderer import (
 )
 
 _console = Console()
+
+
+def _with_spinner(spinner_text: str, fn, *args, **kwargs):
+    """Run fn with a transient live spinner; returns fn's result."""
+    result = None
+    with Live(
+        Spinner("dots", text=Text(spinner_text, style="dim")),
+        refresh_per_second=10,
+        transient=True,
+    ):
+        result = fn(*args, **kwargs)
+    return result
 
 
 def _strip_quotes(value: str) -> str:
@@ -341,12 +355,10 @@ def _run_guided_step(step: dict, results: dict) -> None:
     accumulated_ambiguities: list[str] = []
 
     for round_num in range(max_rounds):
-        _console.print("\n[dim]Concretizing with AI...[/dim]")
-
         if step.get("splits_into"):
-            ai_result = concretize_mission(current_input)
+            ai_result = _with_spinner("Concretizing with AI...", concretize_mission, current_input)
         else:
-            ai_result = concretize_field(step["field"], current_input)
+            ai_result = _with_spinner("Concretizing with AI...", concretize_field, step["field"], current_input)
 
         _validation_errors: list = []
         if step.get("splits_into") and not ai_result.get("_fallback"):
@@ -765,7 +777,9 @@ def check(path: str, config_path: str | None, fmt: str, ai_review: bool) -> None
             else:
                 scope = raw_scope
 
-            ai_result = review_scope(
+            ai_result = _with_spinner(
+                "Reviewing scope with AI...",
+                review_scope,
                 scope.get("authorized", ""),
                 scope.get("prohibited", ""),
                 scope.get("requires_confirmation", ""),
