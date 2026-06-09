@@ -4,9 +4,8 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 
-export default function TerminalPanel({ projectPath }) {
+export default function TerminalPanel({ projectPath, pendingCommand, onCommandConsumed }) {
   const termRef = useRef(null)
-  const termInstance = useRef(null)
   const wsRef = useRef(null)
   const fitAddon = useRef(null)
   const [connected, setConnected] = useState(false)
@@ -60,7 +59,6 @@ export default function TerminalPanel({ projectPath }) {
     fit.fit()
 
     fitAddon.current = fit
-    termInstance.current = term
 
     const wsUrl = `ws://localhost:8767/ws/terminal?path=${encodeURIComponent(projectPath)}`
     const ws = new WebSocket(wsUrl)
@@ -79,8 +77,6 @@ export default function TerminalPanel({ projectPath }) {
 
     ws.onopen = () => {
       setConnected(true)
-      term.write('\r\n\x1b[32m AgentGuard Terminal\x1b[0m')
-      term.write(`\r\n\x1b[90m Project: ${projectPath}\x1b[0m\r\n\r\n`)
       sendResize(term.cols, term.rows)
     }
 
@@ -117,12 +113,20 @@ export default function TerminalPanel({ projectPath }) {
     }
   }, [projectPath])
 
+  useEffect(() => {
+    if (pendingCommand && connected && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(new TextEncoder().encode(pendingCommand))
+      onCommandConsumed?.()
+    }
+  }, [pendingCommand, connected])
+
   const quickCommands = [
-    { label: 'check', cmd: 'agentguard check\r' },
-    { label: 'check --ai-review', cmd: 'agentguard check --ai-review\r' },
-    { label: 'init --guided', cmd: 'agentguard init --guided\r' },
-    { label: 'review --guided', cmd: 'agentguard review --guided\r' },
-    { label: 'verify', cmd: 'agentguard verify\r' },
+    { label: '🛡️ check', cmd: 'agentguard check\r', group: 'monitor' },
+    { label: '🔍 check --ai-review', cmd: 'agentguard check --ai-review\r', group: 'monitor' },
+    { label: '🔐 verify', cmd: 'agentguard verify\r', group: 'monitor' },
+    { label: '⚡ init --guided', cmd: 'agentguard init --guided\r', group: 'setup' },
+    { label: '✏️ review --guided', cmd: 'agentguard review --guided\r', group: 'setup' },
+    { label: '📋 review', cmd: 'agentguard review\r', group: 'setup' },
   ]
 
   const sendCmd = (cmd) => {
@@ -160,24 +164,30 @@ export default function TerminalPanel({ projectPath }) {
         </div>
       </div>
 
-      <div style={{
-        display: 'flex', gap: '8px', marginBottom: '12px',
-        flexWrap: 'wrap', flexShrink: 0
-      }}>
-        {quickCommands.map(({ label, cmd }) => (
-          <button key={label} onClick={() => sendCmd(cmd)}
-            disabled={!connected}
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '6px', padding: '5px 12px',
-              color: connected ? 'var(--accent)' : 'var(--text-muted)',
-              fontSize: '12px', fontFamily: 'monospace',
-              cursor: connected ? 'pointer' : 'default'
-            }}>
-            {label}
-          </button>
-        ))}
+      <div style={{ marginBottom: '12px', flexShrink: 0 }}>
+        <div style={{
+          fontSize: '11px', color: 'var(--text-muted)',
+          marginBottom: '6px', fontWeight: '600',
+          textTransform: 'uppercase', letterSpacing: '0.06em'
+        }}>
+          Quick Commands
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {quickCommands.map(({ label, cmd }) => (
+            <button key={label} onClick={() => sendCmd(cmd)}
+              disabled={!connected}
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px', padding: '5px 12px',
+                color: connected ? 'var(--accent)' : 'var(--text-muted)',
+                fontSize: '12px', fontFamily: 'monospace',
+                cursor: connected ? 'pointer' : 'default'
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{

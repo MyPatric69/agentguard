@@ -630,17 +630,28 @@ AgentGuard does not provide legal compliance. It provides the **technical prereq
 
 ---
 
-## Web Interface (Optional)
-
-AgentGuard includes an optional browser-based UI.
-
-### Installation
+## Web Interface
 
 ```bash
-pip install agentguard[web]
+pip install "agentguard[web]"
+agentguard web
 ```
 
-### Usage
+Opens `http://localhost:8767` with:
+
+| Tab | Purpose |
+|---|---|
+| Pre-Flight Check | Run governance validation, see results visually |
+| Governance | View all governance rules with color-coded sections |
+| Verify Pins | Check concretization consistency |
+| Terminal | Run any agentguard command interactively |
+| Setup Governance | Guided, interactive, or template setup |
+| Review & Update | Update governance as project evolves |
+
+All commands including interactive ones (`init --guided`,
+`review --guided`) run directly in the browser terminal.
+Click "▶ Run in Terminal" in Setup or Review to launch
+any command without leaving the browser.
 
 ```bash
 agentguard web                    # start on http://localhost:8767
@@ -649,25 +660,7 @@ agentguard web --no-browser       # don't auto-open browser
 agentguard web --path ./my-project
 ```
 
-The web interface provides:
-- **Check** — pre-flight governance validation with visual results
-- **Governance** — view governance.yaml with structured rule display
-- **Verify** — concretization pin verification
-- **Terminal** — interactive browser terminal for running agentguard commands
-
-The terminal interface remains fully functional alongside the web UI.
-Both use the same governance.yaml and enforcement logic.
-
-### Terminal (Interactive)
-
-The Terminal tab embeds a full interactive terminal in the browser.
-Run any agentguard command including interactive ones like
-`agentguard init --guided` and `agentguard review --guided`.
-
-Quick-command buttons let you launch common commands with one click.
-
-> **Note:** The terminal requires macOS or Linux.
-> Windows support is not available (Python `pty` module).
+> Requires macOS or Linux (Python `pty` module).
 
 ### Building the frontend (for development)
 

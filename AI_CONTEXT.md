@@ -48,7 +48,8 @@ runs before, during, and after observability tools do.
 - Validation: deterministic structural checks after every concretization
 - Pinning: SHA-256 hashes of prompt+output stored in governance.yaml
 - Version: single source of truth via importlib.metadata
-- Terminal: PTY via Python stdlib `pty`, relayed over WebSocket to xterm.js
+- Terminal: PTY via Python stdlib `pty`, relayed over WebSocket to xterm.js; clean bash startup with custom PS1
+- Run in Terminal: InitPanel/ReviewPanel buttons navigate to Terminal tab and execute command
 
 ### governance.yaml Schema
 - scope.authorized: list of {action, reason, added}
@@ -68,11 +69,9 @@ runs before, during, and after observability tools do.
 
 ### Before PyPI
 - MindTrace as documented showcase (in progress)
-- Terminal UX: spinner, arrow-key navigation
 
 ### After PyPI
-- Web-UI (after community feedback)
-- v0.6.0: Intent-Aware Live Observer (drift detection via JSONL)
+- v0.8.0: Intent-Aware Live Observer (drift detection via JSONL)
 
 ## Key Files
 
@@ -101,4 +100,4 @@ runs before, during, and after observability tools do.
 
 ## Last updated
 
-2026-06-09 – v0.7.0: Terminal tab with xterm.js + WebSocket PTY
+2026-06-09 – Auto-synced 2 commit(s) to a047d28

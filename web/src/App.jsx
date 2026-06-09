@@ -49,6 +49,12 @@ export default function App() {
   const [checkStatus, setCheckStatus] = useState(null)
   const [checkStatusDetail, setCheckStatusDetail] = useState(null)
   const [projectName, setProjectName] = useState('')
+  const [pendingCommand, setPendingCommand] = useState(null)
+
+  const runInTerminal = (cmd) => {
+    setPendingCommand(cmd)
+    setActiveTab('terminal')
+  }
 
   useEffect(() => {
     fetch(`/api/project-info?path=${encodeURIComponent(projectPath)}`)
@@ -175,9 +181,15 @@ export default function App() {
           )}
           {activeTab === 'governance' && <GovernanceView projectPath={projectPath} />}
           {activeTab === 'verify' && <VerifyPanel projectPath={projectPath} />}
-          {activeTab === 'init' && <InitPanel projectPath={projectPath} />}
-          {activeTab === 'review' && <ReviewPanel projectPath={projectPath} />}
-          {activeTab === 'terminal' && <TerminalPanel projectPath={projectPath} />}
+          {activeTab === 'init' && <InitPanel projectPath={projectPath} runInTerminal={runInTerminal} />}
+          {activeTab === 'review' && <ReviewPanel projectPath={projectPath} runInTerminal={runInTerminal} />}
+          {activeTab === 'terminal' && (
+            <TerminalPanel
+              projectPath={projectPath}
+              pendingCommand={pendingCommand}
+              onCommandConsumed={() => setPendingCommand(null)}
+            />
+          )}
         </main>
       </div>
     </div>

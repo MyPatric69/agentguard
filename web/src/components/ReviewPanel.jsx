@@ -1,46 +1,38 @@
-import { useState } from 'react'
-
-export default function ReviewPanel({ projectPath }) {
-  const [copied, setCopied] = useState(null)
-
-  const copy = (text, key) => {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 2000)
-  }
-
-  const CommandCard = ({ title, description, command, id, accent }) => (
-    <div style={{
-      background: 'var(--bg-surface)',
-      border: `1px solid ${accent || 'var(--border)'}`,
-      borderRadius: '12px', padding: '20px', marginBottom: '12px'
-    }}>
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '15px', fontWeight: '700',
-                      marginBottom: '4px' }}>{title}</div>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)',
-                      lineHeight: '1.5' }}>{description}</div>
-      </div>
-      <div style={{
-        background: 'var(--bg-base)', borderRadius: '8px',
-        padding: '12px 14px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
-        fontFamily: 'monospace', fontSize: '13px', color: 'var(--accent)'
-      }}>
-        <span>{command}</span>
-        <button onClick={() => copy(command, id)} style={{
-          background: copied === id ? 'var(--ok)' : 'var(--bg-elevated)',
-          color: copied === id ? '#fff' : 'var(--text-muted)',
-          border: 'none', borderRadius: '6px', padding: '4px 10px',
-          cursor: 'pointer', fontSize: '11px', fontWeight: '600',
-          flexShrink: 0, marginLeft: '12px'
-        }}>
-          {copied === id ? '✓ Copied' : 'Copy'}
-        </button>
-      </div>
+const CommandCard = ({ title, description, cmd, accent, onRun }) => (
+  <div style={{
+    background: 'var(--bg-surface)',
+    border: `1px solid ${accent || 'var(--border)'}`,
+    borderRadius: '12px', padding: '20px', marginBottom: '12px'
+  }}>
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{ fontSize: '15px', fontWeight: '700',
+                    marginBottom: '4px' }}>{title}</div>
+      <div style={{ fontSize: '13px', color: 'var(--text-muted)',
+                    lineHeight: '1.5' }}>{description}</div>
     </div>
-  )
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '12px'
+    }}>
+      <code style={{
+        flex: 1, background: 'var(--bg-base)', borderRadius: '6px',
+        padding: '8px 12px', fontSize: '12px', color: 'var(--accent)',
+        fontFamily: 'monospace'
+      }}>
+        {cmd.replace('\r', '')}
+      </code>
+      <button onClick={onRun} style={{
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', borderRadius: '6px',
+        padding: '8px 16px', cursor: 'pointer',
+        fontSize: '12px', fontWeight: '600', flexShrink: 0
+      }}>
+        ▶ Run in Terminal
+      </button>
+    </div>
+  </div>
+)
 
+export default function ReviewPanel({ projectPath, runInTerminal }) {
   return (
     <div>
       <div style={{ marginBottom: '24px' }}>
@@ -53,25 +45,25 @@ export default function ReviewPanel({ projectPath }) {
       </div>
 
       <CommandCard
-        id="review-guided"
         title="🤖 AI-Assisted Review (Recommended)"
         description="Review all governance fields with AI concretization. Updates only changed fields — unchanged fields are preserved. All changes logged in governance_history."
-        command={`cd ${projectPath} && agentguard review --guided`}
+        cmd={`cd ${projectPath} && agentguard review --guided\r`}
         accent="rgba(59,130,246,0.3)"
+        onRun={() => runInTerminal(`cd ${projectPath} && agentguard review --guided\r`)}
       />
       <CommandCard
-        id="review"
         title="📋 Interactive Review"
         description="Review governance fields manually. Choose which fields to keep, update, or add rules to. Mark ambiguities as resolved."
-        command={`cd ${projectPath} && agentguard review`}
+        cmd={`cd ${projectPath} && agentguard review\r`}
         accent="rgba(16,185,129,0.2)"
+        onRun={() => runInTerminal(`cd ${projectPath} && agentguard review\r`)}
       />
       <CommandCard
-        id="review-field"
         title="🎯 Review Specific Field"
         description="Update only authorized, prohibited, or requires_confirmation scope. Fastest for targeted changes."
-        command={`cd ${projectPath} && agentguard review --field authorized`}
+        cmd={`cd ${projectPath} && agentguard review --field authorized\r`}
         accent="rgba(99,102,241,0.2)"
+        onRun={() => runInTerminal(`cd ${projectPath} && agentguard review --field authorized\r`)}
       />
 
       <div style={{

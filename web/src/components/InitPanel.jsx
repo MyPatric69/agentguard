@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 function GovernanceStatusBanner({ projectPath }) {
   const [status, setStatus] = useState(null)
@@ -26,47 +26,41 @@ function GovernanceStatusBanner({ projectPath }) {
   )
 }
 
-export default function InitPanel({ projectPath }) {
-  const [copied, setCopied] = useState(null)
-
-  const copy = (text, key) => {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 2000)
-  }
-
-  const CommandCard = ({ title, description, command, id, accent }) => (
-    <div style={{
-      background: 'var(--bg-surface)',
-      border: `1px solid ${accent || 'var(--border)'}`,
-      borderRadius: '12px', padding: '20px', marginBottom: '12px'
-    }}>
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '15px', fontWeight: '700',
-                      marginBottom: '4px' }}>{title}</div>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)',
-                      lineHeight: '1.5' }}>{description}</div>
-      </div>
-      <div style={{
-        background: 'var(--bg-base)', borderRadius: '8px',
-        padding: '12px 14px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
-        fontFamily: 'monospace', fontSize: '13px', color: 'var(--accent)'
-      }}>
-        <span>{command}</span>
-        <button onClick={() => copy(command, id)} style={{
-          background: copied === id ? 'var(--ok)' : 'var(--bg-elevated)',
-          color: copied === id ? '#fff' : 'var(--text-muted)',
-          border: 'none', borderRadius: '6px', padding: '4px 10px',
-          cursor: 'pointer', fontSize: '11px', fontWeight: '600',
-          flexShrink: 0, marginLeft: '12px'
-        }}>
-          {copied === id ? '✓ Copied' : 'Copy'}
-        </button>
-      </div>
+const CommandCard = ({ title, description, cmd, accent, onRun }) => (
+  <div style={{
+    background: 'var(--bg-surface)',
+    border: `1px solid ${accent || 'var(--border)'}`,
+    borderRadius: '12px', padding: '20px', marginBottom: '12px'
+  }}>
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{ fontSize: '15px', fontWeight: '700',
+                    marginBottom: '4px' }}>{title}</div>
+      <div style={{ fontSize: '13px', color: 'var(--text-muted)',
+                    lineHeight: '1.5' }}>{description}</div>
     </div>
-  )
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '12px'
+    }}>
+      <code style={{
+        flex: 1, background: 'var(--bg-base)', borderRadius: '6px',
+        padding: '8px 12px', fontSize: '12px', color: 'var(--accent)',
+        fontFamily: 'monospace'
+      }}>
+        {cmd.replace('\r', '')}
+      </code>
+      <button onClick={onRun} style={{
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', borderRadius: '6px',
+        padding: '8px 16px', cursor: 'pointer',
+        fontSize: '12px', fontWeight: '600', flexShrink: 0
+      }}>
+        ▶ Run in Terminal
+      </button>
+    </div>
+  </div>
+)
 
+export default function InitPanel({ projectPath, runInTerminal }) {
   return (
     <div>
       <div style={{ marginBottom: '24px' }}>
@@ -82,25 +76,25 @@ export default function InitPanel({ projectPath }) {
 
       <div style={{ marginTop: '20px' }}>
         <CommandCard
-          id="guided"
           title="⚡ Guided Setup (Recommended)"
           description="AI-powered 5-step dialog. Translates your intent into concrete, enforceable rules. Uses claude-sonnet for reliable schema generation."
-          command={`cd ${projectPath} && agentguard init --guided`}
+          cmd={`cd ${projectPath} && agentguard init --guided\r`}
           accent="rgba(59,130,246,0.3)"
+          onRun={() => runInTerminal(`cd ${projectPath} && agentguard init --guided\r`)}
         />
         <CommandCard
-          id="interactive"
           title="📝 Interactive Setup"
           description="Manual setup without AI. Fill in governance fields directly. Good for teams with existing governance policies."
-          command={`cd ${projectPath} && agentguard init --interactive`}
+          cmd={`cd ${projectPath} && agentguard init --interactive\r`}
           accent="rgba(16,185,129,0.2)"
+          onRun={() => runInTerminal(`cd ${projectPath} && agentguard init --interactive\r`)}
         />
         <CommandCard
-          id="template"
           title="📄 Template Only"
           description="Generate a governance.yaml template to fill in manually. Best for scripted or CI/CD environments."
-          command={`cd ${projectPath} && agentguard init --template-only`}
+          cmd={`cd ${projectPath} && agentguard init --template-only\r`}
           accent="rgba(99,102,241,0.2)"
+          onRun={() => runInTerminal(`cd ${projectPath} && agentguard init --template-only\r`)}
         />
       </div>
 

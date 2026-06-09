@@ -89,6 +89,7 @@ def test_project_info_dot():
     data = resp.json()
     assert "name" in data
     assert "path" in data
+    assert data["name"] != "."
     assert data["name"] != ""
     assert data["path"].startswith("/")
 

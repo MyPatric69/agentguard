@@ -114,8 +114,17 @@ async def terminal_ws(websocket: WebSocket, path: str = "."):
     if pid == 0:
         abs_path = str(Path(path).resolve())
         os.chdir(abs_path)
-        os.execvp("bash", ["bash", "--login"])
+        os.execvp("bash", ["bash", "--norc", "--noprofile"])
     else:
+        abs_path = str(Path(path).resolve())
+        await asyncio.sleep(0.1)
+        init_cmd = (
+            'export PS1="\\[\\033[0;32m\\]agentguard\\[\\033[0m\\] '
+            '\\[\\033[0;34m\\]\\W\\[\\033[0m\\]$ "\n'
+            f'cd "{abs_path}"\n'
+            'clear\n'
+        )
+        os.write(fd, init_cmd.encode())
         try:
             async def pty_to_ws():
                 while True:
