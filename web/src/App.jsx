@@ -2,18 +2,59 @@ import { useState } from 'react'
 import CheckPanel from './components/CheckPanel.jsx'
 import GovernanceView from './components/GovernanceView.jsx'
 import VerifyPanel from './components/VerifyPanel.jsx'
+import InitPanel from './components/InitPanel.jsx'
+import ReviewPanel from './components/ReviewPanel.jsx'
 import './index.css'
 
 const NAV_ITEMS = [
   { id: 'check', label: 'Pre-Flight Check', icon: '🛡️', group: 'monitor' },
   { id: 'governance', label: 'Governance', icon: '📋', group: 'monitor' },
   { id: 'verify', label: 'Verify Pins', icon: '🔐', group: 'monitor' },
+  { id: 'init', label: 'Setup Governance', icon: '⚙️', group: 'setup' },
+  { id: 'review', label: 'Review & Update', icon: '✏️', group: 'setup' },
 ]
+
+function NavGroup({ label, items, activeTab, setActiveTab }) {
+  return (
+    <div style={{ padding: '0 12px', marginBottom: '16px' }}>
+      <div style={{
+        fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)',
+        letterSpacing: '0.08em', textTransform: 'uppercase',
+        padding: '0 8px', marginBottom: '6px'
+      }}>{label}</div>
+      {items.map(item => (
+        <button key={item.id} onClick={() => setActiveTab(item.id)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center',
+            gap: '10px', padding: '8px 10px', borderRadius: '6px',
+            border: 'none', cursor: 'pointer', marginBottom: '2px',
+            background: activeTab === item.id ? 'var(--accent)' : 'transparent',
+            color: activeTab === item.id ? '#fff' : 'var(--text-secondary)',
+            fontSize: '13px', fontWeight: activeTab === item.id ? '600' : '400',
+            textAlign: 'left', transition: 'background 0.15s'
+          }}>
+          <span>{item.icon}</span>
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('check')
   const [projectPath, setProjectPath] = useState('.')
   const [checkStatus, setCheckStatus] = useState(null)
+  const [checkStatusDetail, setCheckStatusDetail] = useState(null)
+
+  const projectName = projectPath === '.'
+    ? 'current project'
+    : projectPath.split('/').filter(Boolean).pop() || projectPath
+
+  const handleStatusChange = (status, detail) => {
+    setCheckStatus(status)
+    setCheckStatusDetail(detail)
+  }
 
   return (
     <div style={{
@@ -51,13 +92,14 @@ export default function App() {
             fontSize: '12px',
             color: checkStatus === 'ALL CLEAR' ? 'var(--ok)' :
                    checkStatus === 'WARNINGS' ? 'var(--warning)' :
-                   'var(--critical)'
+                   'var(--critical)',
+            cursor: 'default'
           }}>
             <span style={{
               width: '8px', height: '8px', borderRadius: '50%',
               background: 'currentColor', display: 'inline-block'
             }}/>
-            {projectPath} — {checkStatus}
+            {projectName} — {checkStatusDetail}
           </div>
         )}
       </header>
@@ -73,31 +115,18 @@ export default function App() {
           padding: '16px 0',
           flexShrink: 0
         }}>
-          {/* Navigation */}
-          <div style={{ padding: '0 12px', marginBottom: '8px' }}>
-            <div style={{
-              fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)',
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              padding: '0 8px', marginBottom: '6px'
-            }}>Monitor</div>
-            {NAV_ITEMS.map(item => (
-              <button key={item.id} onClick={() => setActiveTab(item.id)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center',
-                  gap: '10px', padding: '8px 10px', borderRadius: '6px',
-                  border: 'none', cursor: 'pointer', marginBottom: '2px',
-                  background: activeTab === item.id
-                    ? 'var(--accent)' : 'transparent',
-                  color: activeTab === item.id
-                    ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '13px', fontWeight: activeTab === item.id ? '600' : '400',
-                  textAlign: 'left', transition: 'background 0.15s'
-                }}>
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
+          <NavGroup
+            label="Monitor"
+            items={NAV_ITEMS.filter(n => n.group === 'monitor')}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+          <NavGroup
+            label="Setup"
+            items={NAV_ITEMS.filter(n => n.group === 'setup')}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
 
           {/* Project Path */}
           <div style={{
@@ -135,9 +164,13 @@ export default function App() {
           flex: 1, overflow: 'auto', padding: '24px',
           background: 'var(--bg-base)'
         }}>
-          {activeTab === 'check' && <CheckPanel projectPath={projectPath} onStatusChange={setCheckStatus} />}
+          {activeTab === 'check' && (
+            <CheckPanel projectPath={projectPath} onStatusChange={handleStatusChange} />
+          )}
           {activeTab === 'governance' && <GovernanceView projectPath={projectPath} />}
           {activeTab === 'verify' && <VerifyPanel projectPath={projectPath} />}
+          {activeTab === 'init' && <InitPanel projectPath={projectPath} />}
+          {activeTab === 'review' && <ReviewPanel projectPath={projectPath} />}
         </main>
       </div>
     </div>

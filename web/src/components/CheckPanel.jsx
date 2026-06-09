@@ -74,9 +74,13 @@ export default function CheckPanel({ projectPath, onStatusChange }) {
       const data = await res.json()
       setChecks(data)
       if (onStatusChange) {
-        const hasCritical = data.some(c => c.severity === 'critical')
-        const hasWarning = data.some(c => c.severity === 'warning')
-        onStatusChange(hasCritical ? 'BLOCKED' : hasWarning ? 'WARNINGS' : 'ALL CLEAR')
+        const warnings = data.filter(c => c.severity === 'warning').length
+        const criticals = data.filter(c => c.severity === 'critical').length
+        const overall = criticals > 0 ? 'BLOCKED' : warnings > 0 ? 'WARNINGS' : 'ALL CLEAR'
+        const detail = criticals > 0 ? `${criticals} critical` :
+                       warnings > 0 ? `${warnings} warning${warnings > 1 ? 's' : ''}` :
+                       'all clear'
+        onStatusChange(overall, detail)
       }
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
