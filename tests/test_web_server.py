@@ -81,3 +81,26 @@ def test_verify_failure(tmp_path):
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is False
+
+
+def test_project_info_dot():
+    resp = client.get("/api/project-info?path=.")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "name" in data
+    assert "path" in data
+    assert data["name"] != ""
+    assert data["path"].startswith("/")
+
+
+def test_project_info_absolute(tmp_path):
+    resp = client.get(f"/api/project-info?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == tmp_path.name
+    assert data["path"] == str(tmp_path)
+
+
+# WebSocket PTY endpoint (/ws/terminal) requires a real PTY process and cannot
+# be tested with TestClient. Manual test: open the web UI Terminal tab and
+# verify the shell connects and agentguard commands run interactively.

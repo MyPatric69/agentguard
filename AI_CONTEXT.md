@@ -25,7 +25,7 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn (server), React 18 + Vite 5 (frontend)
 - Build: hatchling, PyPI distribution pending
 
-## Current State (v0.6.0)
+## Current State (v0.7.0)
 
 ### Commands
 - `agentguard check` — pre-flight: 11 checks, CRITICAL/WARNING/INFO
@@ -48,6 +48,7 @@ runs before, during, and after observability tools do.
 - Validation: deterministic structural checks after every concretization
 - Pinning: SHA-256 hashes of prompt+output stored in governance.yaml
 - Version: single source of truth via importlib.metadata
+- Terminal: PTY via Python stdlib `pty`, relayed over WebSocket to xterm.js
 
 ### governance.yaml Schema
 - scope.authorized: list of {action, reason, added}
@@ -60,7 +61,7 @@ runs before, during, and after observability tools do.
 - governance_history: list of change records {date, action, tool, version}
 
 ### Tests
-- 212/212 passing (includes 7 web server API tests)
+- 214/214 passing (includes 9 web server API tests)
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 
 ## Open Items
@@ -75,9 +76,9 @@ runs before, during, and after observability tools do.
 
 ## Key Files
 
-- `agentguard/web/server.py` — FastAPI bridge (/api/check, /api/governance, /api/verify, /api/health)
-- `web/src/App.jsx` — React shell: Check / Governance / Verify tabs, dark theme
-- `web/src/components/` — CheckPanel, GovernanceView, StatusBadge
+- `agentguard/web/server.py` — FastAPI bridge (/api/check, /api/governance, /api/verify, /api/health, /api/project-info, /ws/terminal)
+- `web/src/App.jsx` — React shell: Check / Governance / Verify / Terminal tabs, dark theme
+- `web/src/components/` — CheckPanel, GovernanceView, StatusBadge, TerminalPanel
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2
 - `agentguard/checks/runtime.py` — Layer 3
@@ -100,4 +101,4 @@ runs before, during, and after observability tools do.
 
 ## Last updated
 
-2026-06-09 – Auto-synced 1 commit(s) to c6d4973
+2026-06-09 – v0.7.0: Terminal tab with xterm.js + WebSocket PTY

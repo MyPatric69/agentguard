@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import CheckPanel from './components/CheckPanel.jsx'
 import GovernanceView from './components/GovernanceView.jsx'
 import VerifyPanel from './components/VerifyPanel.jsx'
 import InitPanel from './components/InitPanel.jsx'
 import ReviewPanel from './components/ReviewPanel.jsx'
+import TerminalPanel from './components/TerminalPanel.jsx'
 import './index.css'
 
 const NAV_ITEMS = [
   { id: 'check', label: 'Pre-Flight Check', icon: '🛡️', group: 'monitor' },
   { id: 'governance', label: 'Governance', icon: '📋', group: 'monitor' },
   { id: 'verify', label: 'Verify Pins', icon: '🔐', group: 'monitor' },
+  { id: 'terminal', label: 'Terminal', icon: '💻', group: 'monitor' },
   { id: 'init', label: 'Setup Governance', icon: '⚙️', group: 'setup' },
   { id: 'review', label: 'Review & Update', icon: '✏️', group: 'setup' },
 ]
@@ -46,10 +48,14 @@ export default function App() {
   const [projectPath, setProjectPath] = useState('.')
   const [checkStatus, setCheckStatus] = useState(null)
   const [checkStatusDetail, setCheckStatusDetail] = useState(null)
+  const [projectName, setProjectName] = useState('')
 
-  const projectName = projectPath === '.'
-    ? 'current project'
-    : projectPath.split('/').filter(Boolean).pop() || projectPath
+  useEffect(() => {
+    fetch(`/api/project-info?path=${encodeURIComponent(projectPath)}`)
+      .then(r => r.json())
+      .then(d => setProjectName(d.name))
+      .catch(() => setProjectName(''))
+  }, [projectPath])
 
   const handleStatusChange = (status, detail) => {
     setCheckStatus(status)
@@ -84,7 +90,7 @@ export default function App() {
           fontSize: '11px', color: 'var(--text-muted)',
           background: 'var(--bg-elevated)', padding: '2px 8px',
           borderRadius: '10px'
-        }}>v0.6.0</span>
+        }}>v0.7.0</span>
         {checkStatus && (
           <div style={{
             marginLeft: 'auto',
@@ -99,7 +105,7 @@ export default function App() {
               width: '8px', height: '8px', borderRadius: '50%',
               background: 'currentColor', display: 'inline-block'
             }}/>
-            {projectName} — {checkStatusDetail}
+            {projectName || projectPath} — {checkStatusDetail}
           </div>
         )}
       </header>
@@ -171,6 +177,7 @@ export default function App() {
           {activeTab === 'verify' && <VerifyPanel projectPath={projectPath} />}
           {activeTab === 'init' && <InitPanel projectPath={projectPath} />}
           {activeTab === 'review' && <ReviewPanel projectPath={projectPath} />}
+          {activeTab === 'terminal' && <TerminalPanel projectPath={projectPath} />}
         </main>
       </div>
     </div>

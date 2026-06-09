@@ -653,9 +653,21 @@ The web interface provides:
 - **Check** — pre-flight governance validation with visual results
 - **Governance** — view governance.yaml with structured rule display
 - **Verify** — concretization pin verification
+- **Terminal** — interactive browser terminal for running agentguard commands
 
 The terminal interface remains fully functional alongside the web UI.
 Both use the same governance.yaml and enforcement logic.
+
+### Terminal (Interactive)
+
+The Terminal tab embeds a full interactive terminal in the browser.
+Run any agentguard command including interactive ones like
+`agentguard init --guided` and `agentguard review --guided`.
+
+Quick-command buttons let you launch common commands with one click.
+
+> **Note:** The terminal requires macOS or Linux.
+> Windows support is not available (Python `pty` module).
 
 ### Building the frontend (for development)
 

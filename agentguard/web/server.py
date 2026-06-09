@@ -1,12 +1,19 @@
 """AgentGuard Web Server — FastAPI bridge for the web UI."""
 from __future__ import annotations
 
+import asyncio
+import fcntl
 import json
+import os
+import pty
+import select
+import struct
 import subprocess
+import termios
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from agentguard import __version__
@@ -87,6 +94,69 @@ async def verify_json(path: str = "."):
         }
     except Exception as e:
         return {"pins": [], "success": False, "message": str(e)}
+
+
+@app.get("/api/project-info")
+async def project_info(path: str = "."):
+    """Return absolute path and project name."""
+    abs_path = str(Path(path).resolve())
+    name = Path(abs_path).name
+    return {"name": name, "path": abs_path}
+
+
+@app.websocket("/ws/terminal")
+async def terminal_ws(websocket: WebSocket, path: str = "."):
+    """WebSocket endpoint that spawns a PTY bash shell in the project directory."""
+    await websocket.accept()
+
+    pid, fd = pty.fork()
+
+    if pid == 0:
+        abs_path = str(Path(path).resolve())
+        os.chdir(abs_path)
+        os.execvp("bash", ["bash", "--login"])
+    else:
+        try:
+            async def pty_to_ws():
+                while True:
+                    await asyncio.sleep(0.01)
+                    try:
+                        r, _, _ = select.select([fd], [], [], 0)
+                        if r:
+                            data = os.read(fd, 1024)
+                            await websocket.send_bytes(data)
+                    except OSError:
+                        break
+
+            async def ws_to_pty():
+                while True:
+                    try:
+                        msg = await websocket.receive()
+                        if "bytes" in msg:
+                            data = msg["bytes"]
+                            if data[0:1] == b'\x01' and len(data) == 5:
+                                cols = struct.unpack('H', data[1:3])[0]
+                                rows = struct.unpack('H', data[3:5])[0]
+                                fcntl.ioctl(fd, termios.TIOCSWINSZ,
+                                            struct.pack('HHHH', rows, cols, 0, 0))
+                            else:
+                                os.write(fd, data)
+                        elif "text" in msg:
+                            os.write(fd, msg["text"].encode())
+                    except (WebSocketDisconnect, Exception):
+                        break
+
+            await asyncio.gather(pty_to_ws(), ws_to_pty())
+        finally:
+            try:
+                os.kill(pid, 9)
+                os.waitpid(pid, 0)
+            except Exception:
+                pass
+            try:
+                os.close(fd)
+            except Exception:
+                pass
 
 
 @app.get("/api/health")
