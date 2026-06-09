@@ -16,6 +16,7 @@ from agentguard.ai_review import (
     _get_env,
     _strip_fences,
 )
+from agentguard.guided.pinning import pin_concretization
 
 _AUTO_REASON = "Extracted from governance definition — review and refine"
 
@@ -204,13 +205,14 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
             parsed["requires_confirmation"] = _normalize_items(parsed.get("requires_confirmation"))
             parsed["_provider"] = provider
             parsed["_model"] = concretization_model
+            parsed["_pin"] = pin_concretization("mission", user_input, prompt, concretization_model, provider, parsed)
             return parsed
 
         # Format B — response used single concretized field; split with robust classifier
         if "concretized" in parsed:
             concretized = parsed["concretized"]
             parts = _normalize_from_concretized(concretized)
-            return {
+            result_b: dict[str, Any] = {
                 "authorized": parts["authorized"],
                 "prohibited": parts["prohibited"],
                 "requires_confirmation": parts["requires_confirmation"],
@@ -222,6 +224,8 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
                 "_model": concretization_model,
                 "_format_b": True,
             }
+            result_b["_pin"] = pin_concretization("mission", user_input, prompt, concretization_model, provider, result_b)
+            return result_b
 
         # Truly empty response — neither Format A nor Format B
         return _mission_fallback(user_input, "empty response")
@@ -276,6 +280,7 @@ Confidence: HIGH = fully concrete, MEDIUM = mostly concrete, LOW = still vague."
         result: dict[str, Any] = json.loads(_sf(raw))
         result["_provider"] = provider
         result["_model"] = concretization_model
+        result["_pin"] = pin_concretization(field_name, user_input, prompt, concretization_model, provider, result)
         return result
     except Exception as exc:
         return _field_fallback(user_input, str(exc))
@@ -304,6 +309,7 @@ def _concretize_hard_limits(user_input: str) -> dict[str, Any]:
         result["prohibited"] = _normalize_items(result.get("prohibited"), "HARD_LIMIT")
         result["_provider"] = provider
         result["_model"] = concretization_model
+        result["_pin"] = pin_concretization("hard_limits", user_input, prompt, concretization_model, provider, result)
         return result
     except Exception as exc:
         return _hard_limits_fallback(user_input, str(exc))

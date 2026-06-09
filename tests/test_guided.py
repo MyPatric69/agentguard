@@ -1153,4 +1153,81 @@ def test_show_validation_warnings_renders_panel():
     output = buf.getvalue()
     assert "VALIDATION WARNINGS" in output
     assert "No HARD_LIMIT rules defined" in output
-    assert "Mark your most critical prohibitions as HARD_LIMIT" in output
+
+
+# ── 45. concretize_mission result contains _pin dict ──────────────────────────
+
+def test_concretize_mission_result_has_pin():
+    mock_response = json.dumps({
+        "authorized": [{"action": "Read Python files in ./src", "reason": "Core task"}],
+        "prohibited": [{"action": "Deploy to production", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "requires_confirmation": [{"action": "Delete files", "reason": "Irreversible"}],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response), \
+         mock.patch("agentguard.guided.concretizer._get_env", return_value=("openai", "key", None, None)):
+        result = concretize_mission("Build a Python code assistant")
+
+    assert "_pin" in result
+    pin = result["_pin"]
+    assert pin["field"] == "mission"
+    assert pin["temperature"] == 0
+    assert len(pin["prompt_hash"]) == 16
+    assert len(pin["output_hash"]) == 16
+
+
+# ── 46. concretize_field result contains _pin dict ────────────────────────────
+
+def test_concretize_field_result_has_pin():
+    mock_response = json.dumps({
+        "concretized": "Send email via /api/notify only",
+        "enforcement_notes": "Block all other email calls",
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response), \
+         mock.patch("agentguard.guided.concretizer._get_env", return_value=("openai", "key", None, None)):
+        result = concretize_field("escalation", "Send email notifications")
+
+    assert "_pin" in result
+    pin = result["_pin"]
+    assert pin["field"] == "escalation"
+    assert pin["temperature"] == 0
+
+
+# ── 47. _save_guided writes concretization_pins to governance.yaml ────────────
+
+def test_save_guided_writes_concretization_pins(tmp_path, monkeypatch):
+    from agentguard.cli import _save_guided
+
+    monkeypatch.chdir(tmp_path)
+
+    results = {
+        "owner": "Test Owner",
+        "scope.authorized": [{"action": "Read files in ./src", "reason": "Core task", "severity": "WARNING"}],
+        "scope.prohibited": [{"action": "Deploy to production", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "scope.requires_confirmation": [{"action": "Delete files", "reason": "Irreversible"}],
+        "escalation": "owner@example.com",
+        "killswitch": "Ctrl+C",
+        "_mission_pin": {
+            "field": "mission",
+            "input_hash": "abc123def456abcd",
+            "prompt_hash": "def456abc123ef01",
+            "output_hash": "1234567890abcdef",
+            "model": "claude-sonnet-4-20250514",
+            "provider": "anthropic",
+            "temperature": 0,
+            "date": "2026-06-09",
+        },
+    }
+
+    with mock.patch("agentguard.cli._write_hook_config", return_value="hook config written"), \
+         mock.patch("agentguard.cli._update_claude_md", return_value=(True, "CLAUDE.md updated")), \
+         mock.patch("agentguard.ai_review._get_env", return_value=("anthropic", "key", None, None)):
+        _save_guided(results)
+
+    gov_text = (tmp_path / "governance.yaml").read_text()
+    assert "concretization_pins:" in gov_text
+    assert 'field: "mission"' in gov_text
+    assert "temperature: 0" in gov_text

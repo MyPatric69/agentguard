@@ -252,6 +252,58 @@ Override log is written to `agentguard-overrides.log`.
 
 ---
 
+### `agentguard verify`
+
+Verify that concretization pins in `governance.yaml` are intact.
+
+```bash
+agentguard verify
+agentguard verify --config path/to/governance.yaml
+```
+
+After `agentguard init --guided`, a `concretization_pins` block is written to
+`governance.yaml`. Each pin records the SHA-256 hashes of the prompt, output,
+model, provider, and temperature used during AI concretization.
+
+`agentguard verify` checks:
+- All required pin fields are present
+- `temperature` is `0` (deterministic output guaranteed)
+
+| Exit code | Meaning |
+|---|---|
+| `0` | All pins verified — governance is reproducible |
+| `1` | Pin issues found (missing, incomplete, or temperature drift) |
+| `2` | governance.yaml not found |
+
+---
+
+## Consistency & Reproducibility
+
+When `agentguard init --guided` generates governance rules, it records
+**prompt-pins** alongside each concretized field:
+
+```yaml
+concretization_pins:
+  - field: "mission"
+    input_hash: "abc123def456abcd"
+    prompt_hash: "def456abc123ef01"
+    output_hash: "1234567890abcdef"
+    model: "claude-sonnet-4-20250514"
+    provider: "anthropic"
+    temperature: 0
+    date: "2026-06-09"
+```
+
+This answers: *"How were these governance rules generated — and can we reproduce them?"*
+
+The hashes are SHA-256 truncated to 16 chars for readability. They don't
+re-verify the AI output automatically (the AI is non-deterministic even at
+temperature=0 across versions), but they document the exact conditions under
+which governance was created. Use `agentguard verify` to check structural
+integrity.
+
+---
+
 ## AI-Powered Scope Review (Optional)
 
 AgentGuard can use an AI provider to assess the quality of your governance

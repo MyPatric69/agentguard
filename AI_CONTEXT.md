@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.5.0  
+**Version:** 0.5.1  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight checks,
 runtime loop detection, and post-session reporting.
@@ -22,7 +22,7 @@ before observability tools do.
 - Optional: Anthropic / OpenAI / Anysphere API (AI-powered scope review via --ai-review flag, provider-agnostic)
 - Build: hatchling, PyPI distribution planned
 
-## Current State (v0.5.0)
+## Current State (v0.5.1)
 
 - Pre-flight check: checks across 3 layers (governance, prompt, harness)
 - AI-powered scope quality review via `--ai-review` flag (opt-in)
@@ -70,8 +70,15 @@ before observability tools do.
   - interactive + template-only + guided modes
 - agentguard override: mandatory reason, logged to agentguard-overrides.log
 - security.md absence triggers INFO check in preflight
-- MISSION_MODEL_OVERRIDES: sonnet for mission concretization (haiku for other fields)
-- 166/166 tests passing, ruff clean
+- CONCRETIZATION_MODEL_OVERRIDES: sonnet for all concretization calls (anthropic/openai/anysphere)
+- temperature=0 enforced on all concretization API calls (deterministic outputs)
+- Structural validation before accepting concretized governance (validator.py)
+- **New in v0.5.1: Prompt-Pinning for reproducibility**
+  - `agentguard/guided/pinning.py`: SHA-256 hash pins for prompt/output/model/temperature
+  - `_pin` dict embedded in every concretization result
+  - `concretization_pins` block written to governance.yaml on save
+  - `agentguard verify`: checks pin integrity — structure + temperature=0
+  - 205/205 tests passing, ruff clean
 - CI: GitHub Actions, Python 3.11 + 3.12 matrix, green
 
 ## Open Items
@@ -103,4 +110,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-08 – Auto-synced 1 commit(s) to c2f27bd
+2026-06-09 – Auto-synced 1 commit(s) to 997966d
