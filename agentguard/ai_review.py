@@ -107,44 +107,65 @@ def _strip_fences(text: str) -> str:
 
 
 def _call_provider(
-    provider: str, api_key: str, base_url: str | None, model: str, prompt: str, max_tokens: int = 500
+    provider: str,
+    api_key: str,
+    base_url: str | None,
+    model: str,
+    prompt: str,
+    max_tokens: int = 500,
+    temperature: float | None = None,
 ) -> str:
     if provider == "anthropic":
-        return _call_anthropic(api_key, model, prompt, max_tokens=max_tokens)
+        return _call_anthropic(api_key, model, prompt, max_tokens=max_tokens, temperature=temperature)
     if provider in ("openai", "anysphere", "openai-compatible"):
-        return _call_openai_compat(api_key, base_url, model, prompt, max_tokens=max_tokens)
+        return _call_openai_compat(api_key, base_url, model, prompt, max_tokens=max_tokens, temperature=temperature)
     raise ValueError(f"Unknown provider: {provider}")
 
 
-def _call_anthropic(api_key: str, model: str, prompt: str, max_tokens: int = 500) -> str:
+def _call_anthropic(
+    api_key: str, model: str, prompt: str, max_tokens: int = 500, temperature: float | None = None
+) -> str:
     try:
         import anthropic
     except ImportError:
         raise ImportError("anthropic package not installed — run: pip install agentguard[ai]")
 
     client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    create_kwargs: dict[str, Any] = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if temperature is not None:
+        create_kwargs["temperature"] = temperature
+    message = client.messages.create(**create_kwargs)
     return message.content[0].text
 
 
-def _call_openai_compat(api_key: str, base_url: str | None, model: str, prompt: str, max_tokens: int = 500) -> str:
+def _call_openai_compat(
+    api_key: str,
+    base_url: str | None,
+    model: str,
+    prompt: str,
+    max_tokens: int = 500,
+    temperature: float | None = None,
+) -> str:
     try:
         import openai
     except ImportError:
         raise ImportError("openai package not installed — run: pip install agentguard[ai]")
 
-    kwargs: dict[str, Any] = {"api_key": api_key}
+    client_kwargs: dict[str, Any] = {"api_key": api_key}
     if base_url:
-        kwargs["base_url"] = base_url
+        client_kwargs["base_url"] = base_url
 
-    client = openai.OpenAI(**kwargs)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,
-    )
+    client = openai.OpenAI(**client_kwargs)
+    create_kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
+    }
+    if temperature is not None:
+        create_kwargs["temperature"] = temperature
+    response = client.chat.completions.create(**create_kwargs)
     return response.choices[0].message.content

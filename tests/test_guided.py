@@ -844,10 +844,13 @@ def test_show_concretized_no_truncation():
 def test_guided_ambiguities_accumulated_across_rounds():
     runner = CliRunner()
 
+    _prohibited_hl = [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}]
+    _confirmation = [{"action": "Any file deletion", "reason": "Irreversible"}]
+
     round_1_result = {
-        "authorized": [{"action": "Read files", "reason": "Core task"}],
-        "prohibited": [],
-        "requires_confirmation": [],
+        "authorized": [{"action": "Read files in ./src", "reason": "Core task"}],
+        "prohibited": _prohibited_hl,
+        "requires_confirmation": _confirmation,
         "confidence": "MEDIUM",
         "ambiguities": ["Round-1 ambiguity: scope of files unclear"],
         "_provider": "anthropic",
@@ -855,8 +858,8 @@ def test_guided_ambiguities_accumulated_across_rounds():
     }
     round_2_result = {
         "authorized": [{"action": "Read Python files in ./src", "reason": "Core task"}],
-        "prohibited": [],
-        "requires_confirmation": [],
+        "prohibited": _prohibited_hl,
+        "requires_confirmation": _confirmation,
         "confidence": "MEDIUM",
         "ambiguities": [
             "Round-2 ambiguity: time constraints not specified",
@@ -1033,3 +1036,121 @@ def test_guided_step2_question_references_claude_code():
     step2 = next(s for s in GUIDED_STEPS if s["step"] == 2)
     assert "Claude Code authorized" in step2["question"]
     assert "no calls to external APIs" in step2["example"]
+
+
+# ── 42. temperature=0 used in all concretization calls ───────────────────────
+
+def test_concretize_mission_uses_temperature_0(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "authorized": [{"action": "Read files", "reason": "Core task"}],
+        "prohibited": [{"action": "No prod", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "requires_confirmation": [],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        concretize_mission("implement features")
+
+    assert mock_call.call_args.kwargs.get("temperature") == 0
+
+
+def test_concretize_hard_limits_uses_temperature_0(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        concretize_field("hard_limits", "no production writes")
+
+    assert mock_call.call_args.kwargs.get("temperature") == 0
+
+
+def test_concretize_field_uses_temperature_0(monkeypatch):
+    monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
+    monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
+    monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
+    monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
+
+    mock_response = json.dumps({
+        "concretized": "Email owner@example.com on failure",
+        "enforcement_notes": "",
+        "confidence": "HIGH",
+        "ambiguities": [],
+    })
+    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+        concretize_field("escalation", "email me on failure")
+
+    assert mock_call.call_args.kwargs.get("temperature") == 0
+
+
+# ── 43. Validation error panel shown when mission has no authorized ───────────
+
+def test_show_validation_errors_renders_panel():
+    from io import StringIO
+
+    from rich.console import Console
+
+    from agentguard import cli as cli_module
+    from agentguard.cli import _show_validation_errors
+    from agentguard.guided.validator import ValidationIssue
+
+    issues = [ValidationIssue(
+        field="authorized",
+        severity="error",
+        message="No authorized actions defined",
+        fix="Define at least one concrete authorized action",
+    )]
+    buf = StringIO()
+    original = cli_module._console
+    cli_module._console = Console(file=buf, force_terminal=False)
+    try:
+        _show_validation_errors(issues)
+    finally:
+        cli_module._console = original
+
+    output = buf.getvalue()
+    assert "VALIDATION ERRORS" in output
+    assert "No authorized actions defined" in output
+    assert "Define at least one concrete authorized action" in output
+
+
+# ── 44. Validation warning panel shown when mission has no HARD_LIMIT ─────────
+
+def test_show_validation_warnings_renders_panel():
+    from io import StringIO
+
+    from rich.console import Console
+
+    from agentguard import cli as cli_module
+    from agentguard.cli import _show_validation_warnings
+    from agentguard.guided.validator import ValidationIssue
+
+    issues = [ValidationIssue(
+        field="prohibited",
+        severity="warning",
+        message="No HARD_LIMIT rules defined",
+        fix="Mark your most critical prohibitions as HARD_LIMIT",
+    )]
+    buf = StringIO()
+    original = cli_module._console
+    cli_module._console = Console(file=buf, force_terminal=False)
+    try:
+        _show_validation_warnings(issues)
+    finally:
+        cli_module._console = original
+
+    output = buf.getvalue()
+    assert "VALIDATION WARNINGS" in output
+    assert "No HARD_LIMIT rules defined" in output
+    assert "Mark your most critical prohibitions as HARD_LIMIT" in output

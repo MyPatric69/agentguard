@@ -194,7 +194,7 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
 
     prompt = _MISSION_PROMPT.format(user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, max_tokens=800)
+        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, max_tokens=800, temperature=0)
         parsed: dict[str, Any] = json.loads(_strip_fences(raw))
 
         # Format A — preferred: response already has explicit three-field structure
@@ -272,7 +272,7 @@ Confidence: HIGH = fully concrete, MEDIUM = mostly concrete, LOW = still vague."
 
     prompt = _FIELD_PROMPT.format(field_name=field_name, user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt)
+        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, temperature=0)
         result: dict[str, Any] = json.loads(_sf(raw))
         result["_provider"] = provider
         result["_model"] = concretization_model
@@ -299,7 +299,7 @@ def _concretize_hard_limits(user_input: str) -> dict[str, Any]:
 
     prompt = _HARD_LIMITS_PROMPT.format(user_input=user_input)
     try:
-        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt)
+        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, temperature=0)
         result: dict[str, Any] = json.loads(_strip_fences(raw))
         result["prohibited"] = _normalize_items(result.get("prohibited"), "HARD_LIMIT")
         result["_provider"] = provider

@@ -103,4 +103,4 @@ before observability tools do.
 
 ## Last updated
 
-2026-06-07 – v0.5.0: agentguard review command, security.md check, mission model improvements
+2026-06-08 – Auto-synced 1 commit(s) to c2f27bd

@@ -237,6 +237,46 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
     _console.print(Panel(content, title="[bold]Concretized Rule[/bold]", border_style="cyan", expand=False, width=64))
 
 
+def _show_validation_errors(errors: list) -> None:
+    from rich.panel import Panel
+    from rich.text import Text
+
+    lines = [Text("")]
+    for issue in errors:
+        lines.append(Text(f"  \U0001f534 {issue.field}: {issue.message}"))
+        lines.append(Text(f"     Fix: {issue.fix}", style="dim"))
+    lines.append(Text(""))
+    _console.print(
+        Panel(
+            Text("\n").join(lines),
+            title="[bold red]VALIDATION ERRORS — cannot proceed[/bold red]",
+            border_style="red",
+            expand=False,
+            width=64,
+        )
+    )
+
+
+def _show_validation_warnings(warnings: list) -> None:
+    from rich.panel import Panel
+    from rich.text import Text
+
+    lines = [Text("")]
+    for issue in warnings:
+        lines.append(Text(f"  \U0001f7e1 {issue.field}: {issue.message}"))
+        lines.append(Text(f"     Fix: {issue.fix}", style="dim"))
+    lines.append(Text(""))
+    _console.print(
+        Panel(
+            Text("\n").join(lines),
+            title="[bold yellow]VALIDATION WARNINGS[/bold yellow]",
+            border_style="yellow",
+            expand=False,
+            width=64,
+        )
+    )
+
+
 def _show_ambiguity_panel(ambiguities: list) -> str:
     from rich.panel import Panel
     from rich.text import Text
@@ -304,34 +344,53 @@ def _run_guided_step(step: dict, results: dict) -> None:
         else:
             ai_result = concretize_field(step["field"], current_input)
 
+        _validation_errors: list = []
+        if step.get("splits_into") and not ai_result.get("_fallback"):
+            from agentguard.guided.validator import validate_concretized
+            _issues = validate_concretized(ai_result)
+            _validation_errors = [i for i in _issues if i.severity == "error"]
+            _validation_warnings = [i for i in _issues if i.severity == "warning"]
+            if _validation_warnings:
+                _show_validation_warnings(_validation_warnings)
+
         _show_concretized(step, ai_result)
 
         if ai_result.get("_fallback"):
             _store_concretized(step["field"], step, ai_result, results)
             return
 
+        if _validation_errors:
+            _show_validation_errors(_validation_errors)
+
         for a in (ai_result.get("ambiguities") or []):
             a_str = str(a)
             if a_str and a_str not in accumulated_ambiguities:
                 accumulated_ambiguities.append(a_str)
 
-        click.echo("\n  [1] Yes — use this")
-        click.echo("  [2] Adjust — I want to change something")
-        click.echo("  [3] Re-enter — start over")
-        choice = click.prompt("  Choose [1-3]", default="1")
+        if _validation_errors:
+            click.echo("\n  [2] Adjust — I want to change something")
+            click.echo("  [3] Re-enter — start over")
+            choice = click.prompt("  Choose [2-3]", default="2")
+            if choice not in ("2", "3"):
+                choice = "2"
+        else:
+            click.echo("\n  [1] Yes — use this")
+            click.echo("  [2] Adjust — I want to change something")
+            click.echo("  [3] Re-enter — start over")
+            choice = click.prompt("  Choose [1-3]", default="1")
 
-        if choice == "1":
-            confidence = ai_result.get("confidence", "HIGH")
-            if confidence in ("MEDIUM", "LOW") and accumulated_ambiguities:
-                amb_choice = _show_ambiguity_panel(accumulated_ambiguities)
-                if amb_choice == "2":
-                    _console.print("  What would you like to clarify?", style="bright_yellow")
-                    clarification = _strip_quotes(click.prompt("> ", prompt_suffix=""))
-                    current_input = f"{current_input}. Clarification: {clarification}"
-                    continue
-                results.setdefault("_ambiguities", []).extend(accumulated_ambiguities)
-            _store_concretized(step["field"], step, ai_result, results)
-            return
+            if choice == "1":
+                confidence = ai_result.get("confidence", "HIGH")
+                if confidence in ("MEDIUM", "LOW") and accumulated_ambiguities:
+                    amb_choice = _show_ambiguity_panel(accumulated_ambiguities)
+                    if amb_choice == "2":
+                        _console.print("  What would you like to clarify?", style="bright_yellow")
+                        clarification = _strip_quotes(click.prompt("> ", prompt_suffix=""))
+                        current_input = f"{current_input}. Clarification: {clarification}"
+                        continue
+                    results.setdefault("_ambiguities", []).extend(accumulated_ambiguities)
+                _store_concretized(step["field"], step, ai_result, results)
+                return
 
         if choice == "3":
             accumulated_ambiguities = []
