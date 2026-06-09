@@ -254,10 +254,11 @@ Override log is written to `agentguard-overrides.log`.
 
 ### `agentguard verify`
 
-Verify that concretization pins in `governance.yaml` are intact.
+Verify governance.yaml was generated consistently.
+Detects drift if prompts or outputs changed since last pin.
 
 ```bash
-agentguard verify
+agentguard verify                              # verify current directory
 agentguard verify --config path/to/governance.yaml
 ```
 
@@ -304,11 +305,57 @@ integrity.
 
 ---
 
+## How AgentGuard Works — Four Layers
+
+### Layer 1 — Before the agent starts (Pre-Flight)
+`agentguard check` validates governance prerequisites.
+`agentguard check --ai-review` adds AI-powered scope quality scoring.
+
+### Layer 2 — While the agent runs (Enforcement)
+`agentguard enforce` runs as a Claude Code PreToolUse hook.
+Deterministic — no LLM. Checks every tool call against governance.yaml.
+Exit 2 = blocked. Exit 0 = allowed.
+
+### Layer 3 — Monitoring (Runtime Watch)
+`agentguard watch` reads native Claude Code JSONL transcripts.
+Detects loops, stalls, and token burn in real time.
+
+### Layer 4 — After the session (Reporting & Audit)
+`agentguard report` generates a Markdown governance report.
+`agentguard verify` checks governance consistency via prompt pins.
+`agentguard review` updates governance for changed projects.
+
+---
+
+## Complete Command Reference
+
+| Command | Purpose | Requires API Key |
+|---|---|---|
+| `agentguard check` | Pre-flight governance validation | No |
+| `agentguard check --ai-review` | + AI scope quality scoring | Yes |
+| `agentguard init --interactive` | Basic guided setup | No |
+| `agentguard init --guided` | AI-concretized governance setup | Yes |
+| `agentguard enforce` | PreToolUse hook handler | No |
+| `agentguard watch` | Runtime JSONL monitoring | No |
+| `agentguard report` | Post-session governance report | No |
+| `agentguard review` | Update existing governance | No |
+| `agentguard review --guided` | AI-assisted governance update | Yes |
+| `agentguard verify` | Check governance consistency/drift | No |
+| `agentguard override` | Proceed despite critical gaps | No |
+
+---
+
 ## AI-Powered Scope Review (Optional)
 
 AgentGuard can use an AI provider to assess the quality of your governance
 scope — catching vague, incomplete, or ungovernable definitions that
 string-based checks miss.
+
+**Model selection:** AgentGuard uses different models for different tasks:
+- Scope review (`--ai-review`): provider default (e.g. claude-haiku, gpt-4o-mini)
+- Governance concretization (`--guided`): higher-capability model
+  (claude-sonnet for Anthropic, gpt-4o for OpenAI) for schema reliability
+- All concretization calls use `temperature=0` for consistency
 
 ### Setup
 
@@ -411,10 +458,21 @@ escalation:
 killswitch: "Ctrl+C"
 
 governance_history:
-  - date: "2026-06-07"
+  - date: "2026-06-09"
     action: "Initial governance created"
     tool: "agentguard init --guided"
-    version: "0.4.1"
+    version: "0.5.1"
+
+# Concretization consistency (added by agentguard init --guided)
+concretization_pins:
+  - field: "mission"
+    input_hash: "a1b2c3d4e5f6g7h8"
+    prompt_hash: "b2c3d4e5f6g7h8i9"
+    output_hash: "c3d4e5f6g7h8i9j0"
+    model: "claude-sonnet-4-20250514"
+    provider: "anthropic"
+    temperature: 0
+    date: "2026-06-09"
 
 # Severity overrides (critical | warning | info)
 severity:
@@ -473,6 +531,7 @@ is institutional memory.
 | Escalation | `governance.yaml` has `escalation.contact` field |
 | Killswitch | `governance.yaml` has `killswitch` field |
 | Instruction file | `CLAUDE.md` or `AGENTS.md` present in project root |
+| security.md absent | INFO — consider documenting security policies |
 
 ### Prompt Quality (WARNING)
 

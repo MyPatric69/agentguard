@@ -1,7 +1,37 @@
 # AgentGuard — CLAUDE.md
 
 ## Project Purpose
-AgentGuard is a governance layer for autonomous AI agents. It provides pre-flight checks (Layer 1), runtime loop and stall detection (Layer 2), and post-session governance reports (Layer 3). The goal is to make AI agents safer by ensuring governance prerequisites are in place before execution begins.
+AgentGuard is a governance layer for autonomous AI agents. It provides pre-flight checks (Layer 1), runtime enforcement (Layer 2), runtime monitoring (Layer 3), and post-session reporting and audit (Layer 4). The goal is to make AI agents safer by ensuring governance prerequisites are in place before execution begins.
+
+## Architecture Overview (v0.5.1)
+
+```
+agentguard/
+├── checks/
+│   ├── preflight.py      # Layer 1: governance + prompt + harness checks
+│   ├── runtime.py        # Layer 3: loop/stall/burn detection
+│   └── report.py         # Layer 4: post-session governance report
+├── enforcement/
+│   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2
+├── guided/
+│   ├── concretizer.py    # AI concretization, temperature=0, sonnet
+│   ├── validator.py      # Deterministic structural validation
+│   └── pinning.py        # SHA-256 prompt/output pinning
+├── review/
+│   └── reviewer.py       # Governance review and update cycle
+├── config/
+│   └── loader.py         # governance.yaml loading, list+string compat
+├── output/
+│   └── renderer.py       # Rich panels, severity colors
+└── cli.py                # All commands wired here
+```
+
+## Key Design Principles
+
+- Enforcement layer: deterministic, no LLM, exit 0 or 2
+- Concretization layer: LLM with temperature=0, human confirms
+- Monitoring layer: LLM allowed, warnings only, never blocks
+- Validation layer: deterministic, structural checks, no LLM
 
 ## Scope
 - Python CLI tool using Click and Rich
