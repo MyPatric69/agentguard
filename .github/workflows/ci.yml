@@ -30,5 +30,10 @@ jobs:
       - name: Run tests
         run: pytest --tb=short
 
+      - name: Test web (with optional web deps)
+        run: |
+          pip install -e ".[web]"
+          pytest tests/test_web_server.py --tb=short
+
       - name: Build package
         run: pip install build hatchling && python -m build --no-isolation

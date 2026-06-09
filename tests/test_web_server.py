@@ -4,9 +4,13 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from fastapi.testclient import TestClient
+import pytest
 
-from agentguard.web.server import app
+pytest.importorskip("fastapi", reason="fastapi not installed — run: pip install agentguard[web]")
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from agentguard.web.server import app  # noqa: E402
 
 client = TestClient(app)
 
