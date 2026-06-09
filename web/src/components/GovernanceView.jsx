@@ -27,7 +27,7 @@ function ScopeCard({ sectionKey, items }) {
   return (
     <div style={{
       background: cfg.bg, border: `1px solid ${cfg.border}`,
-      borderRadius: '12px', padding: '16px', marginBottom: '16px'
+      borderRadius: '12px', padding: '16px', marginBottom: '20px'
     }}>
       <div style={{
         fontSize: '13px', fontWeight: '700', color: cfg.color,
@@ -44,7 +44,8 @@ function ScopeCard({ sectionKey, items }) {
       {items.map((item, i) => (
         <div key={i} style={{
           background: 'var(--bg-surface)', borderRadius: '8px',
-          padding: '12px', marginBottom: i < items.length - 1 ? '8px' : 0
+          padding: '14px 16px', marginBottom: '8px',
+          borderLeft: `3px solid ${cfg.color}`
         }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             {item.severity === 'HARD_LIMIT' && (

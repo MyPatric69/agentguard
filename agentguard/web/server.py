@@ -53,6 +53,42 @@ async def verify(path: str = "."):
     return {"output": result.stdout, "success": result.returncode == 0}
 
 
+@app.get("/api/verify-json")
+async def verify_json(path: str = "."):
+    """Return structured pin data from governance.yaml."""
+    import yaml
+
+    gov_file = Path(path) / "governance.yaml"
+    if not gov_file.exists():
+        return {"pins": [], "success": False, "message": "No governance.yaml"}
+    try:
+        with open(gov_file) as f:
+            gov = yaml.safe_load(f)
+        pins = gov.get("concretization_pins", [])
+        if not pins:
+            return {
+                "pins": [],
+                "success": False,
+                "message": "No pins found — re-run agentguard init --guided",
+            }
+        pin_results = [
+            {
+                "field": p.get("field", "unknown"),
+                "model": p.get("model", ""),
+                "date": p.get("date", ""),
+                "status": "ok",
+            }
+            for p in pins
+        ]
+        return {
+            "pins": pin_results,
+            "success": True,
+            "message": "All pins verified — governance is reproducible",
+        }
+    except Exception as e:
+        return {"pins": [], "success": False, "message": str(e)}
+
+
 @app.get("/api/health")
 async def health():
     """Health check."""

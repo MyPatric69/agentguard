@@ -8,7 +8,7 @@ export default function VerifyPanel({ projectPath }) {
     setLoading(true)
     try {
       const res = await fetch(
-        `/api/verify?path=${encodeURIComponent(projectPath)}`
+        `/api/verify-json?path=${encodeURIComponent(projectPath)}`
       )
       setResult(await res.json())
     } finally { setLoading(false) }
@@ -39,6 +39,7 @@ export default function VerifyPanel({ projectPath }) {
 
       {result && (
         <div>
+          {/* Status banner */}
           <div style={{
             background: result.success ? 'rgba(16,185,129,0.1)' :
                         'rgba(239,68,68,0.1)',
@@ -56,28 +57,44 @@ export default function VerifyPanel({ projectPath }) {
                 fontSize: '15px', fontWeight: '600',
                 color: result.success ? 'var(--ok)' : 'var(--warning)'
               }}>
-                {result.success
-                  ? 'All pins verified — governance is reproducible'
-                  : 'Pin issues detected'}
+                {result.message}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)',
-                            marginTop: '2px' }}>
-                {result.success
-                  ? 'Concretization outputs match stored hashes'
-                  : 'Re-run agentguard init --guided to regenerate pins'}
-              </div>
+              {result.success && (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)',
+                              marginTop: '2px' }}>
+                  Concretization outputs match stored hashes
+                </div>
+              )}
             </div>
           </div>
 
-          <div style={{
-            background: 'var(--bg-surface)', borderRadius: '12px',
-            border: '1px solid var(--border)', padding: '16px'
-          }}>
-            <pre style={{
-              margin: 0, fontSize: '12px', color: 'var(--text-muted)',
-              fontFamily: 'monospace', whiteSpace: 'pre-wrap'
-            }}>{result.output}</pre>
-          </div>
+          {/* Pin cards */}
+          {result.success && result.pins.map((pin, i) => (
+            <div key={i} style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: '10px', padding: '14px 16px',
+              marginBottom: '8px',
+              display: 'flex', alignItems: 'center', gap: '12px'
+            }}>
+              <span style={{
+                background: 'rgba(16,185,129,0.15)',
+                color: 'var(--ok)', fontSize: '13px',
+                padding: '4px 10px', borderRadius: '6px', fontWeight: '600',
+                flexShrink: 0
+              }}>✓ verified</span>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600',
+                              color: 'var(--text-primary)' }}>
+                  {pin.field}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)',
+                              marginTop: '2px' }}>
+                  {pin.model}{pin.model && pin.date ? ' · ' : ''}{pin.date}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

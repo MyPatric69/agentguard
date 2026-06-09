@@ -13,6 +13,7 @@ const NAV_ITEMS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState('check')
   const [projectPath, setProjectPath] = useState('.')
+  const [checkStatus, setCheckStatus] = useState(null)
 
   return (
     <div style={{
@@ -43,6 +44,22 @@ export default function App() {
           background: 'var(--bg-elevated)', padding: '2px 8px',
           borderRadius: '10px'
         }}>v0.6.0</span>
+        {checkStatus && (
+          <div style={{
+            marginLeft: 'auto',
+            display: 'flex', alignItems: 'center', gap: '8px',
+            fontSize: '12px',
+            color: checkStatus === 'ALL CLEAR' ? 'var(--ok)' :
+                   checkStatus === 'WARNINGS' ? 'var(--warning)' :
+                   'var(--critical)'
+          }}>
+            <span style={{
+              width: '8px', height: '8px', borderRadius: '50%',
+              background: 'currentColor', display: 'inline-block'
+            }}/>
+            {projectPath} — {checkStatus}
+          </div>
+        )}
       </header>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -118,7 +135,7 @@ export default function App() {
           flex: 1, overflow: 'auto', padding: '24px',
           background: 'var(--bg-base)'
         }}>
-          {activeTab === 'check' && <CheckPanel projectPath={projectPath} />}
+          {activeTab === 'check' && <CheckPanel projectPath={projectPath} onStatusChange={setCheckStatus} />}
           {activeTab === 'governance' && <GovernanceView projectPath={projectPath} />}
           {activeTab === 'verify' && <VerifyPanel projectPath={projectPath} />}
         </main>

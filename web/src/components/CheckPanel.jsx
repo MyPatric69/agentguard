@@ -5,35 +5,35 @@ function ScoreRing({ checks }) {
   const total = checks.length
   const ok = checks.filter(c => c.severity === 'ok').length
   const pct = Math.round((ok / total) * 100)
-  const r = 40, circ = 2 * Math.PI * r
+  const r = 56, circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
   const color = pct === 100 ? 'var(--ok)' :
                 pct >= 70 ? 'var(--warning)' : 'var(--critical)'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '20px',
-                  padding: '20px', background: 'var(--bg-surface)',
+    <div style={{ display: 'flex', alignItems: 'center', gap: '28px',
+                  padding: '24px 28px', background: 'var(--bg-surface)',
                   borderRadius: '12px', marginBottom: '20px',
                   border: '1px solid var(--border)' }}>
-      <svg width="100" height="100" style={{ flexShrink: 0 }}>
-        <circle cx="50" cy="50" r={r} fill="none"
+      <svg width="140" height="140" style={{ flexShrink: 0 }}>
+        <circle cx="70" cy="70" r={r} fill="none"
           stroke="var(--bg-elevated)" strokeWidth="8"/>
-        <circle cx="50" cy="50" r={r} fill="none"
+        <circle cx="70" cy="70" r={r} fill="none"
           stroke={color} strokeWidth="8"
           strokeDasharray={`${dash} ${circ}`}
           strokeLinecap="round"
-          transform="rotate(-90 50 50)"
+          transform="rotate(-90 70 70)"
           style={{ transition: 'stroke-dasharray 0.5s ease' }}/>
-        <text x="50" y="45" textAnchor="middle"
-          fill="var(--text-primary)" fontSize="18" fontWeight="700">
+        <text x="70" y="64" textAnchor="middle"
+          fill="var(--text-primary)" fontSize="24" fontWeight="700">
           {pct}%
         </text>
-        <text x="50" y="62" textAnchor="middle"
-          fill="var(--text-muted)" fontSize="10">
+        <text x="70" y="84" textAnchor="middle"
+          fill="var(--text-muted)" fontSize="12">
           checks ok
         </text>
       </svg>
       <div>
-        <div style={{ fontSize: '20px', fontWeight: '700', color,
+        <div style={{ fontSize: '22px', fontWeight: '700', color,
                       marginBottom: '4px' }}>
           {pct === 100 ? '✅ All Clear' :
            checks.some(c => c.severity === 'critical') ? '🔴 Blocked' :
@@ -58,7 +58,7 @@ function ScoreRing({ checks }) {
   )
 }
 
-export default function CheckPanel({ projectPath }) {
+export default function CheckPanel({ projectPath, onStatusChange }) {
   const [checks, setChecks] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -71,7 +71,13 @@ export default function CheckPanel({ projectPath }) {
         `/api/check?path=${encodeURIComponent(projectPath)}`
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setChecks(await res.json())
+      const data = await res.json()
+      setChecks(data)
+      if (onStatusChange) {
+        const hasCritical = data.some(c => c.severity === 'critical')
+        const hasWarning = data.some(c => c.severity === 'warning')
+        onStatusChange(hasCritical ? 'BLOCKED' : hasWarning ? 'WARNINGS' : 'ALL CLEAR')
+      }
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
   }
