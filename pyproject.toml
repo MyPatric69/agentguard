@@ -45,7 +45,6 @@ Issues = "https://github.com/MyPatric69/agentguard/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["agentguard"]
-artifacts = ["agentguard/web/dist/**/*"]
 
 [tool.hatch.build.targets.sdist]
 artifacts = ["agentguard/web/dist/**/*"]
