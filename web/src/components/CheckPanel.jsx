@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import GovernanceSummary from './GovernanceSummary.jsx'
 
 function ScoreRing({ checks }) {
   if (!checks) return null
@@ -127,34 +128,46 @@ export default function CheckPanel({ projectPath, onStatusChange }) {
         </div>
       )}
 
-      {checks && <ScoreRing checks={checks} />}
-
       {checks && (
-        <div style={{ background: 'var(--bg-surface)',
-                      borderRadius: '12px', border: '1px solid var(--border)',
-                      overflow: 'hidden' }}>
-          {checks.map((check, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'flex-start', gap: '12px',
-              padding: '12px 16px',
-              borderBottom: i < checks.length - 1
-                ? '1px solid var(--border-subtle)' : 'none',
-              background: BG[check.severity] || 'transparent'
-            }}>
-              <span style={{ fontSize: '14px', marginTop: '1px' }}>
-                {ICON[check.severity] || '⚪'}
-              </span>
-              <span style={{
-                fontSize: '13px',
-                color: check.severity === 'critical' ? 'var(--critical)' :
-                       check.severity === 'warning' ? 'var(--warning)' :
-                       check.severity === 'info' ? 'var(--text-muted)' :
-                       'var(--text-primary)'
-              }}>
-                {check.message}
-              </span>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 220px',
+          gap: '16px',
+          alignItems: 'start'
+        }}>
+          {/* Left column — score ring + checks list */}
+          <div>
+            <ScoreRing checks={checks} />
+            <div style={{ background: 'var(--bg-surface)',
+                          borderRadius: '12px', border: '1px solid var(--border)',
+                          overflow: 'hidden' }}>
+              {checks.map((check, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  padding: '12px 16px',
+                  borderBottom: i < checks.length - 1
+                    ? '1px solid var(--border-subtle)' : 'none',
+                  background: BG[check.severity] || 'transparent'
+                }}>
+                  <span style={{ fontSize: '14px', marginTop: '1px' }}>
+                    {ICON[check.severity] || '⚪'}
+                  </span>
+                  <span style={{
+                    fontSize: '13px',
+                    color: check.severity === 'critical' ? 'var(--critical)' :
+                           check.severity === 'warning' ? 'var(--warning)' :
+                           check.severity === 'info' ? 'var(--text-muted)' :
+                           'var(--text-primary)'
+                  }}>
+                    {check.message}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Right column — governance summary */}
+          <GovernanceSummary projectPath={projectPath} />
         </div>
       )}
 
