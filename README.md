@@ -381,6 +381,29 @@ Supported providers:
 | Anysphere (Cursor) | `anysphere` | cursor-small |
 | OpenAI-compatible | `openai-compatible` | set `AGENTGUARD_AI_MODEL` |
 
+### Model Selection for Concretization
+
+AgentGuard uses different models for different tasks:
+
+| Task | Default Model | Override |
+|---|---|---|
+| Scope quality review (`--ai-review`) | `claude-haiku-4-5` | `AGENTGUARD_AI_MODEL` |
+| Governance concretization (`--guided`) | `claude-sonnet-4-6` | `AGENTGUARD_MISSION_MODEL` |
+
+**Upgrade to Claude Fable 5** for maximum concretization quality:
+
+```bash
+# In .env
+AGENTGUARD_MISSION_MODEL=claude-fable-5
+```
+
+Claude Fable 5 (June 9, 2026) is Anthropic's first publicly available
+Mythos-class model — the tier above Opus. It delivers significantly
+better results on complex, multi-step governance definitions.
+Priced at $10/$50 per million tokens (2× Sonnet).
+
+Free on Anthropic Pro/Max/Team plans until June 22, 2026.
+
 ### Usage
 
 ```bash
