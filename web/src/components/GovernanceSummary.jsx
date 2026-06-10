@@ -25,11 +25,11 @@ export default function GovernanceSummary({ projectPath }) {
       background: 'var(--bg-base)',
       border: `1px solid ${border}`,
       borderRadius: '8px',
-      padding: '10px 12px',
-      marginBottom: '8px'
+      padding: '12px 14px',
+      marginBottom: '10px'
     }}>
       <div style={{
-        fontSize: '11px', fontWeight: '700',
+        fontSize: '13px', fontWeight: '600',
         color, marginBottom: '8px',
         display: 'flex', justifyContent: 'space-between',
         alignItems: 'center'
@@ -44,28 +44,28 @@ export default function GovernanceSummary({ projectPath }) {
       </div>
       {items.slice(0, 2).map((item, i) => (
         <div key={i} style={{
-          fontSize: '11px',
+          fontSize: '12px',
           color: 'var(--text-secondary)',
-          padding: '4px 0',
+          padding: '6px 0',
           borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none',
           lineHeight: '1.4'
         }}>
           {item.severity === 'HARD_LIMIT' && (
             <span style={{
               background: 'var(--critical)',
-              color: '#fff', fontSize: '9px',
+              color: '#fff', fontSize: '10px',
               padding: '1px 4px', borderRadius: '3px',
               fontWeight: '700', marginRight: '5px'
             }}>HL</span>
           )}
-          {item.action?.length > 45
-            ? item.action.slice(0, 45) + '…'
+          {item.action?.length > 50
+            ? item.action.slice(0, 50) + '…'
             : item.action}
         </div>
       ))}
       {items.length > 2 && (
         <div style={{
-          fontSize: '10px', color: 'var(--text-muted)',
+          fontSize: '11px', color: 'var(--text-muted)',
           marginTop: '6px'
         }}>
           +{items.length - 2} more
@@ -94,7 +94,7 @@ export default function GovernanceSummary({ projectPath }) {
 
       {/* Owner strip */}
       <div style={{
-        fontSize: '11px', color: 'var(--text-muted)',
+        fontSize: '12px', color: 'var(--text-muted)',
         marginBottom: '12px', display: 'flex',
         justifyContent: 'space-between'
       }}>

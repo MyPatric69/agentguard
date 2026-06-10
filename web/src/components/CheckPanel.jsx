@@ -131,7 +131,7 @@ export default function CheckPanel({ projectPath, onStatusChange }) {
       {checks && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 220px',
+          gridTemplateColumns: '1fr 280px',
           gap: '16px',
           alignItems: 'start'
         }}>
