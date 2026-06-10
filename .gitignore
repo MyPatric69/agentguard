@@ -3,7 +3,7 @@ __pycache__/
 *.pyo
 .Python
 build/
-dist/
+/dist/
 *.egg-info/
 .eggs/
 .env
@@ -18,4 +18,3 @@ agentguard-overrides.log
 .DS_Store
 web/node_modules/
 web/dist/
-agentguard/web/dist/

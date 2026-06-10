@@ -3,7 +3,7 @@
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("agentguard")
+    __version__ = version("agentguard-governance")
 except PackageNotFoundError:
     __version__ = "0.0.0-dev"
 
