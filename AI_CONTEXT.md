@@ -25,7 +25,7 @@ runs before, during, and after observability tools do.
 - Click (CLI), Rich (output), PyYAML (config), python-dotenv (env)
 - Optional AI: Anthropic SDK, OpenAI SDK
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
-- Build: hatchling, PyPI distribution pending
+- Build: hatchling, PyPI: agentguard-governance
 
 ## Current State (v0.7.0)
 
@@ -41,7 +41,7 @@ runs before, during, and after observability tools do.
 - `agentguard review --guided` — AI-assisted field update
 - `agentguard verify` — prompt-pin drift detection
 - `agentguard override` — documented exception with mandatory reason
-- `agentguard web` — browser UI (requires pip install agentguard[web])
+- `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
 ### Web UI (v0.7.0)
 Six tabs: Pre-Flight Check, Governance, Verify Pins, Terminal,
@@ -129,4 +129,4 @@ Key features:
 
 ## Last updated
 
-2026-06-09 — v0.7.0 complete, web UI final, multi-project support
+2026-06-10 – Auto-synced 15 commit(s) to a166996

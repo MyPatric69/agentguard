@@ -9,7 +9,7 @@
 **AgentGuard doesn't eliminate the probability of failure. It reduces the impact.**
 
 [![CI](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml/badge.svg)](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/agentguard.svg)](https://badge.fury.io/py/agentguard)
+[![PyPI version](https://badge.fury.io/py/agentguard-governance.svg)](https://badge.fury.io/py/agentguard-governance)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -66,7 +66,7 @@ These are CRITICAL by default. An agent without an owner is an unaccountable sys
 ## Quick Start
 
 ```bash
-pip install agentguard
+pip install agentguard-governance
 cd my-agent-project
 agentguard check
 ```
@@ -639,7 +639,7 @@ AgentGuard does not provide legal compliance. It provides the **technical prereq
 ## Web Interface
 
 ```bash
-pip install "agentguard[web]"
+pip install "agentguard-governance[web]"
 agentguard web
 ```
 
