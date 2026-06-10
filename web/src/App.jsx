@@ -51,11 +51,19 @@ export default function App() {
   const [projectName, setProjectName] = useState('')
   const [pendingCommand, setPendingCommand] = useState(null)
   const [projects, setProjects] = useState([])
+  const [version, setVersion] = useState('')
 
   const runInTerminal = (cmd) => {
     setPendingCommand(cmd)
     setActiveTab('terminal')
   }
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(d => setVersion(d.version || ''))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/projects')
@@ -105,11 +113,13 @@ export default function App() {
         <span style={{
           fontSize: '16px', fontWeight: '700', color: 'var(--accent)'
         }}>AgentGuard</span>
-        <span style={{
-          fontSize: '11px', color: 'var(--text-muted)',
-          background: 'var(--bg-elevated)', padding: '2px 8px',
-          borderRadius: '10px'
-        }}>v0.7.0</span>
+        {version && (
+          <span style={{
+            fontSize: '11px', color: 'var(--text-muted)',
+            background: 'var(--bg-elevated)', padding: '2px 8px',
+            borderRadius: '10px'
+          }}>v{version}</span>
+        )}
         {checkStatus && (
           <div style={{
             marginLeft: 'auto',

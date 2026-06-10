@@ -16,11 +16,13 @@ client = TestClient(app)
 
 
 def test_health():
+    from agentguard import __version__
+
     resp = client.get("/api/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
-    assert "version" in data
+    assert data["version"] == __version__
 
 
 def test_check_valid_path(tmp_path):
