@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.7.0  
+**Version:** 0.7.2  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -27,7 +27,7 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
 
-## Current State (v0.7.0)
+## Current State (v0.7.2)
 
 ### CLI Commands (12 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks
@@ -129,4 +129,4 @@ Key features:
 
 ## Last updated
 
-2026-06-10 – Auto-synced 1 commit(s) to eddd80f
+2026-06-10
