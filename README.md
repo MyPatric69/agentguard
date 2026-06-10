@@ -363,14 +363,35 @@ string-based checks miss.
   (claude-sonnet for Anthropic, gpt-4o for OpenAI) for schema reliability
 - All concretization calls use `temperature=0` for consistency
 
-### Setup
+### Setup — API Key Configuration
 
-Create a `.env` file in your project root (see `.env.example`):
+AgentGuard reads your API key from a `.env` file in your
+**project directory** (where your `governance.yaml` lives):
 
 ```bash
+# Create .env in your project directory
+cd my-agent-project
+cat > .env << 'EOF'
 AGENTGUARD_AI_PROVIDER=anthropic
 AGENTGUARD_AI_API_KEY=your-api-key-here
+EOF
 ```
+
+Or set environment variables directly:
+
+```bash
+export AGENTGUARD_AI_PROVIDER=anthropic
+export AGENTGUARD_AI_API_KEY=your-api-key-here
+agentguard init --guided
+```
+
+> ⚠️ Never commit `.env` to version control.
+> AgentGuard adds `.env` to `.gitignore` automatically via
+> `agentguard init`.
+
+See `.env.example` in the repo for all available options.
+
+### Setup
 
 Supported providers:
 
