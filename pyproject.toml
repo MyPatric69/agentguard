@@ -46,6 +46,14 @@ Issues = "https://github.com/MyPatric69/agentguard/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["agentguard"]
 
+[tool.hatch.build.targets.wheel.shared-data]
+
+[tool.hatch.build]
+include = [
+    "agentguard/**/*.py",
+    "agentguard/web/dist/**/*",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--tb=short"

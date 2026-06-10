@@ -18,3 +18,4 @@ agentguard-overrides.log
 .DS_Store
 web/node_modules/
 web/dist/
+agentguard/web/dist/

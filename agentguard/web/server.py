@@ -196,7 +196,7 @@ async def health():
     return {"status": "ok", "version": __version__}
 
 
-_dist = Path(__file__).parent.parent.parent / "web" / "dist"
+_dist = Path(__file__).parent / "dist"
 if _dist.exists():
     app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")
 

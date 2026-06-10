@@ -696,7 +696,18 @@ Projects with governance.yaml show ✓, projects without show ⚠.
 
 > Requires macOS or Linux (Python `pty` module).
 
-### Building the frontend (for development)
+### Building the web frontend
+
+Before packaging or running from source, build the frontend:
+
+```bash
+bash scripts/build_web.sh
+```
+
+This builds the React app and copies it to `agentguard/web/dist/`
+where FastAPI can serve it.
+
+For hot-reload development:
 
 ```bash
 cd web
