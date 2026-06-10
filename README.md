@@ -9,7 +9,7 @@
 **AgentGuard doesn't eliminate the probability of failure. It reduces the impact.**
 
 [![CI](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml/badge.svg)](https://github.com/MyPatric69/agentguard/actions/workflows/ci.yml)
-![PyPI — coming soon](https://img.shields.io/badge/PyPI-coming%20soon-lightgrey)
+[![PyPI version](https://badge.fury.io/py/agentguard.svg)](https://badge.fury.io/py/agentguard)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
