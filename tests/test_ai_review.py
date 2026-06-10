@@ -231,10 +231,68 @@ def test_valid_json_response_returns_result(monkeypatch):
 
 # ── dotenv loading ────────────────────────────────────────────────────────────
 
-def test_load_dotenv_called_with_usecwd_true():
+def test_load_dotenv_called_with_usecwd_true(tmp_path):
+    from pathlib import Path
+
     from agentguard.ai_review import _load_env
 
     with mock.patch("agentguard.ai_review.find_dotenv", return_value="") as mock_find:
         with mock.patch("agentguard.ai_review.load_dotenv"):
-            _load_env()
+            with mock.patch.object(Path, "home", return_value=tmp_path):
+                _load_env()
     mock_find.assert_called_once_with(usecwd=True)
+
+
+def test_global_config_loaded_when_no_project_env(tmp_path):
+    """~/.agentguard/.env is loaded when no project .env is found."""
+    from pathlib import Path
+
+    from agentguard.ai_review import _load_env
+
+    global_dir = tmp_path / ".agentguard"
+    global_dir.mkdir()
+    (global_dir / ".env").write_text("AGENTGUARD_AI_PROVIDER=anthropic\n")
+
+    load_calls = []
+
+    def fake_load(path, override=True):
+        load_calls.append((str(path), override))
+
+    with mock.patch("agentguard.ai_review.find_dotenv", return_value=""):
+        with mock.patch("agentguard.ai_review.load_dotenv", side_effect=fake_load):
+            with mock.patch.object(Path, "home", return_value=tmp_path):
+                _load_env()
+
+    assert len(load_calls) == 1
+    assert str(global_dir / ".env") in load_calls[0][0]
+    assert load_calls[0][1] is False
+
+
+def test_project_env_overrides_global_config(tmp_path):
+    """Project .env is loaded first; global config cannot override it (override=False)."""
+    from pathlib import Path
+
+    from agentguard.ai_review import _load_env
+
+    global_dir = tmp_path / ".agentguard"
+    global_dir.mkdir()
+    (global_dir / ".env").write_text("AGENTGUARD_AI_API_KEY=global-key\n")
+
+    project_env = tmp_path / "project.env"
+    project_env.write_text("AGENTGUARD_AI_API_KEY=project-key\n")
+
+    load_calls = []
+
+    def fake_load(path, override=True):
+        load_calls.append((str(path), override))
+
+    with mock.patch("agentguard.ai_review.find_dotenv", return_value=str(project_env)):
+        with mock.patch("agentguard.ai_review.load_dotenv", side_effect=fake_load):
+            with mock.patch.object(Path, "home", return_value=tmp_path):
+                _load_env()
+
+    assert len(load_calls) == 2
+    assert str(project_env) in load_calls[0][0]
+    assert str(global_dir / ".env") in load_calls[1][0]
+    assert load_calls[0][1] is False
+    assert load_calls[1][1] is False

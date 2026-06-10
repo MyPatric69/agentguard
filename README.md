@@ -365,10 +365,7 @@ string-based checks miss.
 
 ### API Key Setup
 
-AgentGuard reads your API key from a `.env` file in your
-**project directory** — the same directory where your
-`governance.yaml` lives:
-
+**Option 1: Project-level .env (recommended for per-project keys)**
 ```bash
 cd my-agent-project
 cat > .env << 'EOF'
@@ -377,17 +374,24 @@ AGENTGUARD_AI_API_KEY=your-api-key-here
 EOF
 ```
 
-Or set environment variables directly:
-
+**Option 2: Global config (works across all projects)**
 ```bash
-export AGENTGUARD_AI_PROVIDER=anthropic
-export AGENTGUARD_AI_API_KEY=your-api-key-here
-agentguard init --guided
+mkdir -p ~/.agentguard
+cat > ~/.agentguard/.env << 'EOF'
+AGENTGUARD_AI_PROVIDER=anthropic
+AGENTGUARD_AI_API_KEY=your-api-key-here
+EOF
 ```
 
-> ⚠️ Never commit `.env` to version control.
-> Add it to your `.gitignore` — AgentGuard's `.env.example`
-> shows all available options.
+**Option 3: Environment variables**
+```bash
+# Add to ~/.zshrc
+export AGENTGUARD_AI_PROVIDER=anthropic
+export AGENTGUARD_AI_API_KEY=your-api-key-here
+```
+
+Priority: environment variables → project .env → global config.
+Project-level always overrides global — local settings win.
 
 ### Setup
 

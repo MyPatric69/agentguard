@@ -16,7 +16,13 @@ from dotenv import find_dotenv, load_dotenv
 
 
 def _load_env() -> None:
-    load_dotenv(dotenv_path=find_dotenv(usecwd=True) or Path.cwd() / ".env", override=True)
+    project_env = find_dotenv(usecwd=True)
+    if project_env:
+        load_dotenv(project_env, override=False)
+
+    global_env = Path.home() / ".agentguard" / ".env"
+    if global_env.exists():
+        load_dotenv(global_env, override=False)
 
 
 _load_env()
