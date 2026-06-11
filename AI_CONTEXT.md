@@ -63,6 +63,8 @@ Key features:
   - Allow/deny counters
 - Verify Pins tab: Run Verify + Repair Pins button (brownfield baseline)
   - Repair Pins calls /api/verify-repair, then auto-runs verify
+- Session Report tab: stat cards, tool distribution bar chart, blocked actions, runtime warnings
+  - Reads .agentguard/session.log + agentguard.log via /api/report
 
 ### Key Technical Decisions
 - Enforcement: deterministic, no LLM, never probabilistic
@@ -91,7 +93,7 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 228/228 passing
+- 239/239 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -105,7 +107,8 @@ Key features:
 ## Key Files
 
 **Python backend:**
-- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair
+- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair + /api/report
+- `agentguard/checks/report.py` — Layer 4, generate_report_data() + generate_report()
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2, session logging
 - `agentguard/checks/runtime.py` — Layer 3, live watch feed
@@ -123,6 +126,7 @@ Key features:
 - `web/src/components/GovernanceView.jsx` — scope cards
 - `web/src/components/VerifyPanel.jsx` — pin cards
 - `web/src/components/WatchPanel.jsx` — live tool call feed
+- `web/src/components/ReportPanel.jsx` — session report (stat cards, tool distribution, blocked actions)
 - `web/src/components/TerminalPanel.jsx` — xterm.js PTY
 - `web/src/components/InitPanel.jsx` — setup panel
 - `web/src/components/ReviewPanel.jsx` — review panel
@@ -139,4 +143,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – Auto-synced 1 commit(s) to a36c30b
+2026-06-11 – Auto-synced 1 commit(s) to fa6ffff

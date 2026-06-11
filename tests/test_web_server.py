@@ -140,6 +140,39 @@ def test_projects_without_governance(tmp_path):
     assert projects[0]["has_governance"] is False
 
 
+def test_report_no_session_data(tmp_path):
+    resp = client.get(f"/api/report?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["has_data"] is False
+    assert data["total"] == 0
+
+
+def test_report_with_session_log(tmp_path):
+    import json as _json
+
+    log_dir = tmp_path / ".agentguard"
+    log_dir.mkdir()
+    entries = [
+        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
+         "decision": "allow", "input_summary": "ls", "reason": None,
+         "session_id": "s1"},
+        {"timestamp": "2026-06-11T10:01:00+00:00", "tool": "Edit",
+         "decision": "deny", "input_summary": "bad file",
+         "reason": "prohibited", "session_id": "s1"},
+    ]
+    (log_dir / "session.log").write_text(
+        "\n".join(_json.dumps(e) for e in entries) + "\n"
+    )
+    resp = client.get(f"/api/report?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["has_data"] is True
+    assert data["total"] == 2
+    assert data["allowed"] == 1
+    assert data["denied"] == 1
+
+
 def test_verify_repair_no_pins(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(

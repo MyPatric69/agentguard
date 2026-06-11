@@ -67,6 +67,18 @@ async def verify(path: str = "."):
     return {"output": result.stdout, "success": result.returncode == 0}
 
 
+@app.get("/api/report")
+async def get_report(path: str = "."):
+    """Return structured post-session report data."""
+    from agentguard.checks.report import generate_report_data
+
+    try:
+        data = generate_report_data(path)
+        return data
+    except Exception as e:
+        return {"error": str(e), "has_data": False}
+
+
 @app.get("/api/verify-repair")
 async def verify_repair(path: str = "."):
     """Run agentguard verify --repair and return result."""

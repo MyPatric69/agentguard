@@ -920,6 +920,7 @@ Opens `http://localhost:8767` with:
 | Pre-Flight Check | Run governance validation, see results visually |
 | Governance | View all governance rules with color-coded sections |
 | Verify Pins | Check concretization consistency — **Repair Pins** button for brownfield projects |
+| Session Report | Post-session governance summary with tool distribution, blocked actions, and warnings |
 | Terminal | Run any agentguard command interactively |
 | Setup Governance | Guided, interactive, or template setup |
 | Review & Update | Update governance as project evolves |

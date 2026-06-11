@@ -6,6 +6,7 @@ import InitPanel from './components/InitPanel.jsx'
 import ReviewPanel from './components/ReviewPanel.jsx'
 import TerminalPanel from './components/TerminalPanel.jsx'
 import WatchPanel from './components/WatchPanel.jsx'
+import ReportPanel from './components/ReportPanel.jsx'
 import './index.css'
 
 const NAV_ITEMS = [
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
   { id: 'governance', label: 'Governance', icon: '📋', group: 'monitor' },
   { id: 'verify', label: 'Verify Pins', icon: '🔐', group: 'monitor' },
   { id: 'watch', label: 'Live Watch', icon: '👁️', group: 'monitor' },
+  { id: 'report', label: 'Session Report', icon: '📊', group: 'monitor' },
   { id: 'terminal', label: 'Terminal', icon: '💻', group: 'monitor' },
   { id: 'init', label: 'Setup Governance', icon: '⚙️', group: 'setup' },
   { id: 'review', label: 'Review & Update', icon: '✏️', group: 'setup' },
@@ -239,6 +241,7 @@ export default function App() {
           {activeTab === 'init' && <InitPanel projectPath={projectPath} runInTerminal={runInTerminal} />}
           {activeTab === 'review' && <ReviewPanel projectPath={projectPath} runInTerminal={runInTerminal} />}
           {activeTab === 'watch' && <WatchPanel projectPath={projectPath} />}
+          {activeTab === 'report' && <ReportPanel projectPath={projectPath} />}
           {activeTab === 'terminal' && (
             <TerminalPanel
               projectPath={projectPath}

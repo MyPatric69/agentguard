@@ -1,4 +1,4 @@
-"""Layer 3: Post-session governance report generator."""
+"""Layer 4: Post-session governance report generator."""
 
 from __future__ import annotations
 
@@ -6,6 +6,69 @@ import json
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+
+
+def generate_report_data(project_path: str | Path) -> dict:
+    """
+    Read .agentguard/session.log and agentguard.log,
+    return structured report data as dict.
+    """
+    path = Path(project_path)
+    session_log = path / ".agentguard" / "session.log"
+    watch_log = path / "agentguard.log"
+
+    session_entries: list[dict] = []
+    if session_log.exists():
+        for line in session_log.read_text().splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    session_entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
+    watch_events: list[dict] = []
+    if watch_log.exists():
+        for line in watch_log.read_text().splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    watch_events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
+    total = len(session_entries)
+    allowed = sum(1 for e in session_entries if e.get("decision") == "allow")
+    denied = sum(1 for e in session_entries if e.get("decision") == "deny")
+    tool_counts = Counter(e.get("tool", "?") for e in session_entries)
+    denied_entries = [e for e in session_entries if e.get("decision") == "deny"]
+    watch_counts = Counter(e.get("event", "?") for e in watch_events)
+
+    duration = None
+    if len(session_entries) >= 2:
+        try:
+            t1 = datetime.fromisoformat(session_entries[0]["timestamp"])
+            t2 = datetime.fromisoformat(session_entries[-1]["timestamp"])
+            diff = t2 - t1
+            minutes = int(diff.total_seconds() // 60)
+            seconds = int(diff.total_seconds() % 60)
+            duration = f"{minutes}m {seconds}s"
+        except Exception:
+            pass
+
+    return {
+        "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "project": str(path.resolve()),
+        "total": total,
+        "allowed": allowed,
+        "denied": denied,
+        "duration": duration,
+        "tool_counts": dict(tool_counts.most_common()),
+        "denied_entries": denied_entries,
+        "watch_events": watch_events,
+        "watch_counts": dict(watch_counts),
+        "has_data": total > 0 or len(watch_events) > 0,
+    }
 
 
 def generate_report(session_log: str | Path, output_path: str | Path = "report.md") -> str:
