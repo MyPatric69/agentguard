@@ -93,7 +93,7 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 239/239 passing
+- 243/243 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -107,7 +107,7 @@ Key features:
 ## Key Files
 
 **Python backend:**
-- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair + /api/report
+- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair + /api/report + POST /api/governance/update
 - `agentguard/checks/report.py` — Layer 4, generate_report_data() + generate_report()
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2, session logging
@@ -143,4 +143,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – Auto-synced 1 commit(s) to fa6ffff
+2026-06-11 – Auto-synced 1 commit(s) to 59a2d27

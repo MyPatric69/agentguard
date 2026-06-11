@@ -13,7 +13,7 @@ import termios
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from agentguard import __version__
@@ -65,6 +65,66 @@ async def verify(path: str = "."):
         text=True,
     )
     return {"output": result.stdout, "success": result.returncode == 0}
+
+
+@app.post("/api/governance/update")
+async def update_governance(request: Request):
+    """Update a single governance rule and save to governance.yaml."""
+    from datetime import date
+
+    import yaml
+
+    from agentguard import __version__
+
+    body = await request.json()
+    proj_path = Path(body.get("path", "."))
+    gov_path = proj_path / "governance.yaml"
+
+    if not gov_path.exists():
+        return {"success": False, "message": "No governance.yaml found"}
+
+    with open(gov_path) as f:
+        governance = yaml.safe_load(f)
+
+    section = body.get("section")
+    action = body.get("action")
+    index = body.get("index")
+    item = body.get("item")
+
+    scope = governance.setdefault("scope", {})
+    items = scope.get(section, [])
+    changed = None
+
+    if action == "update" and index is not None and item:
+        if 0 <= index < len(items):
+            items[index] = {**items[index], **item}
+            changed = f"Updated {section}[{index}]: {item.get('action', '')[:50]}"
+    elif action == "add" and item:
+        item["added"] = str(date.today())
+        items.append(item)
+        changed = f"Added to {section}: {item.get('action', '')[:50]}"
+    elif action == "delete" and index is not None:
+        if 0 <= index < len(items):
+            deleted = items.pop(index)
+            changed = f"Deleted from {section}: {deleted.get('action', '')[:50]}"
+
+    if changed is None:
+        return {"success": False, "message": "Invalid action or out-of-range index"}
+
+    scope[section] = items
+
+    history = governance.setdefault("governance_history", [])
+    history.append({
+        "date": str(date.today()),
+        "action": changed,
+        "tool": "agentguard web (inline editor)",
+        "version": __version__,
+    })
+
+    with open(gov_path, "w") as f:
+        yaml.dump(governance, f, allow_unicode=True, sort_keys=False)
+
+    return {"success": True, "message": changed}
 
 
 @app.get("/api/report")

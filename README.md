@@ -942,6 +942,20 @@ agentguard web --no-browser                       # don't auto-open browser
 a project switcher — all panels update when you switch projects.
 Projects with governance.yaml show ✓, projects without show ⚠.
 
+### Inline Governance Editor
+
+The Governance tab includes a built-in editor:
+
+1. Click **✏️ Edit** to enter edit mode
+2. Edit any rule's action or reason directly
+3. Add new rules with **+ Add Rule**
+4. Delete rules with **🗑️ Delete**
+5. Review pending changes in the banner
+6. Click **Save All** to write to `governance.yaml`
+
+All changes are logged in `governance_history` with timestamp,
+description, and tool reference.
+
 > Requires macOS or Linux (Python `pty` module).
 
 ### Building the web frontend

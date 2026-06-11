@@ -217,6 +217,91 @@ def test_verify_repair_all_pinned(tmp_path):
     assert data["repaired"] == 0
 
 
+_EDITABLE_GOV = """\
+owner: Test
+scope:
+  authorized:
+    - action: Read files
+      reason: Core task
+      added: '2026-06-11'
+  prohibited:
+    - action: No deploys
+      reason: Hard limit
+      severity: HARD_LIMIT
+      added: '2026-06-11'
+  requires_confirmation: []
+killswitch: Ctrl+C
+"""
+
+
+def test_governance_update_update_action(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_EDITABLE_GOV)
+    resp = client.post("/api/governance/update", json={
+        "path": str(tmp_path),
+        "section": "authorized",
+        "action": "update",
+        "index": 0,
+        "item": {"action": "Read and write files", "reason": "Updated reason"}
+    })
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+    import yaml
+    data = yaml.safe_load(gov.read_text())
+    assert data["scope"]["authorized"][0]["action"] == "Read and write files"
+    assert data["scope"]["authorized"][0]["reason"] == "Updated reason"
+
+
+def test_governance_update_add_action(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_EDITABLE_GOV)
+    resp = client.post("/api/governance/update", json={
+        "path": str(tmp_path),
+        "section": "authorized",
+        "action": "add",
+        "item": {"action": "Write tests", "reason": "New rule"}
+    })
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+    import yaml
+    data = yaml.safe_load(gov.read_text())
+    authorized = data["scope"]["authorized"]
+    assert len(authorized) == 2
+    assert authorized[1]["action"] == "Write tests"
+
+
+def test_governance_update_delete_action(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_EDITABLE_GOV)
+    resp = client.post("/api/governance/update", json={
+        "path": str(tmp_path),
+        "section": "prohibited",
+        "action": "delete",
+        "index": 0
+    })
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+    import yaml
+    data = yaml.safe_load(gov.read_text())
+    assert len(data["scope"]["prohibited"]) == 0
+
+
+def test_governance_update_appends_history(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_EDITABLE_GOV)
+    client.post("/api/governance/update", json={
+        "path": str(tmp_path),
+        "section": "authorized",
+        "action": "add",
+        "item": {"action": "New rule", "reason": "Test"}
+    })
+    import yaml
+    data = yaml.safe_load(gov.read_text())
+    history = data.get("governance_history", [])
+    assert len(history) >= 1
+    assert history[-1]["tool"] == "agentguard web (inline editor)"
+
+
 # WebSocket PTY endpoint (/ws/terminal) requires a real PTY process and cannot
 # be tested with TestClient. Manual test: open the web UI Terminal tab and
 # verify the shell connects and agentguard commands run interactively.
