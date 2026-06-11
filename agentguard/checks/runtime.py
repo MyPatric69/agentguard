@@ -51,6 +51,9 @@ def watch(
     log = Path(log_path)
     out = Path(output_log)
 
+    print("  DEC  TIME      TOOL                 INPUT")
+    print("  " + "─" * 53)
+
     tool_calls: list[str] = []
     total_tokens: int = 0
     last_progress_check: int = 0
@@ -60,12 +63,30 @@ def watch(
         with open(out, "a") as f:
             f.write(json.dumps({"event": event_type, "message": message}) + "\n")
 
-    for entry in _iter_log_lines(log, poll_interval=interval):
-        tool_name = entry.get("tool", "")
-        tokens = entry.get("tokens", 0)
+    for entry in _iter_log_lines(log, poll_interval=1.0):
+        tool = entry.get("tool", "?")
+        decision = entry.get("decision", "?")
+        summary = entry.get("input_summary", "")[:60]
+        timestamp = entry.get("timestamp", "")[-15:-7]  # HH:MM:SS
+        reason = entry.get("reason", "")
 
-        if tool_name:
-            tool_calls.append(tool_name)
+        if decision == "allow":
+            symbol = "✓"
+            color = "\033[32m"
+        else:
+            symbol = "✗"
+            color = "\033[31m"
+
+        reset = "\033[0m"
+        reason_str = f" → {reason}" if reason else ""
+        print(
+            f"{color}{symbol}{reset} {timestamp}  "
+            f"\033[36m{tool:<20}{reset} {summary}{reason_str}"
+        )
+
+        tokens = entry.get("tokens", 0)
+        if tool:
+            tool_calls.append(tool)
             total_tokens += tokens
 
         window = tool_calls[-10:]
