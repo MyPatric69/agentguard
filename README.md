@@ -104,6 +104,38 @@ agentguard init --interactive
 
 ---
 
+## How It All Works Together
+
+After `agentguard init --guided`, three things are in place:
+
+**1. Claude Code reads your governance automatically**
+`CLAUDE.md` is read by Claude Code at the start of every session.
+AgentGuard adds your governance rules to this file — so Claude
+knows what it's allowed to do before it starts.
+
+**2. Every tool call is enforced**
+`.claude/settings.json` wires `agentguard enforce` as a
+PreToolUse hook. Before Claude executes any Bash command,
+file write, or edit — AgentGuard checks it against your
+`governance.yaml`. Prohibited actions are blocked. Period.
+
+**3. You own the governance**
+`governance.yaml` is your source of truth. Review it, update it
+with `agentguard review`, verify it with `agentguard verify`.
+
+Think of it this way:
+- `CLAUDE.md` tells Claude *what the rules are*
+- `agentguard enforce` makes sure it *can't break them*
+- `governance.yaml` is *where you define both*
+
+Without step 1, Claude knows no boundaries.
+Without step 2, boundaries are suggestions, not enforcement.
+Without step 3, nothing is reproducible.
+
+All three together — that's the foundation.
+
+---
+
 ## CLI Commands
 
 ### `agentguard check`

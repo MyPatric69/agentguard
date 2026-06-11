@@ -543,6 +543,36 @@ def _yaml_pins_block(pins: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _print_next_steps() -> None:
+    from rich.panel import Panel
+    from rich.text import Text
+
+    lines = [
+        Text(""),
+        Text("  ✅ governance.yaml — enforceable rules defined", style="green"),
+        Text("  ✅ .claude/settings.json — hook active", style="green"),
+        Text("  ✅ CLAUDE.md — governance context added", style="green"),
+        Text(""),
+        Text("  HOW IT WORKS:", style="bold"),
+        Text(""),
+        Text("  1. Claude Code reads CLAUDE.md automatically —"),
+        Text("     your governance rules are part of its context"),
+        Text(""),
+        Text("  2. Every tool call goes through agentguard enforce"),
+        Text("     — prohibited actions are blocked before"),
+        Text("     execution, not after"),
+        Text(""),
+        Text("  3. Run agentguard check --ai-review to validate"),
+        Text("     governance quality before starting"),
+        Text(""),
+        Text("  The racetrack is ready. Start with:"),
+        Text("  claude", style="bold cyan"),
+        Text(""),
+    ]
+    combined = Text("\n").join(lines)
+    _console.print(Panel(combined, title="NEXT STEPS", border_style="blue"))
+
+
 def _save_guided(results: dict) -> None:
     from datetime import date
 
@@ -630,7 +660,7 @@ def _save_guided(results: dict) -> None:
     _, msg = _update_claude_md(Path("CLAUDE.md"), (templates_dir / "claude_md_block.md").read_text())
     _console.print(f"✅ {msg}", style="green")
 
-    _console.print("\nRun: agentguard check --ai-review to validate quality", style="dim")
+    _print_next_steps()
 
 
 def _run_guided_init() -> None:
@@ -910,7 +940,7 @@ def init_cmd(interactive: bool, template_only: bool, guided: bool) -> None:
 
     click.echo(_write_hook_config(Path(".")))
 
-    click.echo("\nSetup complete. Run: agentguard check")
+    _print_next_steps()
 
 
 @main.command("enforce")

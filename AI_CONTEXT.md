@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.7.9  
+**Version:** 0.8.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -129,4 +129,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – v0.7.9: shield emoji favicon, governance sidebar
+2026-06-11 – Auto-synced 5 commit(s) to 8103938
