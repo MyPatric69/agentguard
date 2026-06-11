@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AgentGuard — Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#111827;--surf:#1f2937;--elev:#374151;--brd:#374151;
+  --acc:#3b82f6;--ok:#10b981;--warn:#f59e0b;--crit:#ef4444;--info:#6366f1;
+  --tp:#f9fafb;--ts:#e5e7eb;--tm:#9ca3af
+}
+html,body{width:960px;height:600px;overflow:hidden;background:var(--bg);
+  color:var(--tp);font-family:system-ui,-apple-system,sans-serif;font-size:14px;
+  user-select:none}
+#app{display:flex;flex-direction:column;width:960px;height:600px}
+
+/* ── HEADER ─────────────────────────────────────────────────────── */
+header{height:52px;background:var(--surf);border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.hlogo{font-size:18px}
+.htitle{font-size:16px;font-weight:700;color:var(--acc)}
+.hver{font-size:11px;color:var(--tm);background:var(--elev);padding:2px 8px;border-radius:10px}
+.hst{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px}
+.dot8{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────── */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ────────────────────────────────────────────────────── */
+aside{width:220px;background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;padding:16px 0;flex-shrink:0}
+.ng{padding:0 12px;margin-bottom:16px}
+.ngl{font-size:10px;font-weight:600;color:var(--tm);letter-spacing:.08em;
+  text-transform:uppercase;padding:0 8px;margin-bottom:6px}
+.ni{width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;
+  border-radius:6px;border:none;background:transparent;color:var(--ts);
+  font-size:13px;font-weight:400;text-align:left;margin-bottom:2px}
+.ni.active{background:var(--acc);color:#fff;font-weight:600}
+.nfoot{margin-top:auto;padding:12px;border-top:1px solid var(--brd)}
+.nfootl{font-size:10px;font-weight:600;color:var(--tm);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:8px}
+.pname{font-size:13px;font-weight:600;color:var(--tp);margin-bottom:3px}
+.ppath{font-size:11px;color:var(--tm)}
+
+/* ── MAIN ───────────────────────────────────────────────────────── */
+main{flex:1;overflow:hidden;padding:24px;background:var(--bg);position:relative}
+.panel{position:absolute;top:24px;left:24px;right:24px;bottom:24px;
+  opacity:0;transition:opacity .3s ease;overflow:hidden}
+.panel.vis{opacity:1}
+#p-gov{overflow-y:auto}
+
+/* ── PANEL HEADER ───────────────────────────────────────────────── */
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.pt{font-size:20px;font-weight:700;margin:0 0 3px}
+.ps{font-size:13px;color:var(--tm);margin:0}
+.btn{background:var(--acc);color:#fff;border:none;border-radius:8px;
+  padding:10px 20px;font-size:14px;font-weight:600}
+.btnedit{background:var(--acc);color:#fff;border:none;border-radius:8px;
+  padding:8px 16px;font-size:13px;font-weight:600}
+
+/* ── SCORE RING ─────────────────────────────────────────────────── */
+.srwrap{display:flex;align-items:center;gap:22px;padding:16px 22px;
+  background:var(--surf);border-radius:12px;margin-bottom:14px;
+  border:1px solid var(--brd)}
+.srst{font-size:20px;font-weight:700;margin-bottom:3px}
+.srdet{font-size:13px;color:var(--tm)}
+.srcnt{font-size:12px;color:var(--tm);margin-top:3px}
+
+/* ── CHECK LIST ─────────────────────────────────────────────────── */
+.cl{background:var(--surf);border-radius:12px;border:1px solid var(--brd);overflow:hidden}
+.ci{display:flex;align-items:flex-start;gap:12px;padding:9px 16px;
+  border-bottom:1px solid #2d3748;
+  opacity:0;transform:translateY(-4px);
+  transition:opacity .28s ease,transform .28s ease}
+.ci.vis{opacity:1;transform:translateY(0)}
+.ci:last-child{border-bottom:none}
+.ci-crit{background:rgba(239,68,68,.05)}
+.ci-warn{background:rgba(245,158,11,.05)}
+.ci-icon{font-size:13px;margin-top:1px;flex-shrink:0}
+.ci-msg{font-size:12px;line-height:1.4}
+.ci-msg.critical{color:var(--crit)}
+.ci-msg.warning{color:var(--warn)}
+.ci-msg.info{color:var(--tm)}
+.ci-msg.ok{color:var(--tp)}
+
+/* ── 2-COL CHECK LAYOUT ─────────────────────────────────────────── */
+.cl2{display:grid;grid-template-columns:1fr 252px;gap:16px;align-items:start}
+
+/* ── GOV SIDEBAR ────────────────────────────────────────────────── */
+.gside{background:var(--surf);border:1px solid var(--brd);
+  border-radius:12px;padding:14px;font-size:12px}
+.gsideh{font-size:10px;font-weight:600;color:var(--tm);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:12px}
+.gmrow{margin-bottom:9px}
+.gml{font-size:10px;font-weight:600;color:var(--tm);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:2px}
+.gmv{font-size:12px;color:var(--tp)}
+
+/* ── GOVERNANCE VIEW ────────────────────────────────────────────── */
+.gmeta{background:var(--surf);border-radius:12px;border:1px solid var(--brd);
+  padding:13px 16px;margin-bottom:14px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ml{font-size:10px;font-weight:600;color:var(--tm);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:3px}
+.mv{font-size:13px;color:var(--tp);font-weight:500}
+.sc{border-radius:12px;padding:12px;margin-bottom:10px;
+  opacity:0;transform:translateY(7px);transition:opacity .35s ease,transform .35s ease}
+.sc.vis{opacity:1;transform:translateY(0)}
+.sch{font-size:12px;font-weight:700;margin-bottom:8px;
+  display:flex;align-items:center;gap:8px}
+.scnt{background:var(--elev);color:var(--tm);font-size:10px;
+  padding:1px 7px;border-radius:10px;font-weight:500}
+.si{background:var(--surf);border-radius:7px;padding:8px 11px;
+  margin-bottom:5px;font-size:12px;font-weight:500;
+  opacity:0;transition:opacity .28s ease}
+.si.vis{opacity:1}
+.si:last-child{margin-bottom:0}
+.sir{font-size:11px;font-weight:400;color:var(--tm);margin-top:2px}
+.hl{background:var(--crit);color:#fff;font-size:9px;padding:2px 6px;
+  border-radius:3px;font-weight:700;display:inline-block;margin-right:5px;
+  vertical-align:middle}
+
+/* ── LIVE WATCH ─────────────────────────────────────────────────── */
+.wbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.wdot{width:10px;height:10px;border-radius:50%;background:var(--ok);
+  animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
+.wlbl{font-size:13px;color:var(--ok);font-weight:600}
+.wstats{margin-left:auto;display:flex;gap:16px;font-size:12px}
+.wsurf{background:var(--surf);border:1px solid var(--brd);border-radius:12px;overflow:hidden}
+.wth{display:flex;padding:7px 16px;font-size:10px;font-weight:600;
+  color:var(--tm);text-transform:uppercase;letter-spacing:.05em;
+  border-bottom:1px solid var(--brd)}
+.we{display:flex;align-items:center;padding:9px 16px;
+  border-bottom:1px solid #2d3748;font-size:12px;
+  font-family:'SF Mono','Fira Code',monospace;
+  opacity:0;transform:translateX(-6px);
+  transition:opacity .22s ease,transform .22s ease}
+.we.vis{opacity:1;transform:translateX(0)}
+.we:last-child{border-bottom:none}
+.wdec{width:26px}
+.wtm{width:72px;color:var(--tm)}
+.wtool{width:90px;color:var(--acc)}
+.winp{flex:1;color:var(--ts)}
+.allow{color:var(--ok)}
+.deny{color:var(--crit)}
+.wreason{color:var(--crit);margin-left:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="hlogo">🛡️</span>
+    <span class="htitle">AgentGuard</span>
+    <span class="hver">v0.9.1</span>
+    <div class="hst" id="hst"></div>
+  </header>
+
+  <div class="body">
+    <aside>
+      <div class="ng">
+        <div class="ngl">Monitor</div>
+        <button class="ni" id="n-check"><span>🛡️</span><span>Pre-Flight Check</span></button>
+        <button class="ni" id="n-governance"><span>📋</span><span>Governance</span></button>
+        <button class="ni" id="n-verify"><span>🔐</span><span>Verify Pins</span></button>
+        <button class="ni" id="n-watch"><span>👁️</span><span>Live Watch</span></button>
+        <button class="ni" id="n-report"><span>📊</span><span>Session Report</span></button>
+        <button class="ni" id="n-terminal"><span>💻</span><span>Terminal</span></button>
+      </div>
+      <div class="ng">
+        <div class="ngl">Setup</div>
+        <button class="ni" id="n-init"><span>⚙️</span><span>Setup Governance</span></button>
+        <button class="ni" id="n-review"><span>✏️</span><span>Review &amp; Update</span></button>
+      </div>
+      <div class="nfoot">
+        <div class="nfootl">Project</div>
+        <div class="pname">mindtrace ✓</div>
+        <div class="ppath">/projects/mindtrace</div>
+      </div>
+    </aside>
+
+    <main>
+
+      <!-- ── PHASE 1: BLOCKED ─────────────────────────────────────── -->
+      <div class="panel" id="p-blocked">
+        <div class="ph">
+          <div>
+            <div class="pt">Pre-Flight Check</div>
+            <div class="ps">Validates governance prerequisites before agent starts</div>
+          </div>
+          <button class="btn">Run Check</button>
+        </div>
+        <div class="cl2">
+          <div>
+            <div class="srwrap">
+              <svg width="124" height="124" style="flex-shrink:0">
+                <circle cx="62" cy="62" r="50" fill="none" stroke="#374151" stroke-width="7"/>
+                <circle cx="62" cy="62" r="50" fill="none" id="rb-prog"
+                  stroke="#ef4444" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="0 314.16" transform="rotate(-90 62 62)"/>
+                <text x="62" y="57" text-anchor="middle" fill="#f9fafb"
+                  font-size="21" font-weight="700" id="rb-pct">0%</text>
+                <text x="62" y="74" text-anchor="middle" fill="#9ca3af" font-size="11">checks ok</text>
+              </svg>
+              <div>
+                <div class="srst" style="color:#ef4444">🔴 Blocked</div>
+                <div class="srdet">2 of 7 checks passed</div>
+                <div class="srcnt">
+                  <span style="color:#ef4444">4 critical</span>
+                  <span style="color:#f59e0b;margin-left:8px">1 warning</span>
+                  <div style="margin-top:2px">2 info</div>
+                </div>
+              </div>
+            </div>
+            <div class="cl" id="cl-b"></div>
+          </div>
+          <div class="gside">
+            <div class="gsideh">Governance Summary</div>
+            <div style="color:var(--tm);font-style:italic;font-size:12px;padding:4px 0">
+              No governance.yaml found
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PHASE 2: WARNINGS ────────────────────────────────────── -->
+      <div class="panel" id="p-warned">
+        <div class="ph">
+          <div>
+            <div class="pt">Pre-Flight Check</div>
+            <div class="ps">Validates governance prerequisites before agent starts</div>
+          </div>
+          <button class="btn">Run Check</button>
+        </div>
+        <div class="cl2">
+          <div>
+            <div class="srwrap">
+              <svg width="124" height="124" style="flex-shrink:0">
+                <circle cx="62" cy="62" r="50" fill="none" stroke="#374151" stroke-width="7"/>
+                <circle cx="62" cy="62" r="50" fill="none" id="rw-prog"
+                  stroke="#f59e0b" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="0 314.16" transform="rotate(-90 62 62)"/>
+                <text x="62" y="57" text-anchor="middle" fill="#f9fafb"
+                  font-size="21" font-weight="700" id="rw-pct">0%</text>
+                <text x="62" y="74" text-anchor="middle" fill="#9ca3af" font-size="11">checks ok</text>
+              </svg>
+              <div>
+                <div class="srst" style="color:#f59e0b">⚠️ Warnings</div>
+                <div class="srdet">6 of 7 checks passed</div>
+                <div class="srcnt">
+                  <span style="color:#f59e0b">1 warning</span>
+                  <div style="margin-top:2px">2 info</div>
+                </div>
+              </div>
+            </div>
+            <div class="cl" id="cl-w"></div>
+          </div>
+          <div class="gside">
+            <div class="gsideh">Governance Summary</div>
+            <div class="gmrow">
+              <div class="gml">Owner</div>
+              <div class="gmv">Alice (Tech Lead)</div>
+            </div>
+            <div class="gmrow">
+              <div class="gml">Scope</div>
+              <div style="font-size:12px;color:var(--ok)">3 authorized</div>
+              <div style="font-size:12px;color:var(--crit)">2 prohibited</div>
+              <div style="font-size:12px;color:var(--warn)">2 requires confirmation</div>
+            </div>
+            <div class="gmrow">
+              <div class="gml">Killswitch</div>
+              <div class="gmv">Ctrl+C</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PHASE 3: GOVERNANCE ──────────────────────────────────── -->
+      <div class="panel" id="p-gov">
+        <div class="ph">
+          <div>
+            <div class="pt">Governance</div>
+            <div class="ps">Defined rules for this agent session</div>
+          </div>
+          <button class="btnedit">✏️ Edit</button>
+        </div>
+        <div class="gmeta">
+          <div><div class="ml">Owner</div><div class="mv">Alice (Tech Lead)</div></div>
+          <div><div class="ml">Escalation</div><div class="mv">alice@mindtrace.io</div></div>
+          <div><div class="ml">Killswitch</div><div class="mv">Ctrl+C</div></div>
+        </div>
+
+        <div class="sc" id="sc-a" style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.22)">
+          <div class="sch" style="color:var(--ok)">✅ Authorized<span class="scnt">3</span></div>
+          <div class="si" id="a0" style="border-left:3px solid var(--ok)">
+            Read and analyse source files in ./src
+            <div class="sir">Core task — reading code is required for analysis</div>
+          </div>
+          <div class="si" id="a1" style="border-left:3px solid var(--ok)">
+            Run tests via pytest or npm test
+            <div class="sir">Needed to verify changes don't break existing behavior</div>
+          </div>
+          <div class="si" id="a2" style="border-left:3px solid var(--ok)">
+            Write files in ./src only
+            <div class="sir">Targeted edits within project scope only</div>
+          </div>
+        </div>
+
+        <div class="sc" id="sc-p" style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.22)">
+          <div class="sch" style="color:var(--crit)">🚫 Prohibited<span class="scnt">2</span></div>
+          <div class="si" id="p0" style="border-left:3px solid var(--crit)">
+            <span class="hl">HARD LIMIT</span>Delete or overwrite files outside ./src
+            <div class="sir">Risk of irreversible data loss</div>
+          </div>
+          <div class="si" id="p1" style="border-left:3px solid var(--crit)">
+            <span class="hl">HARD LIMIT</span>Push to production branches
+            <div class="sir">Deployments require human approval</div>
+          </div>
+        </div>
+
+        <div class="sc" id="sc-c" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.22)">
+          <div class="sch" style="color:var(--warn)">⚠️ Requires Confirmation<span class="scnt">2</span></div>
+          <div class="si" id="c0" style="border-left:3px solid var(--warn)">
+            Create or delete branches
+            <div class="sir">Branch management affects team workflow</div>
+          </div>
+          <div class="si" id="c1" style="border-left:3px solid var(--warn)">
+            Install or remove dependencies
+            <div class="sir">Package changes affect all contributors</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PHASE 4: LIVE WATCH ──────────────────────────────────── -->
+      <div class="panel" id="p-watch">
+        <div class="ph">
+          <div>
+            <div class="pt">Live Watch</div>
+            <div class="ps">Real-time tool call feed from Claude Code session</div>
+          </div>
+        </div>
+        <div class="wbar">
+          <div class="wdot"></div>
+          <div class="wlbl">Live · mindtrace</div>
+          <div class="wstats">
+            <span style="color:var(--ok)" id="wa">0 allowed</span>
+            <span style="color:var(--crit)" id="wd">0 blocked</span>
+          </div>
+        </div>
+        <div class="wsurf">
+          <div class="wth">
+            <span class="wdec">DEC</span>
+            <span class="wtm">TIME</span>
+            <span class="wtool">TOOL</span>
+            <span class="winp">INPUT</span>
+          </div>
+          <div id="we"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+const CIRC = 2 * Math.PI * 50; // r=50 → 314.16
+
+const bChecks = [
+  {s:'critical',i:'🔴',m:'No governance.yaml found — run agentguard init'},
+  {s:'critical',i:'🔴',m:'No PreToolUse hook in .claude/settings.json'},
+  {s:'critical',i:'🔴',m:'No scope.authorized actions defined'},
+  {s:'critical',i:'🔴',m:'No escalation contact defined'},
+  {s:'warning', i:'🟡',m:'No governance_history — run agentguard review after setup'},
+  {s:'info',    i:'🔵',m:'No session log yet — start a Claude Code session to generate one'},
+  {s:'info',    i:'🔵',m:'No concretization pins — use agentguard init --guided'},
+];
+
+const wChecks = [
+  {s:'ok',     i:'🟢',m:'governance.yaml found and valid'},
+  {s:'ok',     i:'🟢',m:'PreToolUse hook active in .claude/settings.json'},
+  {s:'ok',     i:'🟢',m:'3 authorized actions defined'},
+  {s:'ok',     i:'🟢',m:'Escalation contact: alice@mindtrace.io'},
+  {s:'ok',     i:'🟢',m:'Killswitch defined: Ctrl+C'},
+  {s:'warning',i:'🟡',m:'No action log yet — start a session to generate one'},
+  {s:'ok',     i:'🟢',m:'Owner defined: Alice (Tech Lead)'},
+];
+
+const wEntries = [
+  {d:'allow',t:'14:32:01',tool:'Read',  inp:'/src/main.py',         r:null},
+  {d:'allow',t:'14:32:03',tool:'Bash',  inp:'pytest --tb=short',    r:null},
+  {d:'allow',t:'14:32:06',tool:'Read',  inp:'/src/components/App.jsx',r:null},
+  {d:'allow',t:'14:32:09',tool:'Bash',  inp:'git status',           r:null},
+  {d:'deny', t:'14:32:12',tool:'Bash',  inp:'rm -rf dist/',         r:'→ HARD_LIMIT'},
+  {d:'allow',t:'14:32:15',tool:'Write', inp:'/src/utils.py',        r:null},
+];
+
+function nav(id) {
+  document.querySelectorAll('.ni').forEach(e => e.classList.remove('active'));
+  const el = document.getElementById('n-' + id);
+  if (el) el.classList.add('active');
+}
+
+function hst(text, color) {
+  document.getElementById('hst').innerHTML =
+    `<span class="dot8" style="color:${color}"></span>`
+    + `<span style="color:${color}">${text}</span>`;
+}
+
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('vis'));
+  document.getElementById('p-' + id).classList.add('vis');
+}
+
+function animRing(pid, txtid, pct, ms) {
+  const pr = document.getElementById(pid);
+  const tx = document.getElementById(txtid);
+  const target = (pct / 100) * CIRC;
+  let t0 = null;
+  requestAnimationFrame(function step(ts) {
+    if (!t0) t0 = ts;
+    const f = Math.min((ts - t0) / ms, 1);
+    const e = f < .5 ? 2*f*f : -1 + (4-2*f)*f;
+    const v = target * e;
+    pr.setAttribute('stroke-dasharray', v + ' ' + (CIRC - v));
+    tx.textContent = Math.round((v / CIRC) * 100) + '%';
+    if (f < 1) requestAnimationFrame(step);
+  });
+}
+
+function buildCL(cid, checks) {
+  const c = document.getElementById(cid);
+  c.innerHTML = '';
+  checks.forEach((ch, i) => {
+    const d = document.createElement('div');
+    d.className = 'ci' + (ch.s==='critical'?' ci-crit':ch.s==='warning'?' ci-warn':'');
+    d.id = cid + '_' + i;
+    d.innerHTML = `<span class="ci-icon">${ch.i}</span>`
+      + `<span class="ci-msg ${ch.s}">${ch.m}</span>`;
+    c.appendChild(d);
+  });
+}
+
+function revealCL(cid, count, delay) {
+  for (let i = 0; i < count; i++) {
+    (function(j) {
+      setTimeout(() => {
+        const el = document.getElementById(cid + '_' + j);
+        if (el) el.classList.add('vis');
+      }, delay + j * 175);
+    })(i);
+  }
+}
+
+// ── Phase 1 ───────────────────────────────────────────────────────
+function phase1() {
+  nav('check');
+  hst('mindtrace — BLOCKED', '#ef4444');
+  buildCL('cl-b', bChecks);
+  document.getElementById('rb-prog').setAttribute('stroke-dasharray', '0 ' + CIRC);
+  document.getElementById('rb-pct').textContent = '0%';
+  show('blocked');
+  setTimeout(() => animRing('rb-prog', 'rb-pct', 29, 1100), 700);
+  revealCL('cl-b', bChecks.length, 900);
+}
+
+// ── Phase 2 ───────────────────────────────────────────────────────
+function phase2() {
+  nav('check');
+  hst('mindtrace — 1 warning', '#f59e0b');
+  buildCL('cl-w', wChecks);
+  document.getElementById('rw-prog').setAttribute('stroke-dasharray', '0 ' + CIRC);
+  document.getElementById('rw-pct').textContent = '0%';
+  show('warned');
+  setTimeout(() => animRing('rw-prog', 'rw-pct', 86, 1100), 500);
+  revealCL('cl-w', wChecks.length, 700);
+}
+
+// ── Phase 3 ───────────────────────────────────────────────────────
+function phase3() {
+  nav('governance');
+  hst('mindtrace — 1 warning', '#f59e0b');
+  ['sc-a','sc-p','sc-c','a0','a1','a2','p0','p1','c0','c1'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('vis');
+  });
+  show('gov');
+  const T = (id, ms) => setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('vis');
+  }, ms);
+  T('sc-a', 380);
+  T('a0', 560); T('a1', 720); T('a2', 880);
+  T('sc-p', 1080);
+  T('p0', 1260); T('p1', 1430);
+  T('sc-c', 1640);
+  T('c0', 1820); T('c1', 1990);
+}
+
+// ── Phase 4 ───────────────────────────────────────────────────────
+function phase4() {
+  nav('watch');
+  hst('mindtrace — Live', '#10b981');
+  const list = document.getElementById('we');
+  list.innerHTML = '';
+  document.getElementById('wa').textContent = '0 allowed';
+  document.getElementById('wd').textContent = '0 blocked';
+  show('watch');
+  let a = 0, d = 0;
+  wEntries.forEach((e, i) => {
+    setTimeout(() => {
+      const ok = e.d === 'allow';
+      if (ok) a++; else d++;
+      const div = document.createElement('div');
+      div.className = 'we';
+      div.innerHTML = `<span class="wdec ${ok?'allow':'deny'}">${ok?'✓':'✗'}</span>`
+        + `<span class="wtm">${e.t}</span>`
+        + `<span class="wtool">${e.tool}</span>`
+        + `<span class="winp">${e.inp}${e.r?`<span class="wreason">${e.r}</span>`:''}</span>`;
+      list.appendChild(div);
+      requestAnimationFrame(() => requestAnimationFrame(() => div.classList.add('vis')));
+      document.getElementById('wa').textContent = a + ' allowed';
+      document.getElementById('wd').textContent = d + ' blocked';
+    }, 480 + i * 560);
+  });
+}
+
+// ── Controller ────────────────────────────────────────────────────
+const PHASES = [phase1, phase2, phase3, phase4];
+let cur = 0;
+let busy = false;
+
+function advance() {
+  if (busy) return;
+  busy = true;
+  const vis = document.querySelector('.panel.vis');
+  if (vis) vis.classList.remove('vis');
+  setTimeout(() => {
+    cur = (cur + 1) % PHASES.length;
+    PHASES[cur]();
+    busy = false;
+  }, 340);
+}
+
+PHASES[0]();
+setInterval(advance, 5600);
+</script>
+</body>
+</html>
