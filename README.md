@@ -17,7 +17,7 @@
 
 <div align="center">
 
-![AgentGuard Demo](https://github.com/user-attachments/assets/a8410bf7-b84b-4690-ac25-9dc36fd9515f)
+![AgentGuard Demo](demo/agentguard-demo.gif)
 
 *AgentGuard in action — from blocked to governed in minutes*
 
