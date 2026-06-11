@@ -134,6 +134,22 @@ Without step 3, nothing is reproducible.
 
 All three together — that's the foundation.
 
+### Session Logging (automatic)
+
+Every tool call is logged to `.agentguard/session.log` in your
+project directory — written automatically by the PreToolUse hook.
+
+```bash
+# Watch live in terminal
+agentguard watch
+
+# Watch in browser
+agentguard web  # → Live Watch tab
+```
+
+`.agentguard/` is gitignored — session logs are runtime data,
+not version-controlled.
+
 ---
 
 ## CLI Commands

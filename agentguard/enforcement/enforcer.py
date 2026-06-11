@@ -53,14 +53,42 @@ def run_enforce() -> None:
     reason = check_prohibited(tool_name, tool_input, scope)
     if reason:
         _log_denial(cwd, tool_name, tool_input, reason, session_id)
+        _log_tool_call(cwd, tool_name, tool_input, "deny", reason, session_id)
         deny(reason)
 
     reason = check_confirmation(tool_name, tool_input, scope)
     if reason:
         _log_denial(cwd, tool_name, tool_input, reason, session_id)
+        _log_tool_call(cwd, tool_name, tool_input, "deny", reason, session_id)
         deny(reason)
 
+    _log_tool_call(cwd, tool_name, tool_input, "allow", None, session_id)
     sys.exit(0)
+
+
+def _log_tool_call(
+    cwd: Path,
+    tool: str,
+    tool_input: dict,
+    decision: str,
+    reason: str | None,
+    session_id: str,
+) -> None:
+    entry = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "tool": tool,
+        "input_summary": _flatten_input(tool_input)[:100],
+        "decision": decision,
+        "reason": reason,
+        "session_id": session_id,
+    }
+    log_dir = cwd / ".agentguard"
+    try:
+        log_dir.mkdir(exist_ok=True)
+        with open(log_dir / "session.log", "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
 
 
 def _flatten_input(tool_input: dict) -> str:

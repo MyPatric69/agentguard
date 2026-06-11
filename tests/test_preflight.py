@@ -385,3 +385,27 @@ def test_security_md_lowercase_accepted(tmp_path):
     (proj / "security.md").write_text("# Security\n")
     findings = run_preflight(proj)
     assert not _find(findings, "info", "security.md")
+
+
+# ── Session log check ─────────────────────────────────────────────────────────
+
+def test_no_session_log_triggers_info(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "info", "session log")
+
+
+def test_session_log_present_no_session_log_info(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    agentguard_dir = proj / ".agentguard"
+    agentguard_dir.mkdir()
+    (agentguard_dir / "session.log").write_text('{"tool":"Bash","decision":"allow"}\n')
+    findings = run_preflight(proj)
+    assert not _find(findings, "info", "session log")
+
+
+def test_enforcement_log_present_no_session_log_info(tmp_path):
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    (proj / "agentguard-enforcement.log").write_text('{"tool":"Bash","decision":"deny"}\n')
+    findings = run_preflight(proj)
+    assert not _find(findings, "info", "session log")

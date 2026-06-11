@@ -126,6 +126,47 @@ async def project_info(path: str = "."):
     return {"name": name, "path": abs_path}
 
 
+@app.websocket("/ws/watch")
+async def watch_ws(websocket: WebSocket, path: str = "."):
+    """Stream .agentguard/session.log entries in real time."""
+    await websocket.accept()
+    log_path = Path(path).resolve() / ".agentguard" / "session.log"
+
+    try:
+        await websocket.send_json({
+            "type": "status",
+            "message": str(log_path),
+            "exists": log_path.exists(),
+        })
+
+        offset = log_path.stat().st_size if log_path.exists() else 0
+
+        while True:
+            await asyncio.sleep(1.0)
+            if not log_path.exists():
+                await websocket.send_json({
+                    "type": "waiting",
+                    "message": "Waiting for Claude Code session...",
+                })
+                continue
+
+            with open(log_path) as f:
+                f.seek(offset)
+                new_lines = f.readlines()
+                offset = f.tell()
+
+            for line in new_lines:
+                line = line.strip()
+                if line:
+                    try:
+                        entry = json.loads(line)
+                        await websocket.send_json({"type": "entry", "data": entry})
+                    except json.JSONDecodeError:
+                        pass
+    except WebSocketDisconnect:
+        pass
+
+
 @app.websocket("/ws/terminal")
 async def terminal_ws(websocket: WebSocket, path: str = "."):
     """WebSocket endpoint that spawns a PTY bash shell in the project directory."""

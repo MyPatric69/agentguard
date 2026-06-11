@@ -821,11 +821,20 @@ def check(path: str, config_path: str | None, fmt: str, ai_review: bool) -> None
 
 
 @main.command()
-@click.option("--log", "log_path", default="agent.log", show_default=True, help="JSON tool-call log to watch.")
+@click.option(
+    "--log", "log_path", default=None, show_default=True,
+    help="Session log to watch. Default: .agentguard/session.log",
+)
 @click.option("--interval", default=10.0, show_default=True, help="Poll interval in seconds.")
-def watch(log_path: str, interval: float) -> None:
-    """Start runtime observer — reads JSON tool-call log from agent harness."""
-    click.echo(f"AgentGuard watching: {log_path} (interval={interval}s)")
+def watch(log_path: str | None, interval: float) -> None:
+    """Start runtime observer.
+
+    Watches .agentguard/session.log for loops, stalls, and token burn.
+    Auto-discovers log in current directory if no path given.
+    Start a Claude Code session first, then run: agentguard watch
+    """
+    click.echo("AgentGuard Watch — monitoring session activity")
+    click.echo("Press Ctrl+C to stop\n")
     try:
         runtime_watch(log_path, interval=interval)
     except KeyboardInterrupt:

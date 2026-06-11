@@ -344,3 +344,60 @@ def test_allow_clean_command_list_format(tmp_path, monkeypatch, capsys):
         run_enforce()
     assert exc.value.code == 0
     assert capsys.readouterr().out == ""
+
+
+# ── 17. Session log: allow decision written to .agentguard/session.log ────────
+
+def test_allow_logged_to_session_log(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "pytest"}, str(tmp_path), session_id="sess-allow")),
+    )
+    with pytest.raises(SystemExit):
+        run_enforce()
+
+    session_log = tmp_path / ".agentguard" / "session.log"
+    assert session_log.exists()
+    entries = [json.loads(line) for line in session_log.read_text().splitlines()]
+    assert len(entries) == 1
+    assert entries[0]["decision"] == "allow"
+    assert entries[0]["tool"] == "Bash"
+    assert entries[0]["session_id"] == "sess-allow"
+    assert entries[0]["reason"] is None
+
+
+# ── 18. Session log: deny decision written to .agentguard/session.log ─────────
+
+def test_deny_logged_to_session_log(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "rm -rf dist"}, str(tmp_path), session_id="sess-deny")),
+    )
+    with pytest.raises(SystemExit):
+        run_enforce()
+
+    session_log = tmp_path / ".agentguard" / "session.log"
+    assert session_log.exists()
+    entries = [json.loads(line) for line in session_log.read_text().splitlines()]
+    assert len(entries) == 1
+    assert entries[0]["decision"] == "deny"
+    assert entries[0]["tool"] == "Bash"
+    assert entries[0]["session_id"] == "sess-deny"
+    assert entries[0]["reason"] is not None
+
+
+# ── 19. Session log: .agentguard/ directory created automatically ─────────────
+
+def test_agentguard_dir_created_automatically(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "pytest"}, str(tmp_path))),
+    )
+    assert not (tmp_path / ".agentguard").exists()
+    with pytest.raises(SystemExit):
+        run_enforce()
+    assert (tmp_path / ".agentguard").is_dir()
+    assert (tmp_path / ".agentguard" / "session.log").exists()

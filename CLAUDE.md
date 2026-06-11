@@ -3,7 +3,7 @@
 ## Project Purpose
 AgentGuard is a governance layer for autonomous AI agents. It provides pre-flight checks (Layer 1), runtime enforcement (Layer 2), runtime monitoring (Layer 3), and post-session reporting and audit (Layer 4). The goal is to make AI agents safer by ensuring governance prerequisites are in place before execution begins.
 
-## Architecture Overview (v0.7.0)
+## Architecture Overview (v0.8.0)
 
 ```
 agentguard/
@@ -12,7 +12,7 @@ agentguard/
 │   ├── runtime.py        # Layer 3: loop/stall/burn detection
 │   └── report.py         # Layer 4: post-session governance report
 ├── enforcement/
-│   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2
+│   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2, logs to .agentguard/session.log
 ├── guided/
 │   ├── concretizer.py    # AI concretization (sonnet/gpt-4o, temperature=0)
 │   ├── validator.py      # Deterministic structural validation
@@ -36,8 +36,12 @@ web/                       # React/Vite frontend (built to web/dist/)
 │       ├── VerifyPanel.jsx     # Pin verification cards
 │       ├── TerminalPanel.jsx   # xterm.js + WebSocket PTY
 │       ├── InitPanel.jsx       # Setup governance (Run in Terminal)
-│       └── ReviewPanel.jsx     # Review & update (Run in Terminal)
+│       ├── ReviewPanel.jsx     # Review & update (Run in Terminal)
+│       └── WatchPanel.jsx      # Live Watch — real-time tool call feed
 └── package.json
+
+.agentguard/                   # Runtime data (gitignored)
+└── session.log                # All tool calls logged by enforce
 ```
 
 ## Key Design Principles

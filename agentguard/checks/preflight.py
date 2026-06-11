@@ -255,6 +255,16 @@ def run_preflight(
         if _scan_patterns(py_content, ERROR_PATTERN_PATTERNS):
             findings.append(Finding("ok", "Error pattern detection found in harness"))
 
+    # ── Session log check ────────────────────────────────────────────────────
+
+    session_log = base / ".agentguard" / "session.log"
+    agentguard_log = base / "agentguard-enforcement.log"
+    if not (session_log.exists() or agentguard_log.exists()):
+        findings.append(Finding(
+            "info",
+            "No session log yet — start a Claude Code session to generate one",
+        ))
+
     # ── Security documentation check ────────────────────────────────────────
 
     security_files = ["security.md", "SECURITY.md", ".security.md"]

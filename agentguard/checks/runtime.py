@@ -28,13 +28,26 @@ def _iter_log_lines(log_path: Path, poll_interval: float) -> Iterator[dict]:
 
 
 def watch(
-    log_path: str | Path,
+    log_path: str | Path | None = None,
     interval: float = 10.0,
     loop_threshold: int = 2,
     token_burn_threshold: int = 5000,
     output_log: str | Path = "agentguard.log",
 ) -> None:
-    """Watch a JSON tool-call log for loop, stall, and burn events."""
+    """Watch session log for loop, stall, and burn events.
+
+    Auto-discovers .agentguard/session.log in current directory
+    if no log_path provided.
+    """
+    if log_path is None:
+        auto_path = Path.cwd() / ".agentguard" / "session.log"
+        if auto_path.exists():
+            log_path = auto_path
+        else:
+            print("Waiting for .agentguard/session.log (start a Claude Code session first)...")
+            while not auto_path.exists():
+                time.sleep(1.0)
+            log_path = auto_path
     log = Path(log_path)
     out = Path(output_log)
 

@@ -27,7 +27,7 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
 
-## Current State (v0.7.8)
+## Current State (v0.8.0)
 
 ### CLI Commands (12 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks
@@ -55,6 +55,7 @@ Key features:
 - Run in Terminal buttons in Setup/Review panels
 - Multi-project switcher (--path flag, dropdown when >1 project)
 - Project name shown in header with check status
+- Live Watch tab: real-time tool call feed via /ws/watch WebSocket
 
 ### Key Technical Decisions
 - Enforcement: deterministic, no LLM, never probabilistic
@@ -66,6 +67,7 @@ Key features:
 - Version: single source of truth via importlib.metadata
 - Terminal: PTY via Python stdlib pty + WebSocket + xterm.js
 - Resize: binary protocol (0x01 prefix + cols/rows uint16)
+- Session logging: every tool call → .agentguard/session.log (gitignored)
 
 ### governance.yaml Schema
 - owner: string
@@ -129,4 +131,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – Auto-synced 5 commit(s) to 8103938
+2026-06-11 – Auto-synced 1 commit(s) to 04b087d
