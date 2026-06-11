@@ -15,6 +15,14 @@
 
 ---
 
+<div align="center">
+  <video src="https://github.com/MyPatric69/agentguard/releases/download/v0.10.0/agentguard-demo.mp4"
+    autoplay loop muted playsinline width="700"></video>
+  <p><em>AgentGuard in action — from blocked to governed in minutes</em></p>
+</div>
+
+---
+
 ## The Problem: Observability vs Governance — the Gap
 
 The AI agent tooling landscape is rich with **observability** tools — LangSmith, Langfuse, Helicone, Arize. They answer: *"What did the agent do?"*
