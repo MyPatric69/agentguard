@@ -136,19 +136,26 @@ All three together — that's the foundation.
 
 ### Session Logging (automatic)
 
-Every tool call is logged to `.agentguard/session.log` in your
-project directory — written automatically by the PreToolUse hook.
+Every tool call Claude Code makes is automatically logged to
+`.agentguard/session.log` in your project directory — written
+by the PreToolUse hook without any configuration required.
 
 ```bash
 # Watch live in terminal
 agentguard watch
 
-# Watch in browser
+# Watch in browser UI
 agentguard web  # → Live Watch tab
 ```
 
 `.agentguard/` is gitignored — session logs are runtime data,
 not version-controlled.
+
+**What gets logged:**
+- Timestamp, tool name, input summary
+- Decision: `allow` or `deny`
+- Reason if denied (governance rule violated)
+- Session ID for correlation
 
 ---
 
@@ -238,23 +245,78 @@ Ctrl+C → prompted to save progress before exiting.
 
 ### `agentguard watch`
 
-Start runtime observer. Reads a JSON tool-call log from the agent harness.
+Live terminal monitor — streams every tool call in real time.
 
 ```bash
-agentguard watch                          # watch agent.log (default)
-agentguard watch --log ./my-agent.log     # watch a specific log file
-agentguard watch --interval 5             # poll every 5 seconds
+agentguard watch                              # auto-discovers .agentguard/session.log
+agentguard watch --log ./my-agent.log         # watch a specific log file
+agentguard watch --interval 5                 # poll interval in seconds
+agentguard watch --loop-threshold 8           # custom loop detection threshold
 ```
 
-Emits `LOOP_WARNING`, `STALL_WARNING`, and `BURN_WARNING` events to console and appends to `agentguard.log`.
+Output:
 
-**Expected log format (one JSON object per line):**
-
-```json
-{"tool": "bash", "tokens": 150}
-{"tool": "bash", "tokens": 150}
-{"tool": "read_file", "tokens": 80}
 ```
+AgentGuard Watch — monitoring session activity
+Press Ctrl+C to stop
+
+  DEC  TIME      TOOL                 INPUT
+  ─────────────────────────────────────────────────────
+✓ 14:32:01  Read                 /src/main.py
+✓ 14:32:02  Bash                 pytest --tb=short
+✗ 14:32:05  Bash                 rm -rf dist → HARD_LIMIT: ...
+[LOOP_WARNING] Tool 'Bash' called 6x — possible loop
+```
+
+Also emits `LOOP_WARNING`, `STALL_WARNING`, and `BURN_WARNING` events and appends them to `agentguard.log`.
+
+---
+
+## Live Watch
+
+AgentGuard provides real-time monitoring of every tool call
+Claude Code makes during a session.
+
+### Terminal
+
+```bash
+cd my-project
+agentguard watch
+```
+
+Output:
+
+```
+AgentGuard Watch — monitoring session activity
+Press Ctrl+C to stop
+
+  DEC  TIME      TOOL                 INPUT
+  ─────────────────────────────────────────────
+✓ 14:32:01  Read                 /src/main.py
+✓ 14:32:02  Bash                 pytest --tb=short
+✗ 14:32:05  Bash                 rm -rf dist → HARD_LIMIT: ...
+[LOOP_WARNING] Tool 'Bash' called 6x — possible loop
+```
+
+### Browser
+
+```bash
+agentguard web  # → Live Watch tab
+```
+
+Identical feed to the terminal — live updates via WebSocket.
+
+### Session log location
+
+All tool calls are written to `.agentguard/session.log`
+in your project directory. The file is created automatically
+on the first Claude Code tool call.
+
+### Loop detection
+
+AgentGuard warns when the same tool is called repeatedly:
+- Default threshold: 6 calls in a 10-call window
+- Override: `agentguard watch --loop-threshold 8`
 
 ---
 
@@ -388,7 +450,8 @@ Detects loops, stalls, and token burn in real time.
 | `agentguard init --interactive` | Basic guided setup | No |
 | `agentguard init --guided` | AI-concretized governance setup | Yes |
 | `agentguard enforce` | PreToolUse hook handler | No |
-| `agentguard watch` | Runtime JSONL monitoring | No |
+| `agentguard watch` | Live terminal monitor — all tool calls + loop/stall/burn warnings | No |
+| `agentguard watch --loop-threshold 8` | Custom loop detection threshold | No |
 | `agentguard report` | Post-session governance report | No |
 | `agentguard review` | Update existing governance | No |
 | `agentguard review --guided` | AI-assisted governance update | Yes |

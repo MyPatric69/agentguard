@@ -27,15 +27,16 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
 
-## Current State (v0.8.0)
+## Current State (v0.9.0)
 
 ### CLI Commands (12 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks
 - `agentguard check --ai-review` — + AI scope quality score 1-10
 - `agentguard init --interactive` — basic setup, no AI required
 - `agentguard init --guided` — AI-concretized 5-step governance dialog
-- `agentguard enforce` — PreToolUse hook, exit 0/2, deterministic
-- `agentguard watch` — native Claude Code JSONL monitoring
+- `agentguard enforce` — PreToolUse hook, exit 0/2, writes .agentguard/session.log
+- `agentguard watch` — live feed of all tool calls, auto-discovers session.log
+- `agentguard watch --loop-threshold N` — custom loop detection threshold (default: 6)
 - `agentguard report` — post-session Markdown governance report
 - `agentguard review` — interactive governance update cycle
 - `agentguard review --guided` — AI-assisted field update
@@ -43,9 +44,9 @@ runs before, during, and after observability tools do.
 - `agentguard override` — documented exception with mandatory reason
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
-### Web UI (v0.7.0)
-Six tabs: Pre-Flight Check, Governance, Verify Pins, Terminal,
-Setup Governance, Review & Update.
+### Web UI (v0.9.0)
+Seven tabs: Pre-Flight Check, Governance, Verify Pins, Live Watch,
+Terminal, Setup Governance, Review & Update.
 
 Key features:
 - Governance Score Ring on Check panel
@@ -56,6 +57,9 @@ Key features:
 - Multi-project switcher (--path flag, dropdown when >1 project)
 - Project name shown in header with check status
 - Live Watch tab: real-time tool call feed via /ws/watch WebSocket
+  - Green ✓ allow / red ✗ deny per entry
+  - Pulsing live status indicator
+  - Allow/deny counters
 
 ### Key Technical Decisions
 - Enforcement: deterministic, no LLM, never probabilistic
@@ -68,6 +72,7 @@ Key features:
 - Terminal: PTY via Python stdlib pty + WebSocket + xterm.js
 - Resize: binary protocol (0x01 prefix + cols/rows uint16)
 - Session logging: every tool call → .agentguard/session.log (gitignored)
+- Loop threshold: 6 (configurable via --loop-threshold)
 
 ### governance.yaml Schema
 - owner: string
@@ -83,28 +88,24 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 217/217 passing
+- 225/225 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
 ## Open Items
 
-### Before PyPI
-- Final documentation sync (this commit)
-
 ### After PyPI
 - Dev.to / LinkedIn article: "AgentGuard is live"
-- v0.8.0: Intent-Aware Live Observer (drift detection via JSONL)
-- Web-UI v0.8: inline governance editor
+- v1.0.0: inline governance editor in Web UI
 - Homebrew formula
 
 ## Key Files
 
 **Python backend:**
-- `agentguard/web/server.py` — FastAPI + WebSocket PTY
+- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch
 - `agentguard/checks/preflight.py` — Layer 1
-- `agentguard/enforcement/enforcer.py` — Layer 2
-- `agentguard/checks/runtime.py` — Layer 3
+- `agentguard/enforcement/enforcer.py` — Layer 2, session logging
+- `agentguard/checks/runtime.py` — Layer 3, live watch feed
 - `agentguard/guided/concretizer.py` — AI concretization
 - `agentguard/guided/validator.py` — structural validation
 - `agentguard/guided/pinning.py` — SHA-256 pinning
@@ -118,9 +119,13 @@ Key features:
 - `web/src/components/CheckPanel.jsx` — score ring
 - `web/src/components/GovernanceView.jsx` — scope cards
 - `web/src/components/VerifyPanel.jsx` — pin cards
+- `web/src/components/WatchPanel.jsx` — live tool call feed
 - `web/src/components/TerminalPanel.jsx` — xterm.js PTY
 - `web/src/components/InitPanel.jsx` — setup panel
 - `web/src/components/ReviewPanel.jsx` — review panel
+
+**Runtime (gitignored):**
+- `.agentguard/session.log` — auto-generated tool call log
 
 ## Related
 
@@ -131,4 +136,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – v0.9.0: live watch, session logging
+2026-06-11 – v0.9.0: session logging, live watch, loop threshold, docs refresh

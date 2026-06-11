@@ -3,16 +3,17 @@
 ## Project Purpose
 AgentGuard is a governance layer for autonomous AI agents. It provides pre-flight checks (Layer 1), runtime enforcement (Layer 2), runtime monitoring (Layer 3), and post-session reporting and audit (Layer 4). The goal is to make AI agents safer by ensuring governance prerequisites are in place before execution begins.
 
-## Architecture Overview (v0.8.0)
+## Architecture Overview (v0.9.0)
 
 ```
 agentguard/
 ├── checks/
 │   ├── preflight.py      # Layer 1: governance + prompt + harness checks
-│   ├── runtime.py        # Layer 3: loop/stall/burn detection
+│   ├── runtime.py        # Layer 3: session log monitoring, loop/stall/burn
 │   └── report.py         # Layer 4: post-session governance report
 ├── enforcement/
-│   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2, logs to .agentguard/session.log
+│   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2,
+│                         #          writes .agentguard/session.log
 ├── guided/
 │   ├── concretizer.py    # AI concretization (sonnet/gpt-4o, temperature=0)
 │   ├── validator.py      # Deterministic structural validation
@@ -20,7 +21,7 @@ agentguard/
 ├── review/
 │   └── reviewer.py       # Governance review and update cycle
 ├── web/
-│   └── server.py         # FastAPI bridge + WebSocket PTY terminal
+│   └── server.py         # FastAPI bridge + WebSocket PTY + /ws/watch
 ├── config/
 │   └── loader.py         # governance.yaml loading, list+string compat
 ├── output/
@@ -40,8 +41,12 @@ web/                       # React/Vite frontend (built to web/dist/)
 │       └── WatchPanel.jsx      # Live Watch — real-time tool call feed
 └── package.json
 
-.agentguard/                   # Runtime data (gitignored)
-└── session.log                # All tool calls logged by enforce
+Project directory (runtime):
+├── governance.yaml            # Governance definition
+├── .claude/settings.json      # AgentGuard PreToolUse hook
+├── CLAUDE.md                  # Governance context for Claude Code
+└── .agentguard/
+    └── session.log            # Auto-generated tool call log (gitignored)
 ```
 
 ## Key Design Principles
