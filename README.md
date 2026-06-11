@@ -318,6 +318,49 @@ AgentGuard warns when the same tool is called repeatedly:
 - Default threshold: 6 calls in a 10-call window
 - Override: `agentguard watch --loop-threshold 8`
 
+### Understanding Loop and Stall Detection
+
+AgentGuard uses a **sliding window** of the last 10 tool calls
+to detect anomalies:
+
+**LOOP_WARNING** — same tool called too often:
+```
+Window: [Bash, Bash, Read, Bash, Bash, Bash, Bash, ...]
+→ Bash appears 6+ times in last 10 calls → LOOP_WARNING
+```
+
+**STALL_WARNING** — too little diversity:
+```
+Window: [Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash]
+→ Only 1 unique tool in last 10 calls → STALL_WARNING
+```
+
+**What is normal?**
+
+| Task type | Expected pattern |
+|---|---|
+| Research / exploration | 5-8 Bash calls in sequence — normal |
+| File editing | Mix of Read, Write, Bash — low repetition |
+| Testing | pytest called multiple times — can be legitimate |
+| Code analysis | find, grep, cat in sequence — normal |
+
+**When to act on a warning:**
+- Single WARNING during a long task → likely normal, monitor
+- Repeated WARNINGs without progress → agent may be stuck
+- STALL_WARNING → high chance of loop, consider stopping
+
+**Adjust the threshold for your workflow:**
+```bash
+# More sensitive — warn earlier
+agentguard watch --loop-threshold 4
+
+# Less sensitive — allow more repetition
+agentguard watch --loop-threshold 10
+```
+
+The right threshold depends on your project and task type.
+Start with the default (6) and adjust based on experience.
+
 ---
 
 ### `agentguard report`
