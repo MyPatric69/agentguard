@@ -826,7 +826,9 @@ def check(path: str, config_path: str | None, fmt: str, ai_review: bool) -> None
     help="Session log to watch. Default: .agentguard/session.log",
 )
 @click.option("--interval", default=10.0, show_default=True, help="Poll interval in seconds.")
-def watch(log_path: str | None, interval: float) -> None:
+@click.option("--loop-threshold", default=6, show_default=True,
+              help="Number of repeated tool calls before loop warning.")
+def watch(log_path: str | None, interval: float, loop_threshold: int) -> None:
     """Start runtime observer.
 
     Watches .agentguard/session.log for loops, stalls, and token burn.
@@ -836,7 +838,7 @@ def watch(log_path: str | None, interval: float) -> None:
     click.echo("AgentGuard Watch — monitoring session activity")
     click.echo("Press Ctrl+C to stop\n")
     try:
-        runtime_watch(log_path, interval=interval)
+        runtime_watch(log_path, interval=interval, loop_threshold=loop_threshold)
     except KeyboardInterrupt:
         click.echo("\nWatch stopped.")
     except FileNotFoundError:

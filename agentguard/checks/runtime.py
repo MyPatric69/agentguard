@@ -30,7 +30,7 @@ def _iter_log_lines(log_path: Path, poll_interval: float) -> Iterator[dict]:
 def watch(
     log_path: str | Path | None = None,
     interval: float = 10.0,
-    loop_threshold: int = 2,
+    loop_threshold: int = 6,
     token_burn_threshold: int = 5000,
     output_log: str | Path = "agentguard.log",
 ) -> None:
@@ -67,7 +67,11 @@ def watch(
         tool = entry.get("tool", "?")
         decision = entry.get("decision", "?")
         summary = entry.get("input_summary", "")[:60]
-        timestamp = entry.get("timestamp", "")[-15:-7]  # HH:MM:SS
+        ts = entry.get("timestamp", "")
+        try:
+            timestamp = ts[11:19]  # HH:MM:SS from ISO format
+        except (IndexError, TypeError):
+            timestamp = ts[:8]
         reason = entry.get("reason", "")
 
         if decision == "allow":
