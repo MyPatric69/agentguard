@@ -16,9 +16,11 @@
 ---
 
 <div align="center">
-  <video src="https://github.com/MyPatric69/agentguard/releases/download/v0.10.0/agentguard-demo.mp4"
-    autoplay loop muted playsinline width="700"></video>
-  <p><em>AgentGuard in action — from blocked to governed in minutes</em></p>
+
+![AgentGuard Demo](https://github.com/user-attachments/assets/a8410bf7-b84b-4690-ac25-9dc36fd9515f)
+
+*AgentGuard in action — from blocked to governed in minutes*
+
 </div>
 
 ---
