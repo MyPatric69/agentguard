@@ -3,6 +3,8 @@ import { useState } from 'react'
 export default function VerifyPanel({ projectPath }) {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [repairResult, setRepairResult] = useState(null)
+  const [repairing, setRepairing] = useState(false)
 
   const runVerify = async () => {
     setLoading(true)
@@ -12,6 +14,17 @@ export default function VerifyPanel({ projectPath }) {
       )
       setResult(await res.json())
     } finally { setLoading(false) }
+  }
+
+  const runRepair = async () => {
+    setRepairing(true)
+    try {
+      const res = await fetch(
+        `/api/verify-repair?path=${encodeURIComponent(projectPath)}`
+      )
+      setRepairResult(await res.json())
+      await runVerify()
+    } finally { setRepairing(false) }
   }
 
   return (
@@ -27,15 +40,42 @@ export default function VerifyPanel({ projectPath }) {
             Confirms governance was generated consistently
           </p>
         </div>
-        <button onClick={runVerify} disabled={loading} style={{
-          background: loading ? 'var(--bg-elevated)' : 'var(--accent)',
-          color: '#fff', border: 'none', borderRadius: '8px',
-          padding: '10px 20px', cursor: loading ? 'default' : 'pointer',
-          fontSize: '14px', fontWeight: '600'
-        }}>
-          {loading ? '⏳ Verifying...' : 'Run Verify'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={runRepair} disabled={repairing || loading} style={{
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            cursor: repairing ? 'default' : 'pointer',
+            fontSize: '14px', fontWeight: '600'
+          }}>
+            {repairing ? '⏳ Repairing...' : '🔧 Repair Pins'}
+          </button>
+          <button onClick={runVerify} disabled={loading} style={{
+            background: loading ? 'var(--bg-elevated)' : 'var(--accent)',
+            color: '#fff', border: 'none', borderRadius: '8px',
+            padding: '10px 20px', cursor: loading ? 'default' : 'pointer',
+            fontSize: '14px', fontWeight: '600'
+          }}>
+            {loading ? '⏳ Verifying...' : 'Run Verify'}
+          </button>
+        </div>
       </div>
+
+      {repairResult && (
+        <div style={{
+          background: repairResult.repaired > 0
+            ? 'rgba(16,185,129,0.1)' : 'rgba(99,102,241,0.1)',
+          border: `1px solid ${repairResult.repaired > 0
+            ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)'}`,
+          borderRadius: '8px', padding: '10px 14px',
+          marginBottom: '12px', fontSize: '13px',
+          color: repairResult.repaired > 0 ? 'var(--ok)' : 'var(--info)'
+        }}>
+          🔧 {repairResult.message}
+        </div>
+      )}
 
       {result && (
         <div>

@@ -61,6 +61,8 @@ Key features:
   - Green ✓ allow / red ✗ deny per entry
   - Pulsing live status indicator
   - Allow/deny counters
+- Verify Pins tab: Run Verify + Repair Pins button (brownfield baseline)
+  - Repair Pins calls /api/verify-repair, then auto-runs verify
 
 ### Key Technical Decisions
 - Enforcement: deterministic, no LLM, never probabilistic
@@ -103,7 +105,7 @@ Key features:
 ## Key Files
 
 **Python backend:**
-- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch
+- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2, session logging
 - `agentguard/checks/runtime.py` — Layer 3, live watch feed
@@ -137,4 +139,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – v0.9.1: verify --repair, score ring INFO fix
+2026-06-11 – Auto-synced 1 commit(s) to a36c30b

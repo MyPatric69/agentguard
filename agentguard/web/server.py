@@ -67,6 +67,42 @@ async def verify(path: str = "."):
     return {"output": result.stdout, "success": result.returncode == 0}
 
 
+@app.get("/api/verify-repair")
+async def verify_repair(path: str = "."):
+    """Run agentguard verify --repair and return result."""
+    import yaml
+
+    from agentguard.guided.pinning import repair_pins
+
+    gov_path = Path(path) / "governance.yaml"
+    if not gov_path.exists():
+        return {"success": False, "message": "No governance.yaml found", "repaired": 0}
+
+    with open(gov_path) as f:
+        governance = yaml.safe_load(f)
+
+    new_pins = repair_pins(governance, "", "", "")
+    if not new_pins:
+        return {
+            "success": True,
+            "message": "All fields already pinned — nothing to repair",
+            "repaired": 0,
+        }
+
+    existing = governance.get("concretization_pins", [])
+    governance["concretization_pins"] = existing + new_pins
+
+    with open(gov_path, "w") as f:
+        yaml.dump(governance, f, allow_unicode=True, sort_keys=False)
+
+    return {
+        "success": True,
+        "message": f"Repaired {len(new_pins)} pin(s) — baseline created",
+        "repaired": len(new_pins),
+        "fields": [p["field"] for p in new_pins],
+    }
+
+
 @app.get("/api/verify-json")
 async def verify_json(path: str = "."):
     """Return structured pin data from governance.yaml."""

@@ -140,6 +140,50 @@ def test_projects_without_governance(tmp_path):
     assert projects[0]["has_governance"] is False
 
 
+def test_verify_repair_no_pins(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "owner: Test\nscope:\n"
+        "  authorized:\n    - action: Read files\n      reason: Core task\n"
+        "  prohibited:\n    - action: No deploys\n      reason: Hard limit\n"
+        "      severity: HARD_LIMIT\n"
+        "killswitch: Ctrl+C\n"
+    )
+    resp = client.get(f"/api/verify-repair?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["repaired"] >= 1
+    import yaml
+    updated = yaml.safe_load(gov.read_text())
+    assert len(updated.get("concretization_pins", [])) >= 1
+
+
+def test_verify_repair_all_pinned(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "owner: Test\nscope:\n"
+        "  authorized:\n    - action: Read files\n      reason: Core task\n"
+        "  prohibited:\n    - action: No deploys\n      reason: Hard limit\n"
+        "      severity: HARD_LIMIT\n"
+        "killswitch: Ctrl+C\n"
+        "concretization_pins:\n"
+        "  - field: mission\n    input_hash: aaa\n    prompt_hash: bbb\n"
+        "    output_hash: ccc\n    model: none (repaired)\n"
+        "    provider: none (repaired)\n    temperature: 0\n"
+        "    date: '2026-06-11'\n    repaired: true\n"
+        "  - field: hard_limits\n    input_hash: aaa\n    prompt_hash: bbb\n"
+        "    output_hash: ddd\n    model: none (repaired)\n"
+        "    provider: none (repaired)\n    temperature: 0\n"
+        "    date: '2026-06-11'\n    repaired: true\n"
+    )
+    resp = client.get(f"/api/verify-repair?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["repaired"] == 0
+
+
 # WebSocket PTY endpoint (/ws/terminal) requires a real PTY process and cannot
 # be tested with TestClient. Manual test: open the web UI Terminal tab and
 # verify the shell connects and agentguard commands run interactively.

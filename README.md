@@ -449,6 +449,10 @@ a baseline — future changes will be detectable via `agentguard verify`.
 Repaired pins are marked with `repaired: true` in `governance.yaml`
 to distinguish them from AI-generated pins.
 
+In the Web UI, the **Verify Pins** tab has a **Repair Pins** button
+that does the same thing — generates baseline pins and immediately
+re-runs verify to show the updated status.
+
 ---
 
 ## Consistency & Reproducibility
@@ -865,7 +869,7 @@ Opens `http://localhost:8767` with:
 |---|---|
 | Pre-Flight Check | Run governance validation, see results visually |
 | Governance | View all governance rules with color-coded sections |
-| Verify Pins | Check concretization consistency |
+| Verify Pins | Check concretization consistency — **Repair Pins** button for brownfield projects |
 | Terminal | Run any agentguard command interactively |
 | Setup Governance | Guided, interactive, or template setup |
 | Review & Update | Update governance as project evolves |
