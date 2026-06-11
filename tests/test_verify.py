@@ -116,3 +116,89 @@ def test_verify_exits_2_when_file_not_found(tmp_path):
     runner = CliRunner()
     result = runner.invoke(main, ["verify", "--config", str(tmp_path / "nonexistent.yaml")])
     assert result.exit_code == 2
+
+
+# ── 5–7. verify --repair ──────────────────────────────────────────────────────
+
+_STRUCTURED_NO_PINS_YAML = """\
+owner: "Test Owner"
+scope:
+  authorized:
+    - action: "Read files in ./src"
+      reason: "Core task"
+  prohibited:
+    - action: "No deploys"
+      reason: "Hard limit"
+      severity: "HARD_LIMIT"
+  requires_confirmation: []
+escalation:
+  contact: "owner@example.com"
+killswitch: "Ctrl+C"
+"""
+
+_STRUCTURED_ALL_PINNED_YAML = """\
+owner: "Test Owner"
+scope:
+  authorized:
+    - action: "Read files in ./src"
+      reason: "Core task"
+  prohibited:
+    - action: "No deploys"
+      reason: "Hard limit"
+      severity: "HARD_LIMIT"
+  requires_confirmation: []
+escalation:
+  contact: "owner@example.com"
+killswitch: "Ctrl+C"
+concretization_pins:
+  - field: "mission"
+    input_hash: "aaaa"
+    prompt_hash: "bbbb"
+    output_hash: "cccc"
+    model: "none (repaired)"
+    provider: "none (repaired)"
+    temperature: 0
+    date: "2026-06-09"
+    repaired: true
+  - field: "hard_limits"
+    input_hash: "aaaa"
+    prompt_hash: "bbbb"
+    output_hash: "dddd"
+    model: "none (repaired)"
+    provider: "none (repaired)"
+    temperature: 0
+    date: "2026-06-09"
+    repaired: true
+"""
+
+
+def test_repair_generates_pins_when_missing(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_STRUCTURED_NO_PINS_YAML)
+    runner = CliRunner()
+    result = runner.invoke(main, ["verify", "--config", str(gov), "--repair"])
+    assert result.exit_code == 0
+    assert "Repaired" in result.output
+    import yaml
+    data = yaml.safe_load(gov.read_text())
+    assert len(data.get("concretization_pins", [])) >= 1
+
+
+def test_repair_skips_when_all_pinned(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_STRUCTURED_ALL_PINNED_YAML)
+    runner = CliRunner()
+    result = runner.invoke(main, ["verify", "--config", str(gov), "--repair"])
+    assert result.exit_code == 0
+    assert "nothing to repair" in result.output
+
+
+def test_repair_pin_has_repaired_flag(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(_STRUCTURED_NO_PINS_YAML)
+    runner = CliRunner()
+    runner.invoke(main, ["verify", "--config", str(gov), "--repair"])
+    import yaml
+    data = yaml.safe_load(gov.read_text())
+    pins = data.get("concretization_pins", [])
+    assert all(p.get("repaired") is True for p in pins)

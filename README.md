@@ -433,6 +433,22 @@ model, provider, and temperature used during AI concretization.
 | `1` | Pin issues found (missing, incomplete, or temperature drift) |
 | `2` | governance.yaml not found |
 
+### Repairing Missing Pins (Brownfield Projects)
+
+If you have an existing `governance.yaml` without concretization pins
+(created before v0.5.1 or with `agentguard init --interactive`):
+
+```bash
+agentguard verify --repair
+```
+
+This generates baseline pins from your existing governance content
+without requiring AI calls. The pins capture the current state as
+a baseline — future changes will be detectable via `agentguard verify`.
+
+Repaired pins are marked with `repaired: true` in `governance.yaml`
+to distinguish them from AI-generated pins.
+
 ---
 
 ## Consistency & Reproducibility

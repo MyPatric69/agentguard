@@ -3,9 +3,10 @@ import GovernanceSummary from './GovernanceSummary.jsx'
 
 function ScoreRing({ checks }) {
   if (!checks) return null
-  const total = checks.length
-  const ok = checks.filter(c => c.severity === 'ok').length
-  const pct = Math.round((ok / total) * 100)
+  const scoreable = checks.filter(c => c.severity !== 'info')
+  const ok = scoreable.filter(c => c.severity === 'ok').length
+  const pct = scoreable.length > 0 ? Math.round((ok / scoreable.length) * 100) : 100
+  const infoCount = checks.filter(c => c.severity === 'info').length
   const r = 56, circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
   const color = pct === 100 ? 'var(--ok)' :
@@ -41,7 +42,7 @@ function ScoreRing({ checks }) {
            '⚠️ Warnings'}
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-          {ok} of {total} checks passed
+          {ok} of {scoreable.length} checks passed
         </div>
         <div style={{ fontSize: '12px', color: 'var(--text-muted)',
                       marginTop: '4px' }}>
@@ -53,6 +54,11 @@ function ScoreRing({ checks }) {
             <span style={{ color: 'var(--warning)', marginLeft: '8px' }}>
               {checks.filter(c => c.severity === 'warning').length} warning
             </span>}
+          {infoCount > 0 &&
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)',
+                          marginTop: '2px' }}>
+              {infoCount} info
+            </div>}
         </div>
       </div>
     </div>

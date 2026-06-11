@@ -969,14 +969,37 @@ def enforce_cmd() -> None:
 
 @main.command("verify")
 @click.option("--config", "config_path", default="governance.yaml", show_default=True, help="Path to governance.yaml.")
-def verify_cmd(config_path: str) -> None:
+@click.option("--repair", is_flag=True, default=False, help="Generate baseline pins from existing governance.yaml (no AI required).")
+def verify_cmd(config_path: str, repair: bool) -> None:
     """Verify concretization pin integrity in governance.yaml."""
-    from rich.table import Table
+    import yaml
 
     gov_path = Path(config_path)
     if not gov_path.exists():
         click.echo(f"[ERROR] Not found: {config_path}", err=True)
         sys.exit(2)
+
+    if repair:
+        from agentguard.guided.pinning import repair_pins
+        with open(gov_path) as f:
+            governance = yaml.safe_load(f)
+        new_pins = repair_pins(governance, "", "", "")
+        if not new_pins:
+            _console.print("✅ All fields already pinned — nothing to repair", style="green")
+            sys.exit(0)
+        existing = governance.get("concretization_pins") or []
+        governance["concretization_pins"] = existing + new_pins
+        with open(gov_path, "w") as f:
+            yaml.dump(governance, f, allow_unicode=True, sort_keys=False)
+        _console.print(
+            f"✅ Repaired {len(new_pins)} pin(s) — run agentguard verify to confirm",
+            style="green",
+        )
+        for pin in new_pins:
+            _console.print(f"   🔧 {pin['field']} — pinned as baseline")
+        sys.exit(0)
+
+    from rich.table import Table
 
     pin_results = _verify_pin_integrity(gov_path)
 

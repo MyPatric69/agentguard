@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.9.0  
+**Version:** 0.9.1  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -41,6 +41,7 @@ runs before, during, and after observability tools do.
 - `agentguard review` — interactive governance update cycle
 - `agentguard review --guided` — AI-assisted field update
 - `agentguard verify` — prompt-pin drift detection
+- `agentguard verify --repair` — generate baseline pins from existing governance (no AI)
 - `agentguard override` — documented exception with mandatory reason
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
@@ -88,7 +89,7 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 225/225 passing
+- 228/228 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -108,7 +109,7 @@ Key features:
 - `agentguard/checks/runtime.py` — Layer 3, live watch feed
 - `agentguard/guided/concretizer.py` — AI concretization
 - `agentguard/guided/validator.py` — structural validation
-- `agentguard/guided/pinning.py` — SHA-256 pinning
+- `agentguard/guided/pinning.py` — SHA-256 pinning + repair_pins() for brownfield
 - `agentguard/review/reviewer.py` — governance review
 - `agentguard/ai_review.py` — scope quality review
 - `agentguard/cli.py` — all commands
@@ -136,4 +137,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – v0.9.0: session logging, live watch, loop threshold, docs refresh
+2026-06-11 – v0.9.1: verify --repair, score ring INFO fix

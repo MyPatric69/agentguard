@@ -43,6 +43,45 @@ def pin_concretization(
     }
 
 
+def repair_pins(
+    governance: dict,
+    provider: str = "",
+    api_key: str = "",
+    model: str = "",
+) -> list[dict]:
+    """Generate baseline pins for fields that have no existing pin.
+
+    Used by agentguard verify --repair for brownfield projects.
+    Hashes the current content as the baseline — no AI call needed.
+    """
+    existing_pins = {p.get("field") for p in governance.get("concretization_pins", [])}
+    scope = governance.get("scope", {})
+    fields = {
+        "mission": scope.get("authorized", []),
+        "hard_limits": scope.get("prohibited", []),
+    }
+    today = date.today().isoformat()
+    new_pins = []
+    for field, content in fields.items():
+        if field in existing_pins:
+            continue
+        if not content:
+            continue
+        content_str = json.dumps(content, sort_keys=True)
+        new_pins.append({
+            "field": field,
+            "input_hash": hash_content("repaired"),
+            "prompt_hash": hash_content("repaired"),
+            "output_hash": hash_content(content_str),
+            "model": "none (repaired)",
+            "provider": "none (repaired)",
+            "temperature": 0,
+            "date": today,
+            "repaired": True,
+        })
+    return new_pins
+
+
 def verify_pin(pin: dict, prompt: str, output: dict) -> dict:
     """
     Verify a stored pin against current prompt and output.
