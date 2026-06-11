@@ -411,47 +411,97 @@ Override log is written to `agentguard-overrides.log`.
 
 ### `agentguard verify`
 
-Verify governance.yaml was generated consistently.
-Detects drift if prompts or outputs changed since last pin.
+Checks that your `governance.yaml` was generated consistently
+and has not drifted since creation.
 
 ```bash
-agentguard verify                              # verify current directory
-agentguard verify --config path/to/governance.yaml
+agentguard verify                    # verify current directory
+agentguard verify --path ./project   # verify specific project
+agentguard verify --repair           # repair missing pins
 ```
 
-After `agentguard init --guided`, a `concretization_pins` block is written to
-`governance.yaml`. Each pin records the SHA-256 hashes of the prompt, output,
-model, provider, and temperature used during AI concretization.
+#### How it works
 
-`agentguard verify` checks:
-- All required pin fields are present
-- `temperature` is `0` (deterministic output guaranteed)
+When `agentguard init --guided` runs, it records **concretization pins**
+in `governance.yaml` — SHA-256 hashes of the exact prompt and output
+used during AI concretization:
+
+```yaml
+concretization_pins:
+  - field: "mission"
+    input_hash: "a1b2c3d4e5f6g7h8"
+    prompt_hash: "b2c3d4e5f6g7h8i9"
+    output_hash: "c3d4e5f6g7h8i9j0"
+    model: "claude-sonnet-4-20250514"
+    provider: "anthropic"
+    temperature: 0
+    date: "2026-06-11"
+```
+
+`agentguard verify` checks that all pins are present and valid.
 
 | Exit code | Meaning |
 |---|---|
 | `0` | All pins verified — governance is reproducible |
-| `1` | Pin issues found (missing, incomplete, or temperature drift) |
+| `1` | Pin issues found — missing, incomplete, or temperature drift |
 | `2` | governance.yaml not found |
 
-### Repairing Missing Pins (Brownfield Projects)
+#### When to run
 
-If you have an existing `governance.yaml` without concretization pins
-(created before v0.5.1 or with `agentguard init --interactive`):
+- Before starting a critical Claude Code session
+- After model updates (check for drift)
+- As part of CI/CD governance gate
+- After `agentguard review` to verify updated fields
+
+---
+
+### `agentguard verify --repair`
+
+Generates baseline pins for projects that have no pins.
+
+#### When you need it
+
+Pins are only created by `agentguard init --guided`. If you have
+a `governance.yaml` without pins — because you used
+`agentguard init --interactive`, created it manually, or migrated
+from an older version — `agentguard verify` will report missing pins.
+
+`--repair` fixes this without requiring a full re-initialization:
 
 ```bash
 agentguard verify --repair
 ```
 
-This generates baseline pins from your existing governance content
-without requiring AI calls. The pins capture the current state as
-a baseline — future changes will be detectable via `agentguard verify`.
+```
+✅ Repaired 2 pin(s) — baseline created
+   🔧 mission — pinned as baseline
+   🔧 hard_limits — pinned as baseline
+```
 
-Repaired pins are marked with `repaired: true` in `governance.yaml`
-to distinguish them from AI-generated pins.
+#### What repair does
 
-In the Web UI, the **Verify Pins** tab has a **Repair Pins** button
-that does the same thing — generates baseline pins and immediately
-re-runs verify to show the updated status.
+Repair does **not** call any AI model. It hashes the existing content
+of your `governance.yaml` and stores that hash as a baseline pin.
+
+This means:
+- `agentguard verify` will pass after repair
+- Future changes to governance will be detectable
+- Repaired pins are marked `repaired: true` to distinguish them
+  from AI-generated pins
+
+#### Repair vs. re-init
+
+| | `verify --repair` | `init --guided` |
+|---|---|---|
+| AI call | No | Yes |
+| Existing governance | Preserved | Overwritten |
+| Pin quality | Baseline only | Full AI concretization |
+| Use when | Already have governance.yaml | Starting from scratch |
+
+#### Web UI
+
+Both verify and repair are available in the browser:
+`agentguard web` → Verify Pins tab → **Run Verify** / **🔧 Repair Pins**
 
 ---
 
