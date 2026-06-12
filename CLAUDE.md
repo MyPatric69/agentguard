@@ -101,3 +101,45 @@ If the same approach fails 2+ times in a row:
 - `agentguard/__init__.py` reads version dynamically via importlib.metadata
 - Never hardcode version in __init__.py
 - On release: update pyproject.toml version only
+
+
+## AgentGuard Governance Block
+## Added by: agentguard init --interactive
+## Date: 2026-06-12 21:43:34
+## ─────────────────────────────────────────
+
+## AgentGuard Governance
+
+This project is governed by AgentGuard. The following rules apply:
+
+### Loop Detection
+- If the same approach fails 2+ times in a row, STOP immediately.
+- Do not retry the same strategy. Propose a fundamentally different approach.
+- If stuck after 3 iterations, escalate to the owner defined in governance.yaml.
+
+### Root Cause Analysis
+- Confirm root cause before implementing any fix.
+- Do not patch symptoms. Diagnose before acting.
+- If root cause is unclear, ask — do not guess.
+
+### External APIs & Research
+- ALWAYS fetch current documentation before diagnosing API issues.
+- Never rely on memory for external API behavior — APIs change.
+- If a newer API version exists, flag it before recommending a fix.
+
+### Scope
+- Only take actions within the defined scope in governance.yaml.
+- Do not expand scope without explicit approval from the owner.
+
+## AgentGuard — Handling Governance Decisions
+- If AgentGuard denies an action (`permissionDecision: deny`,
+  HARD_LIMIT or prohibited scope): this action is forbidden. Do not
+  attempt the same change via a different tool (e.g. Bash instead of
+  Edit). Report the denial and propose an alternative approach that
+  stays within authorized scope.
+- If AgentGuard asks for confirmation (`permissionDecision: ask`):
+  this requires the owner's real-time decision. Wait for the owner's
+  response; do not reroute through another tool while waiting.
+
+## ─────────────────────────────────────────
+## End AgentGuard Governance Block
