@@ -97,12 +97,37 @@ Key features:
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
-## Open Items
+## Open Items / Backlog
 
-### After PyPI
-- Dev.to / LinkedIn article: "AgentGuard is live"
-- v1.0.0: inline governance editor in Web UI
-- Homebrew formula
+### v0.11.0 — planned
+- Email notification when `escalation.method: "email"` is configured —
+  notify owner on governance.yaml changes (e.g. via inline editor).
+  SMTP/service choice still open.
+
+### Medium-term
+- Session Report PDF export (Web UI)
+- `agentguard verify --repair` — review timestamp accuracy for repaired pins
+
+### v1.0.0 — long-term
+- Intent-Aware Live Observer — LLM-based drift detection via JSONL transcript analysis
+
+### Tooling / Infrastructure
+- Homebrew formula for AgentGuard
+- pyenv migration on M5 Air (separate topic, not AgentGuard-specific)
+
+### Dogfooding
+- Run `agentguard init --guided` on the AgentGuard repo itself
+  (own governance for this project)
+
+### Community / Outreach
+- KI-Automatisierung Skool community post — check publish status
+- Dev.to article — monitor and respond to comments/feedback
+- LinkedIn follow-up post after one week with GitHub traffic numbers
+- Demo of AgentGuard for Dev Team Lead at Pixum
+
+### Optional
+- Demo GIF v2 — could extend to show Session Report and Repair Pins
+  (not required, current GIF covers core workflow)
 
 ## Key Files
 
@@ -143,4 +168,4 @@ Key features:
 
 ## Last updated
 
-2026-06-11 – Auto-synced 1 commit(s) to 2037bb3
+2026-06-12 — Backlog updated; v0.10.0 shipped
