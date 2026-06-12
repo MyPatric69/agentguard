@@ -137,7 +137,7 @@ def test_allow_legacy_string_scope(tmp_path, monkeypatch, capsys):
 # ── 8. Logging: deny decision appended to enforcement log ────────────────────
 
 def test_deny_logged_to_enforcement_log(tmp_path, monkeypatch, capsys):
-    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
     monkeypatch.setattr(
         "sys.stdin",
         io.StringIO(_hook("Bash", {"command": "rm -rf dist"}, str(tmp_path), session_id="sess-42")),
@@ -416,7 +416,7 @@ killswitch: Ctrl+C
 
 # ── 20. Path-aware: Edit to core architecture path matches ───────────────────
 
-def test_write_scope_match_core_architecture_path(tmp_path, monkeypatch, capsys):
+def test_write_scope_match_core_architecture_path():
     assert _match_confirmation_text(
         "Edit",
         "agentguard/enforcement/enforcer.py old new",
@@ -445,3 +445,32 @@ def test_write_scope_no_match_frontend_path():
         "modify core architecture or design patterns",
         file_path="web/src/App.jsx",
     ) is False
+
+
+# ── 23. requires_confirmation match → permissionDecision "ask", exit 0 ───────
+
+def test_confirmation_match_emits_ask_exit_0(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CORE_ARCH)
+    tool_input = {"file_path": "agentguard/enforcement/enforcer.py", "old_string": "x", "new_string": "y"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert "AgentGuard" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── 24. prohibited match → permissionDecision "deny", exit 2 (no regression) ─
+
+def test_prohibited_match_still_emits_deny_exit_2(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "rm -rf dist"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"

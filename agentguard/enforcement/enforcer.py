@@ -67,9 +67,8 @@ def run_enforce() -> None:
 
     reason = check_confirmation(tool_name, tool_input, scope)
     if reason:
-        _log_denial(cwd, tool_name, tool_input, reason, session_id)
-        _log_tool_call(cwd, tool_name, tool_input, "deny", reason, session_id)
-        deny(reason)
+        _log_tool_call(cwd, tool_name, tool_input, "ask", reason, session_id)
+        ask(reason)
 
     _log_tool_call(cwd, tool_name, tool_input, "allow", None, session_id)
     sys.exit(0)
@@ -230,6 +229,18 @@ def deny(reason: str) -> None:
     }
     print(json.dumps(output))
     sys.exit(2)
+
+
+def ask(reason: str) -> None:
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": f"AgentGuard: {reason}",
+        }
+    }
+    print(json.dumps(output))
+    sys.exit(0)
 
 
 def _log_denial(
