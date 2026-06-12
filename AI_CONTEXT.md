@@ -187,4 +187,4 @@ Key features:
 
 ## Last updated
 
-2026-06-12 – Enforcer: deny/ask signal distinction + path-scoped write confirmation (4fd5475, f61d576, 3524223)
+2026-06-12 – Enforcer: rm check scoped to Bash only; removed redundant "rm -f" string check

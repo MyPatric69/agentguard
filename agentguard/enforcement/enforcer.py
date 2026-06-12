@@ -137,7 +137,7 @@ def _match_confirmation_text(
     tool_name: str, tool_str: str, confirmation_text: str, file_path: str = ""
 ) -> bool:
     """Return True if tool_str matches the given confirmation text string."""
-    if re.search(r"\brm\s+-\S*[rf]", tool_str) or "rm -f" in tool_str:
+    if tool_name == "Bash" and re.search(r"\brm\s+-\S*[rf]", tool_str):
         if any(kw in confirmation_text for kw in _DELETION_SCOPE_WORDS):
             return True
     if "git push" in tool_str and "git push" in confirmation_text:

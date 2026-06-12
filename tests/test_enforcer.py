@@ -474,3 +474,35 @@ def test_prohibited_match_still_emits_deny_exit_2(tmp_path, monkeypatch, capsys)
     assert exc.value.code == 2
     result = json.loads(capsys.readouterr().out)
     assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 25. "rm -f" in source content does not trigger deletion-scope match ───────
+
+def test_rm_f_in_source_content_not_blocked(tmp_path, monkeypatch, capsys):
+    """Edit whose content contains literal 'rm -f' as a string in Python source
+    must not trigger the deletion-scope confirmation check."""
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
+    tool_input = {
+        "file_path": "agentguard/output/renderer.py",
+        "old_string": "x",
+        "new_string": 'if re.search(r"\\brm\\s+-\\S*[rf]", s) or "rm -f" in s:',
+    }
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_bash_rm_f_command_still_triggers(tmp_path, monkeypatch, capsys):
+    """An actual Bash 'rm -f somefile' command must still trigger the deletion-scope match."""
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "rm -f somefile.txt"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
