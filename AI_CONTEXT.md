@@ -73,6 +73,8 @@ Key features:
 - Scope review: provider default model (haiku/gpt-4o-mini)
 - Validation: deterministic structural checks, no LLM
 - Pinning: SHA-256 hashes of prompt+output in governance.yaml
+- Enforcer signals: prohibited/HARD_LIMIT → deny() exit 2; requires_confirmation → ask() exit 0 (per Claude Code hooks docs)
+- Write/edit confirmation: path-scoped to _CORE_ARCHITECTURE_PATHS — only fires for agentguard/enforcement/, agentguard/cli.py, agentguard/guided/, agentguard/review/, agentguard/config/, .claude/settings.json, governance.yaml
 - Version: single source of truth via importlib.metadata
 - Terminal: PTY via Python stdlib pty + WebSocket + xterm.js
 - Resize: binary protocol (0x01 prefix + cols/rows uint16)
@@ -185,4 +187,4 @@ Key features:
 
 ## Last updated
 
-2026-06-12
+2026-06-12 – Enforcer: deny/ask signal distinction + path-scoped write confirmation (4fd5475, f61d576, 3524223)
