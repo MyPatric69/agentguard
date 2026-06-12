@@ -291,7 +291,7 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
 
 def concretize_field(field_name: str, user_input: str) -> dict[str, Any]:
     """Concretize a single governance field into an enforceable rule."""
-    if field_name == "hard_limits":
+    if field_name in ("hard_limits", "prohibited"):
         return _concretize_hard_limits(user_input)
 
     provider, api_key, base_url, model_override = _get_env()

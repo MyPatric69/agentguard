@@ -406,3 +406,30 @@ def test_review_field_replace_uses_same_path_as_add():
     assert len(updated) == 1  # old removed, new appended (net = 1)
     new_rule = updated[0]
     assert new_rule["action"] == "No writes to ./production directory"
+
+
+# ── 18. review_field: Add to prohibited produces rule with severity HARD_LIMIT ─
+
+def test_review_field_add_prohibited_rule_has_severity():
+    items = [
+        {"action": "Existing rule", "reason": "Existing", "severity": "HARD_LIMIT", "added": "2026-06-07"},
+    ]
+    mock_ai = {
+        "prohibited": [
+            {"action": "No writes to ./production directory", "reason": "Production writes risk data corruption", "severity": "HARD_LIMIT"},
+        ],
+        "confidence": "HIGH",
+        "ambiguities": [],
+    }
+    prompt_values = iter(["2", "no production writes", "prevent data corruption", "y"])
+    with (
+        mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
+        mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+        mock.patch("agentguard.guided.concretizer.concretize_field", return_value=mock_ai),
+    ):
+        updated, changed = review_field(items, "prohibited", guided=True)
+    assert changed is True
+    assert len(updated) == 2  # original + new
+    new_rule = updated[-1]
+    assert new_rule.get("severity") == "HARD_LIMIT"
+    assert "production" in new_rule["action"].lower()

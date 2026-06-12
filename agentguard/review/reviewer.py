@@ -118,12 +118,29 @@ def _run_add_rule(
             _console.print("\n[dim]Concretizing with AI...[/dim]")
             ai_result = concretize_field(field_name, action_text)
             if not ai_result.get("_fallback"):
-                concretized = ai_result.get("concretized", "")
-                if concretized:
-                    _console.print(f"  AI suggests: {concretized}", style="cyan")
-                    use_ai = click.prompt("  Use AI-concretized version? [y/n]", default="y")
-                    if use_ai.lower().startswith("y"):
-                        new_item["action"] = concretized
+                prohibited_items = ai_result.get("prohibited")
+                if isinstance(prohibited_items, list) and prohibited_items:
+                    # Structured path: prohibited field returns list with severity
+                    first = prohibited_items[0]
+                    concretized = first.get("action", "")
+                    if concretized:
+                        _console.print(f"  AI suggests: {concretized}", style="cyan")
+                        use_ai = click.prompt("  Use AI-concretized version? [y/n]", default="y")
+                        if use_ai.lower().startswith("y"):
+                            new_item = {
+                                "action": concretized,
+                                "reason": first.get("reason", reason_text),
+                                "severity": first.get("severity", "HARD_LIMIT"),
+                                "added": today,
+                            }
+                else:
+                    # Plain string path: other fields return concretized string
+                    concretized = ai_result.get("concretized", "")
+                    if concretized:
+                        _console.print(f"  AI suggests: {concretized}", style="cyan")
+                        use_ai = click.prompt("  Use AI-concretized version? [y/n]", default="y")
+                        if use_ai.lower().startswith("y"):
+                            new_item["action"] = concretized
 
     return items + [new_item], True
 
