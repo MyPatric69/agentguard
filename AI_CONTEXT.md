@@ -99,6 +99,14 @@ Key features:
 
 ## Open Items / Backlog
 
+**Priority order (current session):**
+1. Dogfooding — `init --guided` on AgentGuard repo itself
+2. Governance Hard-Rules Extension (builds on dogfooding findings)
+3. v0.11.0 Email Notification (pending SMTP/service decision)
+4. Medium-term quick wins (PDF export, pin timestamp fix)
+5. v1.0.0 Intent-Aware Live Observer
+6. Outreach/Tooling (ongoing, reactive)
+
 ### v0.11.0 — planned
 - Email notification when `escalation.method: "email"` is configured —
   notify owner on governance.yaml changes (e.g. via inline editor).
@@ -110,6 +118,14 @@ Key features:
 
 ### v1.0.0 — long-term
 - Intent-Aware Live Observer — LLM-based drift detection via JSONL transcript analysis
+
+### Governance Hard-Rules Extension (parked, aus Diskussion "Zuverlässigkeit & Verbindlichkeit")
+- governance.yaml-Schema um deterministische, kontextunabhängige Regeln erweitern
+  (z.B. scope.hard_rules oder Erweiterung von scope.prohibited um
+  pattern-basierte Datei/Branch/Command-Regeln)
+- Ziel: Entscheidungsklassen aus dem probabilistischen Bereich (LLM)
+  in den deterministischen Bereich (Layer 2 Enforcer) verschieben
+- Kein aktuelles To-Do — geparkter Ausgangspunkt für spätere Session
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
@@ -168,4 +184,4 @@ Key features:
 
 ## Last updated
 
-2026-06-12 — Backlog updated; v0.10.0 shipped
+2026-06-12 — Priority order added; Governance Hard-Rules Extension parked
