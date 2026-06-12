@@ -17,6 +17,7 @@ from agentguard.review.reviewer import (
     _count_hard_limits,
     _count_open_ambiguities,
     _count_rules,
+    _run_add_rule,
     load_governance,
     mark_ambiguity_resolved,
     review_field,
@@ -380,3 +381,28 @@ def test_show_governance_summary_all_resolved_shows_none():
         },
     }
     assert "none" in _capture_summary(governance)
+
+
+# ── 17. review_field: Replace uses same concretization path as Add ───────────
+
+def test_review_field_replace_uses_same_path_as_add():
+    items = [
+        {"action": "Old prohibited rule", "reason": "Old reason", "severity": "HARD_LIMIT", "added": "2026-06-07"},
+    ]
+    mock_ai = {
+        "concretized": "No writes to ./production directory",
+        "enforcement_notes": "Check Write tool file_path",
+        "confidence": "HIGH",
+        "ambiguities": [],
+    }
+    prompt_values = iter(["4", "1", "no production writes", "prevent data loss", "y"])
+    with (
+        mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
+        mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+        mock.patch("agentguard.guided.concretizer.concretize_field", return_value=mock_ai),
+    ):
+        updated, changed = review_field(items, "prohibited", guided=True)
+    assert changed is True
+    assert len(updated) == 1  # old removed, new appended (net = 1)
+    new_rule = updated[0]
+    assert new_rule["action"] == "No writes to ./production directory"

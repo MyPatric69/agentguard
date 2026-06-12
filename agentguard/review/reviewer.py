@@ -96,6 +96,38 @@ def show_governance_summary(governance: dict, project_path: str = ".") -> None:
     )
 
 
+def _run_add_rule(
+    items: list, field_name: str, guided: bool, today: str
+) -> tuple[list, bool]:
+    """Prompt for a new rule, optionally concretize with AI, append to items."""
+    click.echo("  Enter new rule (action):")
+    action_text = click.prompt("> ", prompt_suffix="").strip().strip("\"'")
+    if not action_text:
+        return items, False
+    click.echo("  Reason (why is this allowed?):")
+    reason_text = (
+        click.prompt("> ", prompt_suffix="").strip().strip("\"'") or "Added during review"
+    )
+
+    new_item: dict[str, Any] = {"action": action_text, "reason": reason_text, "added": today}
+
+    if guided:
+        from agentguard.guided.concretizer import _ai_available, concretize_field
+
+        if _ai_available():
+            _console.print("\n[dim]Concretizing with AI...[/dim]")
+            ai_result = concretize_field(field_name, action_text)
+            if not ai_result.get("_fallback"):
+                concretized = ai_result.get("concretized", "")
+                if concretized:
+                    _console.print(f"  AI suggests: {concretized}", style="cyan")
+                    use_ai = click.prompt("  Use AI-concretized version? [y/n]", default="y")
+                    if use_ai.lower().startswith("y"):
+                        new_item["action"] = concretized
+
+    return items + [new_item], True
+
+
 def review_field(
     field_items: list,
     field_name: str,
@@ -124,35 +156,7 @@ def review_field(
         return items, False
 
     if choice == "2":
-        click.echo("  Enter new rule (action):")
-        action_text = click.prompt("> ", prompt_suffix="").strip().strip("\"'")
-        click.echo("  Reason (why is this allowed?):")
-        reason_text = (
-            click.prompt("> ", prompt_suffix="").strip().strip("\"'") or "Added during review"
-        )
-
-        if guided and action_text:
-            from agentguard.guided.concretizer import _ai_available, concretize_field
-
-            if _ai_available():
-                _console.print("\n[dim]Concretizing with AI...[/dim]")
-                ai_result = concretize_field(field_name, action_text)
-                if not ai_result.get("_fallback"):
-                    concretized = ai_result.get("concretized", "")
-                    if concretized:
-                        _console.print(f"  AI suggests: {concretized}", style="cyan")
-                        use_ai = click.prompt("  Use AI-concretized version? [y/n]", default="y")
-                        if use_ai.lower().startswith("y"):
-                            action_text = concretized
-
-        if action_text:
-            new_item: dict[str, Any] = {
-                "action": action_text,
-                "reason": reason_text,
-                "added": today,
-            }
-            return items + [new_item], True
-        return items, False
+        return _run_add_rule(items, field_name, guided, today)
 
     if choice == "3":
         if not items:
@@ -180,15 +184,11 @@ def review_field(
         try:
             idx = int(idx_str) - 1
             if 0 <= idx < len(items):
-                click.echo("  New action text:")
-                action_text = click.prompt("> ", prompt_suffix="").strip().strip("\"'")
-                click.echo("  New reason:")
-                reason_text = (
-                    click.prompt("> ", prompt_suffix="").strip().strip("\"'") or "Replaced during review"
-                )
-                updated = list(items)
-                updated[idx] = {"action": action_text, "reason": reason_text, "added": today}
-                return updated, True
+                removed = items[idx]
+                action = removed.get("action", str(removed)) if isinstance(removed, dict) else str(removed)
+                items = items[:idx] + items[idx + 1:]
+                _console.print(f"  Removed: {action}", style="dim")
+                return _run_add_rule(items, field_name, guided, today)
         except ValueError:
             pass
         _console.print("  Invalid number — no changes made.", style="yellow")
