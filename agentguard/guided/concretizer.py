@@ -26,17 +26,63 @@ CONCRETIZATION_MODEL_OVERRIDES: dict[str, str] = {
     "anysphere": "cursor-fast",
 }
 
-_MISSION_PROMPT = """\
-You are an AI governance expert. Split this agent mission into structured
+_EXCLUDED_DIRS: frozenset[str] = frozenset({
+    ".git", "__pycache__", "node_modules", ".venv", "dist", "build", ".agentguard"
+})
+
+
+def _project_tree(project_root: str = ".") -> str:
+    """Return an indented text tree of the project up to depth 2, excluding noise dirs."""
+    lines = []
+    root = os.path.abspath(project_root)
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel = os.path.relpath(dirpath, root)
+        depth = 0 if rel == "." else rel.count(os.sep) + 1
+        if depth > 2:
+            dirnames.clear()
+            continue
+        dirnames[:] = [
+            d for d in sorted(dirnames)
+            if d not in _EXCLUDED_DIRS and not d.endswith(".egg-info")
+        ]
+        indent = "  " * depth
+        folder = os.path.basename(dirpath) if depth > 0 else "."
+        lines.append(f"{indent}{folder}/")
+        for fname in sorted(filenames):
+            lines.append(f"{indent}  {fname}")
+    return "\n".join(lines)
+
+
+def _claude_md_architecture(project_root: str = ".") -> str | None:
+    """Extract the ## Architecture Overview section from CLAUDE.md, or return None."""
+    claude_md = os.path.join(os.path.abspath(project_root), "CLAUDE.md")
+    if not os.path.exists(claude_md):
+        return None
+    text = open(claude_md).read()
+    m = re.search(r"(?m)^## Architecture Overview.*?$(.+?)(?=^## |\Z)", text, re.DOTALL)
+    if not m:
+        return None
+    return m.group(1).strip() or None
+
+
+_MISSION_PROMPT = """You are an AI governance expert. Split this agent mission into structured
 governance rules with action/reason for each item.
 
+PROJECT STRUCTURE (ground truth — these paths actually exist):
+{directory_tree}
+
+CLAUDE.md ARCHITECTURE OVERVIEW (context, may be outdated — directory tree above takes precedence if they conflict):
+{claude_md_excerpt}
+
+Use only paths that appear in PROJECT STRUCTURE above. Do not invent or assume directory names.
+
 You MUST respond with exactly this JSON structure.
-Here is an example of the correct format:
+The example below shows the required JSON FORMAT only — substitute real paths from PROJECT STRUCTURE and the user's actual input, never copy the placeholders literally.
 
 {{
   "authorized": [
-    {{"action": "Read source files in ./src", "reason": "Agent needs to understand codebase before making changes"}},
-    {{"action": "Run pytest test suite", "reason": "Verify changes don't break existing functionality"}}
+    {{"action": "Read source files in <path-from-project-structure>", "reason": "Agent needs to understand codebase before making changes"}},
+    {{"action": "Run <test-command-if-mentioned-by-user>", "reason": "Verify changes don't break existing functionality"}}
   ],
   "prohibited": [
     {{"action": "Deploy to production", "reason": "Production changes require human sign-off", "severity": "HARD_LIMIT"}},
@@ -59,8 +105,15 @@ Rules:
 - requires_confirmation: actions allowed but need human sign-off first
 - No markdown, no preamble, JSON only"""
 
-_HARD_LIMITS_PROMPT = """\
-You are an AI governance expert. Convert these hard limits into structured prohibitions.
+_HARD_LIMITS_PROMPT = """You are an AI governance expert. Convert these hard limits into structured prohibitions.
+
+PROJECT STRUCTURE (ground truth — these paths actually exist):
+{directory_tree}
+
+CLAUDE.md ARCHITECTURE OVERVIEW (context, may be outdated — directory tree above takes precedence if they conflict):
+{claude_md_excerpt}
+
+Use only paths that appear in PROJECT STRUCTURE above. Do not invent or assume directory names.
 
 User input: "{user_input}"
 
@@ -193,7 +246,10 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
         or model
     )
 
-    prompt = _MISSION_PROMPT.format(user_input=user_input)
+    project_tree = _project_tree()
+    arch_overview = _claude_md_architecture()
+    arch_text = arch_overview or "(not available)"
+    prompt = _MISSION_PROMPT.format(user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text)
     try:
         raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, max_tokens=800, temperature=0)
         parsed: dict[str, Any] = json.loads(_strip_fences(raw))
@@ -254,9 +310,16 @@ def concretize_field(field_name: str, user_input: str) -> dict[str, Any]:
 
     from agentguard.ai_review import _strip_fences as _sf
 
-    _FIELD_PROMPT = """\
-You are an AI governance expert helping define enforceable rules for an
+    _FIELD_PROMPT = """You are an AI governance expert helping define enforceable rules for an
 autonomous AI agent. The user provided this intent:
+
+PROJECT STRUCTURE (ground truth — these paths actually exist):
+{directory_tree}
+
+CLAUDE.md ARCHITECTURE OVERVIEW (context, may be outdated — directory tree above takes precedence if they conflict):
+{claude_md_excerpt}
+
+Use only paths that appear in PROJECT STRUCTURE above. Do not invent or assume directory names.
 
 Field: {field_name}
 Input: "{user_input}"
@@ -274,7 +337,10 @@ Respond in JSON only, no markdown:
 
 Confidence: HIGH = fully concrete, MEDIUM = mostly concrete, LOW = still vague."""
 
-    prompt = _FIELD_PROMPT.format(field_name=field_name, user_input=user_input)
+    project_tree = _project_tree()
+    arch_overview = _claude_md_architecture()
+    arch_text = arch_overview or "(not available)"
+    prompt = _FIELD_PROMPT.format(field_name=field_name, user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text)
     try:
         raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, temperature=0)
         result: dict[str, Any] = json.loads(_sf(raw))
@@ -302,7 +368,10 @@ def _concretize_hard_limits(user_input: str) -> dict[str, Any]:
         or model
     )
 
-    prompt = _HARD_LIMITS_PROMPT.format(user_input=user_input)
+    project_tree = _project_tree()
+    arch_overview = _claude_md_architecture()
+    arch_text = arch_overview or "(not available)"
+    prompt = _HARD_LIMITS_PROMPT.format(user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text)
     try:
         raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, temperature=0)
         result: dict[str, Any] = json.loads(_strip_fences(raw))

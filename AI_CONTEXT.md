@@ -78,6 +78,7 @@ Key features:
 - Resize: binary protocol (0x01 prefix + cols/rows uint16)
 - Session logging: every tool call → .agentguard/session.log (gitignored)
 - Loop threshold: 6 (configurable via --loop-threshold)
+- Concretization prompts are grounded in real project structure: directory scan (depth 2) + CLAUDE.md Architecture Overview excerpt, injected before the user input
 
 ### governance.yaml Schema
 - owner: string
@@ -184,4 +185,4 @@ Key features:
 
 ## Last updated
 
-2026-06-12 — Priority order added; Governance Hard-Rules Extension parked
+2026-06-12
