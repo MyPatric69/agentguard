@@ -1094,6 +1094,102 @@ def test_concretize_field_uses_temperature_0(monkeypatch):
     assert mock_call.call_args.kwargs.get("temperature") == 0
 
 
+# ── 48. Governance review: menu choice routing ───────────────────────────────
+
+def _review_results() -> dict:
+    return {
+        "owner": "Jane Smith",
+        "scope.authorized": [{"action": "Read files in ./src", "reason": "Core task"}],
+        "scope.prohibited": [{"action": "No prod writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "scope.requires_confirmation": [],
+        "escalation": "jane@example.com",
+        "killswitch": "Ctrl+C",
+    }
+
+
+def test_governance_review_choice_1_triggers_save(tmp_path, monkeypatch):
+    """Choosing '1' at the governance review menu must route to 'save', not 'adjust'."""
+    from io import StringIO
+    from rich.console import Console
+    from agentguard import cli as cli_module
+    from agentguard.cli import _show_guided_review
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "_console", Console(file=StringIO(), force_terminal=False))
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with runner.isolation(input="1\n"):
+            result = _show_guided_review(_review_results())
+
+    assert result == "save", f"Expected 'save', got {repr(result)}"
+
+
+def test_governance_review_default_empty_input_triggers_save(tmp_path, monkeypatch):
+    """Pressing Enter (accepting default) at governance review must route to 'save'."""
+    from io import StringIO
+    from rich.console import Console
+    from agentguard import cli as cli_module
+    from agentguard.cli import _show_guided_review
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "_console", Console(file=StringIO(), force_terminal=False))
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with runner.isolation(input="\n"):
+            result = _show_guided_review(_review_results())
+
+    assert result == "save", f"Expected 'save' for empty/default input, got {repr(result)}"
+
+
+def test_governance_review_choice_3_triggers_restart(tmp_path, monkeypatch):
+    """Choosing '3' at the governance review menu must route to 'restart'."""
+    from io import StringIO
+    from rich.console import Console
+    from agentguard import cli as cli_module
+    from agentguard.cli import _show_guided_review
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "_console", Console(file=StringIO(), force_terminal=False))
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with runner.isolation(input="3\n"):
+            result = _show_guided_review(_review_results())
+
+    assert result == "restart", f"Expected 'restart', got {repr(result)}"
+
+
+def test_governance_review_choice_2_triggers_adjust_field_submenu(tmp_path, monkeypatch):
+    """Choosing '2' at governance review enters the Adjust path: _run_guided_step is called."""
+    from io import StringIO
+    from rich.console import Console
+    from agentguard import cli as cli_module
+    from agentguard.cli import _show_guided_review
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "_console", Console(file=StringIO(), force_terminal=False))
+
+    run_step_calls = []
+
+    def mock_run_step(step, results):
+        run_step_calls.append(step["field"])
+
+    runner = CliRunner()
+    # "2" → Adjust → field submenu → "1" picks Owner field →
+    # mock _run_guided_step records the call → recursive review → "1" saves
+    with runner.isolated_filesystem():
+        with mock.patch("agentguard.cli._run_guided_step", side_effect=mock_run_step):
+            with runner.isolation(input="2\n1\n1\n"):
+                result = _show_guided_review(_review_results())
+
+    assert result == "save"
+    assert run_step_calls == ["owner"], (
+        f"Expected Adjust path to call _run_guided_step for 'owner', got {run_step_calls}"
+    )
+
+
 # ── 43. Validation error panel shown when mission has no authorized ───────────
 
 def test_show_validation_errors_renders_panel():
