@@ -187,4 +187,4 @@ Key features:
 
 ## Last updated
 
-2026-06-12 – Enforcer: rm check scoped to Bash only; removed redundant "rm -f" string check
+2026-06-13 – review --guided: Replace/Add for scope.prohibited now consistently produce structured rules with severity: HARD_LIMIT (a0d2a82, d9e60cf)
