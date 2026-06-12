@@ -8,7 +8,7 @@ import json
 import pytest
 
 from agentguard.cli import _write_hook_config
-from agentguard.enforcement.enforcer import run_enforce
+from agentguard.enforcement.enforcer import _match_confirmation_text, run_enforce
 
 # ── Shared governance configs ─────────────────────────────────────────────────
 
@@ -87,20 +87,18 @@ def test_block_git_push_prohibited(tmp_path, monkeypatch, capsys):
     assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-# ── 4. Block: Write tool triggers requires_confirmation ───────────────────────
+# ── 4. Allow: Write to non-core path no longer triggers write-scope confirmation
 
-def test_block_write_tool_requires_confirmation(tmp_path, monkeypatch, capsys):
+def test_write_non_core_path_not_blocked(tmp_path, monkeypatch, capsys):
     (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
-    tool_input = {"path": "/outside/src/config.yaml", "content": "key: value"}
+    tool_input = {"file_path": "agentguard/output/renderer.py", "content": "key: value"}
     monkeypatch.setattr(
         "sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path)))
     )
     with pytest.raises(SystemExit) as exc:
         run_enforce()
-    assert exc.value.code == 2
-    result = json.loads(capsys.readouterr().out)
-    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
-    assert "confirmation" in result["hookSpecificOutput"]["permissionDecisionReason"]
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
 
 
 # ── 5. Allow: governance.yaml not found ───────────────────────────────────────
@@ -318,19 +316,18 @@ def test_block_git_push_hard_limit_prefix(tmp_path, monkeypatch, capsys):
     assert "HARD_LIMIT" in reason
 
 
-# ── 15. List format: Write tool triggers requires_confirmation ────────────────
+# ── 15. List format: Write to non-core path not blocked ──────────────────────
 
-def test_block_write_confirmation_list_format(tmp_path, monkeypatch, capsys):
+def test_write_non_core_path_not_blocked_list_format(tmp_path, monkeypatch, capsys):
     (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION_LIST)
-    tool_input = {"path": "/outside/src/config.yaml", "content": "key: value"}
+    tool_input = {"file_path": "web/src/App.jsx", "content": "key: value"}
     monkeypatch.setattr(
         "sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path)))
     )
     with pytest.raises(SystemExit) as exc:
         run_enforce()
-    assert exc.value.code == 2
-    result = json.loads(capsys.readouterr().out)
-    assert "confirmation" in result["hookSpecificOutput"]["permissionDecisionReason"]
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
 
 
 # ── 16. List format: allow clean command when no match ───────────────────────
@@ -401,3 +398,50 @@ def test_agentguard_dir_created_automatically(tmp_path, monkeypatch, capsys):
         run_enforce()
     assert (tmp_path / ".agentguard").is_dir()
     assert (tmp_path / ".agentguard" / "session.log").exists()
+
+
+_GOV_CORE_ARCH = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation:
+    - action: "Modify core architecture or design patterns"
+      reason: "Structural changes have wide-reaching implications"
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+
+# ── 20. Path-aware: Edit to core architecture path matches ───────────────────
+
+def test_write_scope_match_core_architecture_path(tmp_path, monkeypatch, capsys):
+    assert _match_confirmation_text(
+        "Edit",
+        "agentguard/enforcement/enforcer.py old new",
+        "modify core architecture or design patterns",
+        file_path="agentguard/enforcement/enforcer.py",
+    ) is True
+
+
+# ── 21. Path-aware: Edit to non-core path does not match ────────────────────
+
+def test_write_scope_no_match_non_core_path():
+    assert _match_confirmation_text(
+        "Edit",
+        "agentguard/output/renderer.py old new",
+        "modify core architecture or design patterns",
+        file_path="agentguard/output/renderer.py",
+    ) is False
+
+
+# ── 22. Path-aware: Edit to frontend path does not match ────────────────────
+
+def test_write_scope_no_match_frontend_path():
+    assert _match_confirmation_text(
+        "Edit",
+        "web/src/app.jsx old new",
+        "modify core architecture or design patterns",
+        file_path="web/src/App.jsx",
+    ) is False

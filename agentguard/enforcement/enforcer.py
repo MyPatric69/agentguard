@@ -27,6 +27,15 @@ _DB_OPS = frozenset({"insert", "update", "delete", "drop", "truncate", "alter"})
 _DB_SCOPE_WORDS = ("database", "sql", "db", "table", "schema")
 _DELETION_SCOPE_WORDS = ("deletion", "delete", "remov")
 _WRITE_SCOPE_WORDS = ("write", "edit", "modif")
+_CORE_ARCHITECTURE_PATHS = (
+    "agentguard/enforcement/",
+    "agentguard/cli.py",
+    "agentguard/guided/",
+    "agentguard/review/",
+    "agentguard/config/",
+    ".claude/settings.json",
+    "governance.yaml",
+)
 
 
 def run_enforce() -> None:
@@ -95,6 +104,12 @@ def _flatten_input(tool_input: dict) -> str:
     return " ".join(str(v) for v in tool_input.values())
 
 
+def _extract_file_path(tool_name: str, tool_input: dict) -> str:
+    if tool_name == "NotebookEdit":
+        return str(tool_input.get("notebook_path", "") or "")
+    return str(tool_input.get("file_path", "") or tool_input.get("path", "") or "")
+
+
 def _extract_keywords(text: str) -> list[str]:
     keywords = []
     for pattern, group in PROHIBITED_PATTERNS:
@@ -119,7 +134,9 @@ def _match_prohibited_text(tool_name: str, tool_str: str, prohibited_text: str) 
     return False
 
 
-def _match_confirmation_text(tool_name: str, tool_str: str, confirmation_text: str) -> bool:
+def _match_confirmation_text(
+    tool_name: str, tool_str: str, confirmation_text: str, file_path: str = ""
+) -> bool:
     """Return True if tool_str matches the given confirmation text string."""
     if re.search(r"\brm\s+-\S*[rf]", tool_str) or "rm -f" in tool_str:
         if any(kw in confirmation_text for kw in _DELETION_SCOPE_WORDS):
@@ -128,7 +145,11 @@ def _match_confirmation_text(tool_name: str, tool_str: str, confirmation_text: s
         return True
     if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
         if any(kw in confirmation_text for kw in _WRITE_SCOPE_WORDS):
-            return True
+            if file_path and any(
+                file_path == p or file_path.startswith(p) or ("/" + p) in file_path
+                for p in _CORE_ARCHITECTURE_PATHS
+            ):
+                return True
     for keyword in _extract_keywords(confirmation_text):
         if len(keyword) > 3 and keyword in tool_str:
             return True
@@ -172,13 +193,14 @@ def check_confirmation(tool_name: str, tool_input: dict, scope: dict) -> str | N
     confirmation = scope.get("requires_confirmation", "")
     tool_str = _flatten_input(tool_input).lower()
     input_summary = tool_str[:100]
+    file_path = _extract_file_path(tool_name, tool_input)
 
     if isinstance(confirmation, list):
         for item in confirmation:
             if not isinstance(item, dict):
                 continue
             action = item.get("action", "")
-            if _match_confirmation_text(tool_name, tool_str, action.lower()):
+            if _match_confirmation_text(tool_name, tool_str, action.lower(), file_path):
                 return (
                     f"Action '{tool_name}: {input_summary}' requires human confirmation"
                     " per governance.yaml"
@@ -190,7 +212,7 @@ def check_confirmation(tool_name: str, tool_input: dict, scope: dict) -> str | N
     if not confirmation_text:
         return None
 
-    if _match_confirmation_text(tool_name, tool_str, confirmation_text):
+    if _match_confirmation_text(tool_name, tool_str, confirmation_text, file_path):
         return (
             f"Action '{tool_name}: {input_summary}' requires human confirmation"
             " per governance.yaml"
