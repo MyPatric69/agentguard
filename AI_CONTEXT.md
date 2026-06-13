@@ -96,7 +96,8 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 273/273 passing- CI: GitHub Actions, Python 3.11 + 3.12, green
+- 273/273 passing
+- CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
 ## Dogfooding Session (2026-06-12/13)
@@ -216,4 +217,4 @@ owner email).
 
 ## Last updated
 
-2026-06-13 – v0.10.2 release: guided loop, git push false positive fix, CHANGELOG/README docs
+2026-06-13 – Auto-synced 1 commit(s) to 469fb32
