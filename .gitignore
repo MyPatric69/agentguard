@@ -19,3 +19,8 @@ agentguard-overrides.log
 web/node_modules/
 web/dist/
 .agentguard/
+
+# AgentGuard runtime files (project-specific, not part of the tool itself)
+governance.yaml
+.claude/
+.trace_sync
