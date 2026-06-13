@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.1  
+**Version:** 0.10.2  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -96,8 +96,7 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 273/273 passing
-- CI: GitHub Actions, Python 3.11 + 3.12, green
+- 273/273 passing- CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
 ## Dogfooding Session (2026-06-12/13)
@@ -217,4 +216,4 @@ owner email).
 
 ## Last updated
 
-2026-06-13 – fix(enforcement): git push confirmation matching scoped to tag operations only (_is_tag_push helper)
+2026-06-13 – v0.10.2 release: guided loop, git push false positive fix, CHANGELOG/README docs

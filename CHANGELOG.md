@@ -7,15 +7,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-06-13
+
 ### Added
-- `review --guided` now asks "Make further changes?" after each saved
-  edit, looping back to the review menu instead of exiting.
+- `review --guided` now prompts "Make further changes? [y/n]" after each
+  saved edit, looping back to the review menu instead of exiting (commit
+  6ec47c4).
 
 ### Fixed
-- Fixed enforcer false positive where any `git push` triggered ask for
-  requires_confirmation rules mentioning "git push" in their text — now
-  only tag-related push operations match (`git push --tags`,
-  `git push origin vX.Y`, `git push refs/tags/*`, `git tag`).
+- Enforcer false positive: any `git push` triggered `ask` for
+  requires_confirmation rules that mention "git push" in their text.
+  Now only tag-related push operations match (`--tags`, `refs/tags/`,
+  version-like tag patterns, `git tag` commands) (commit 6222e9f).
+
+### Docs
+- Added CHANGELOG.md (this file) — release history starts at v0.10.1.
+- Updated README: corrected deny/ask exit code documentation, documented
+  review --guided loop, added CHANGELOG link, fixed stale version example.
 
 ## [0.10.1] - 2026-06-13
 
