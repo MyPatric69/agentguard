@@ -432,3 +432,21 @@ def test_review_field_add_prohibited_rule_has_severity():
     new_rule = updated[-1]
     assert new_rule.get("severity") == "HARD_LIMIT"
     assert "production" in new_rule["action"].lower()
+
+
+# ── 19. review_field: Add to prohibited without AI still gets severity HARD_LIMIT ─
+
+def test_review_field_add_prohibited_rule_has_severity_without_ai():
+    """Fallback path (AI unavailable) must still set severity: HARD_LIMIT on prohibited rules."""
+    items = []
+    prompt_values = iter(["2", "no direct DB writes", "prevent data corruption"])
+    with (
+        mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
+        mock.patch("agentguard.guided.concretizer._ai_available", return_value=False),
+    ):
+        updated, changed = review_field(items, "prohibited", guided=True)
+    assert changed is True
+    assert len(updated) == 1
+    new_rule = updated[0]
+    assert new_rule.get("severity") == "HARD_LIMIT"
+    assert new_rule["action"] == "no direct DB writes"

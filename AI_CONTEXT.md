@@ -187,4 +187,4 @@ Key features:
 
 ## Last updated
 
-2026-06-13 – review --guided: Replace/Add for scope.prohibited now consistently produce structured rules with severity: HARD_LIMIT (a0d2a82, d9e60cf)
+2026-06-13 – fix(review): severity HARD_LIMIT now applied unconditionally for scope.prohibited rules in _run_add_rule (AI fallback, AI unavailable, user declines all covered)

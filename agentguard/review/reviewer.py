@@ -142,6 +142,9 @@ def _run_add_rule(
                         if use_ai.lower().startswith("y"):
                             new_item["action"] = concretized
 
+    if field_name == "prohibited" and "severity" not in new_item:
+        new_item["severity"] = "HARD_LIMIT"
+
     return items + [new_item], True
 
 
