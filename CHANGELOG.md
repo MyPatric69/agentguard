@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `review --guided` now asks "Make further changes?" after each saved
+  edit, looping back to the review menu instead of exiting.
+
 ## [0.10.1] - 2026-06-13
 
 ### Security
