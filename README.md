@@ -404,6 +404,8 @@ Shows a summary of current governance, then offers:
 
 All changes are logged in `governance_history` with the date, tool, and changed fields.
 
+With `--guided`, after each saved change AgentGuard prompts **"Make further changes? [y/n]"** (default n) — answer `y` to return to the menu, or `n` to exit.
+
 ---
 
 ### `agentguard override`
@@ -551,7 +553,7 @@ integrity.
 ### Layer 2 — While the agent runs (Enforcement)
 `agentguard enforce` runs as a Claude Code PreToolUse hook.
 Deterministic — no LLM. Checks every tool call against governance.yaml.
-Exit 2 = blocked. Exit 0 = allowed.
+Exit 2 = denied (prohibited / HARD_LIMIT). Exit 0 = allowed or requires confirmation (ask).
 
 ### Layer 3 — Monitoring (Runtime Watch)
 `agentguard watch` reads native Claude Code JSONL transcripts.
@@ -690,12 +692,13 @@ After `agentguard init`, your project contains `.claude/settings.json`:
 Every tool call Claude Code attempts fires `agentguard enforce` first.
 AgentGuard reads your `governance.yaml` and checks:
 
-- Does this action violate the **prohibited scope**?
-- Does this action require **human confirmation**?
+- Does this action violate the **prohibited scope** (HARD_LIMIT)?
+  → `exit 2` (deny) — Claude Code is blocked and cannot proceed.
 
-If yes → `exit 2`. Claude Code receives the denial reason and cannot
-proceed with that action. This is deterministic — it fires every time,
-regardless of model behavior or context length.
+- Does this action require **human confirmation**?
+  → `exit 0` (ask) — Claude Code receives the confirmation prompt and pauses for owner response.
+
+This is deterministic — it fires every time, regardless of model behavior or context length.
 
 All enforcement decisions are logged to `agentguard-enforcement.log`.
 
@@ -747,7 +750,7 @@ governance_history:
   - date: "2026-06-09"
     action: "Initial governance created"
     tool: "agentguard init --guided"
-    version: "0.5.1"
+    version: "0.10.1"
 
 # Concretization consistency (added by agentguard init --guided)
 concretization_pins:
@@ -865,6 +868,9 @@ Use `agentguard review` when:
 
 All changes are logged in `governance_history` — full audit trail
 of when governance changed, what changed, and which tool was used.
+
+In guided mode (`--guided`), after each saved field you'll be prompted to continue
+(**Make further changes? [y/n]**) — allowing multiple edits in a single session.
 
 ---
 
@@ -999,6 +1005,8 @@ pip install -e ".[dev]"
 pytest --tb=short
 ruff check agentguard tests
 ```
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ---
 
