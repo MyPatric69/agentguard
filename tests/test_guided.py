@@ -1335,3 +1335,75 @@ def test_save_guided_writes_concretization_pins(tmp_path, monkeypatch):
     assert "concretization_pins:" in gov_text
     assert 'field: "mission"' in gov_text
     assert "temperature: 0" in gov_text
+
+
+# ── 48. review --guided: "y" to further changes loops back to menu ───────────
+
+_MINIMAL_GOV_YAML = """\
+owner: "test-owner"
+scope:
+  authorized:
+    - action: "Read source files"
+      reason: "Core development"
+      added: "2026-06-13"
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: "test@example.com"
+  method: "log"
+  trigger: "2+ failures"
+killswitch: "stop"
+governance_history: []
+"""
+
+
+def test_review_interactive_guided_loops_back_on_y(tmp_path):
+    """Answering 'y' to 'Make further changes?' re-enters the top-level menu."""
+    from agentguard.cli import _review_interactive
+    from agentguard.review.reviewer import load_governance
+
+    gov_path = tmp_path / "governance.yaml"
+    gov_path.write_text(_MINIMAL_GOV_YAML)
+    governance = load_governance(gov_path)
+
+    # iter 1: specific field → authorized → add rule → saved → "y" to continue
+    # iter 2: all fields → keep all three → no changes → exits (no further prompt)
+    prompt_values = iter([
+        "2", "1", "2", "Run unit tests", "Quality assurance",  # iter 1: specific→authorized→add
+        "y",                                                     # Make further changes?
+        "1", "1", "1", "1",                                     # iter 2: all fields → keep ×3
+    ])
+    with (
+        mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
+        mock.patch("agentguard.guided.concretizer._ai_available", return_value=False),
+    ):
+        _review_interactive(governance, gov_path, guided=True)
+
+    updated = load_governance(gov_path)
+    authorized = updated.get("scope", {}).get("authorized", [])
+    assert any(r.get("action") == "Run unit tests" for r in authorized)
+
+
+def test_review_interactive_guided_exits_on_n(tmp_path):
+    """Answering 'n' to 'Make further changes?' exits the review loop."""
+    from agentguard.cli import _review_interactive
+    from agentguard.review.reviewer import load_governance
+
+    gov_path = tmp_path / "governance.yaml"
+    gov_path.write_text(_MINIMAL_GOV_YAML)
+    governance = load_governance(gov_path)
+
+    # specific field → authorized → add rule → saved → "n" to exit
+    prompt_values = iter([
+        "2", "1", "2", "Deploy to staging", "Test deployment",  # specific→authorized→add
+        "n",                                                      # Make further changes?
+    ])
+    with (
+        mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
+        mock.patch("agentguard.guided.concretizer._ai_available", return_value=False),
+    ):
+        _review_interactive(governance, gov_path, guided=True)
+
+    updated = load_governance(gov_path)
+    authorized = updated.get("scope", {}).get("authorized", [])
+    assert any(r.get("action") == "Deploy to staging" for r in authorized)

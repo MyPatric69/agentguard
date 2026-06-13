@@ -1038,93 +1038,100 @@ def _review_interactive(governance: dict, gov_path: Path, guided: bool) -> None:
         save_governance,
     )
 
-    click.echo("\n  What would you like to review?")
-    click.echo("  [1] Review all fields")
-    click.echo("  [2] Review specific field")
-    click.echo("  [3] Add new rules to existing fields")
-    click.echo("  [4] Mark ambiguities as resolved")
-    click.echo("  [5] View full governance.yaml")
-    choice = click.prompt("  Choose [1-5]", default="1")
+    while True:
+        click.echo("\n  What would you like to review?")
+        click.echo("  [1] Review all fields")
+        click.echo("  [2] Review specific field")
+        click.echo("  [3] Add new rules to existing fields")
+        click.echo("  [4] Mark ambiguities as resolved")
+        click.echo("  [5] View full governance.yaml")
+        choice = click.prompt("  Choose [1-5]", default="1")
 
-    scope = governance.setdefault("scope", {})
-    changed_fields: list[str] = []
-    today = __import__("datetime").date.today().isoformat()
+        scope = governance.setdefault("scope", {})
+        changed_fields: list[str] = []
+        today = __import__("datetime").date.today().isoformat()
 
-    if choice == "1":
-        for fname in ("authorized", "prohibited", "requires_confirmation"):
+        if choice == "1":
+            for fname in ("authorized", "prohibited", "requires_confirmation"):
+                items = scope.get(fname, []) or []
+                updated, changed = review_field(items, fname, guided=guided)
+                if changed:
+                    scope[fname] = updated
+                    changed_fields.append(f"scope.{fname}")
+
+        elif choice == "2":
+            click.echo("  [1] Authorized scope")
+            click.echo("  [2] Prohibited scope")
+            click.echo("  [3] Requires confirmation")
+            field_choice = click.prompt("  Choose [1-3]", default="1")
+            fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(field_choice, "authorized")
             items = scope.get(fname, []) or []
             updated, changed = review_field(items, fname, guided=guided)
             if changed:
                 scope[fname] = updated
                 changed_fields.append(f"scope.{fname}")
 
-    elif choice == "2":
-        click.echo("  [1] Authorized scope")
-        click.echo("  [2] Prohibited scope")
-        click.echo("  [3] Requires confirmation")
-        field_choice = click.prompt("  Choose [1-3]", default="1")
-        fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(field_choice, "authorized")
-        items = scope.get(fname, []) or []
-        updated, changed = review_field(items, fname, guided=guided)
-        if changed:
-            scope[fname] = updated
+        elif choice == "3":
+            click.echo("  [1] Authorized scope")
+            click.echo("  [2] Prohibited scope")
+            click.echo("  [3] Requires confirmation")
+            field_choice = click.prompt("  Choose [1-3]", default="1")
+            fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(field_choice, "authorized")
+            items = list(scope.get(fname, []) or [])
+            click.echo(f"  Enter new rule for {fname}:")
+            action_text = _strip_quotes(click.prompt("> ", prompt_suffix=""))
+            reason_text = _strip_quotes(click.prompt("  Reason: ", prompt_suffix="")) or "Added during review"
+            new_item = {"action": action_text, "reason": reason_text, "added": today}
+            scope[fname] = items + [new_item]
             changed_fields.append(f"scope.{fname}")
 
-    elif choice == "3":
-        click.echo("  [1] Authorized scope")
-        click.echo("  [2] Prohibited scope")
-        click.echo("  [3] Requires confirmation")
-        field_choice = click.prompt("  Choose [1-3]", default="1")
-        fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(field_choice, "authorized")
-        items = list(scope.get(fname, []) or [])
-        click.echo(f"  Enter new rule for {fname}:")
-        action_text = _strip_quotes(click.prompt("> ", prompt_suffix=""))
-        reason_text = _strip_quotes(click.prompt("  Reason: ", prompt_suffix="")) or "Added during review"
-        new_item = {"action": action_text, "reason": reason_text, "added": today}
-        scope[fname] = items + [new_item]
-        changed_fields.append(f"scope.{fname}")
-
-    elif choice == "4":
-        ambiguities = governance.get("unresolved_ambiguities", [])
-        if not isinstance(ambiguities, list) or not ambiguities:
-            _console.print("  No ambiguities recorded.", style="dim")
-        else:
-            click.echo("\n  Open ambiguities:")
-            open_indices = [
-                i for i, a in enumerate(ambiguities)
-                if isinstance(a, dict) and a.get("status") == "open"
-            ]
-            for i in open_indices:
-                click.echo(f"    {i + 1}. {ambiguities[i].get('text', '')} [open]")
-            if not open_indices:
-                _console.print("  All ambiguities are already resolved.", style="dim")
+        elif choice == "4":
+            ambiguities = governance.get("unresolved_ambiguities", [])
+            if not isinstance(ambiguities, list) or not ambiguities:
+                _console.print("  No ambiguities recorded.", style="dim")
             else:
-                idx_str = click.prompt("  Mark as resolved (enter number, or 'all')")
-                if idx_str.strip().lower() == "all":
-                    for i in open_indices:
-                        ambiguities = mark_ambiguity_resolved(ambiguities, i)
-                    governance["unresolved_ambiguities"] = ambiguities
-                    changed_fields.append("unresolved_ambiguities")
+                click.echo("\n  Open ambiguities:")
+                open_indices = [
+                    i for i, a in enumerate(ambiguities)
+                    if isinstance(a, dict) and a.get("status") == "open"
+                ]
+                for i in open_indices:
+                    click.echo(f"    {i + 1}. {ambiguities[i].get('text', '')} [open]")
+                if not open_indices:
+                    _console.print("  All ambiguities are already resolved.", style="dim")
                 else:
-                    try:
-                        idx = int(idx_str) - 1
-                        if 0 <= idx < len(ambiguities):
-                            governance["unresolved_ambiguities"] = mark_ambiguity_resolved(ambiguities, idx)
-                            changed_fields.append("unresolved_ambiguities")
-                    except ValueError:
-                        _console.print("  Invalid input — no changes made.", style="yellow")
+                    idx_str = click.prompt("  Mark as resolved (enter number, or 'all')")
+                    if idx_str.strip().lower() == "all":
+                        for i in open_indices:
+                            ambiguities = mark_ambiguity_resolved(ambiguities, i)
+                        governance["unresolved_ambiguities"] = ambiguities
+                        changed_fields.append("unresolved_ambiguities")
+                    else:
+                        try:
+                            idx = int(idx_str) - 1
+                            if 0 <= idx < len(ambiguities):
+                                governance["unresolved_ambiguities"] = mark_ambiguity_resolved(ambiguities, idx)
+                                changed_fields.append("unresolved_ambiguities")
+                        except ValueError:
+                            _console.print("  Invalid input — no changes made.", style="yellow")
 
-    elif choice == "5":
-        from rich.syntax import Syntax
-        content = gov_path.read_text() if gov_path.exists() else "# governance.yaml not found"
-        _console.print(Syntax(content, "yaml", theme="monokai", line_numbers=True, word_wrap=True))
-        return
+        elif choice == "5":
+            from rich.syntax import Syntax
+            content = gov_path.read_text() if gov_path.exists() else "# governance.yaml not found"
+            _console.print(Syntax(content, "yaml", theme="monokai", line_numbers=True, word_wrap=True))
+            return
 
-    if changed_fields:
-        save_governance(governance, gov_path, changed_fields)
-        _console.print(f"✅ governance.yaml updated — {', '.join(changed_fields)}", style="green")
-    else:
-        _console.print("No changes made.", style="dim")
+        if changed_fields:
+            save_governance(governance, gov_path, changed_fields)
+            _console.print(f"✅ governance.yaml updated — {', '.join(changed_fields)}", style="green")
+        else:
+            _console.print("No changes made.", style="dim")
+
+        if guided and changed_fields:
+            again = click.prompt("  Make further changes? [y/n]", default="n")
+            if again.lower().startswith("y"):
+                continue
+        break
 
 
 @main.command("review")
