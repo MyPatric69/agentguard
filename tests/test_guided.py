@@ -1110,7 +1110,9 @@ def _review_results() -> dict:
 def test_governance_review_choice_1_triggers_save(tmp_path, monkeypatch):
     """Choosing '1' at the governance review menu must route to 'save', not 'adjust'."""
     from io import StringIO
+
     from rich.console import Console
+
     from agentguard import cli as cli_module
     from agentguard.cli import _show_guided_review
 
@@ -1128,7 +1130,9 @@ def test_governance_review_choice_1_triggers_save(tmp_path, monkeypatch):
 def test_governance_review_default_empty_input_triggers_save(tmp_path, monkeypatch):
     """Pressing Enter (accepting default) at governance review must route to 'save'."""
     from io import StringIO
+
     from rich.console import Console
+
     from agentguard import cli as cli_module
     from agentguard.cli import _show_guided_review
 
@@ -1146,7 +1150,9 @@ def test_governance_review_default_empty_input_triggers_save(tmp_path, monkeypat
 def test_governance_review_choice_3_triggers_restart(tmp_path, monkeypatch):
     """Choosing '3' at the governance review menu must route to 'restart'."""
     from io import StringIO
+
     from rich.console import Console
+
     from agentguard import cli as cli_module
     from agentguard.cli import _show_guided_review
 
@@ -1164,7 +1170,9 @@ def test_governance_review_choice_3_triggers_restart(tmp_path, monkeypatch):
 def test_governance_review_choice_2_triggers_adjust_field_submenu(tmp_path, monkeypatch):
     """Choosing '2' at governance review enters the Adjust path: _run_guided_step is called."""
     from io import StringIO
+
     from rich.console import Console
+
     from agentguard import cli as cli_module
     from agentguard.cli import _show_guided_review
 

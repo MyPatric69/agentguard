@@ -17,7 +17,6 @@ from agentguard.review.reviewer import (
     _count_hard_limits,
     _count_open_ambiguities,
     _count_rules,
-    _run_add_rule,
     load_governance,
     mark_ambiguity_resolved,
     review_field,

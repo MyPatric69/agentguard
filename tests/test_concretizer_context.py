@@ -1,18 +1,12 @@
 """Tests for project-structure context helpers in concretizer."""
 from __future__ import annotations
-import os
-from pathlib import Path
-from unittest import mock
-
-import pytest
 
 from agentguard.guided.concretizer import (
-    _MISSION_PROMPT,
     _HARD_LIMITS_PROMPT,
+    _MISSION_PROMPT,
     _claude_md_architecture,
     _project_tree,
 )
-
 
 # ── 1. _project_tree: excluded dirs are dropped ──────────────────────────────
 
