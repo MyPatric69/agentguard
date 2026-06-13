@@ -96,7 +96,7 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 267/267 passing
+- 273/273 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -217,4 +217,4 @@ owner email).
 
 ## Last updated
 
-2026-06-13 – Auto-synced 1 commit(s) to 6ec47c4
+2026-06-13 – fix(enforcement): git push confirmation matching scoped to tag operations only (_is_tag_push helper)

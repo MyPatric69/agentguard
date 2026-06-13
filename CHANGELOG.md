@@ -11,6 +11,12 @@ All notable changes to this project will be documented in this file.
 - `review --guided` now asks "Make further changes?" after each saved
   edit, looping back to the review menu instead of exiting.
 
+### Fixed
+- Fixed enforcer false positive where any `git push` triggered ask for
+  requires_confirmation rules mentioning "git push" in their text — now
+  only tag-related push operations match (`git push --tags`,
+  `git push origin vX.Y`, `git push refs/tags/*`, `git tag`).
+
 ## [0.10.1] - 2026-06-13
 
 ### Security

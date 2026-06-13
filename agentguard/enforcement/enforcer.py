@@ -133,6 +133,19 @@ def _match_prohibited_text(tool_name: str, tool_str: str, prohibited_text: str) 
     return False
 
 
+def _is_tag_push(tool_str: str) -> bool:
+    """Return True only for tag-related push operations, not all git push commands."""
+    if re.search(r"\bgit\s+push\b.*--tags", tool_str):
+        return True
+    if re.search(r"\bgit\s+push\b.*\brefs/tags/", tool_str):
+        return True
+    if re.search(r"\bgit\s+push\b.*\bv\d+\.\d+", tool_str):
+        return True
+    if re.search(r"\bgit\s+tag\b", tool_str):
+        return True
+    return False
+
+
 def _match_confirmation_text(
     tool_name: str, tool_str: str, confirmation_text: str, file_path: str = ""
 ) -> bool:
@@ -140,7 +153,8 @@ def _match_confirmation_text(
     if tool_name == "Bash" and re.search(r"\brm\s+-\S*[rf]", tool_str):
         if any(kw in confirmation_text for kw in _DELETION_SCOPE_WORDS):
             return True
-    if "git push" in tool_str and "git push" in confirmation_text:
+    # only tag-related push operations, not all git push commands
+    if _is_tag_push(tool_str) and "git push" in confirmation_text:
         return True
     if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
         if any(kw in confirmation_text for kw in _WRITE_SCOPE_WORDS):

@@ -506,3 +506,56 @@ def test_bash_rm_f_command_still_triggers(tmp_path, monkeypatch, capsys):
     assert exc.value.code == 0
     result = json.loads(capsys.readouterr().out)
     assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+# ── 27-32. Tag-push branch: only tag-related push operations match ────────────
+
+# Rule text that mentions "git push" to describe tag-push patterns (like governance.yaml rule 4)
+_TAG_RULE_TEXT = (
+    "git tag operations require explicit user confirmation. blocked commands: "
+    "git tag, git push --tags, git push with version tags, git push refs/tags/*"
+)
+
+
+def test_git_push_origin_main_does_not_match_tag_rule():
+    """git push origin main must NOT trigger a tag-push confirmation rule."""
+    assert _match_confirmation_text(
+        "Bash", "git push origin main", _TAG_RULE_TEXT
+    ) is False
+
+
+def test_git_push_tags_flag_matches_tag_rule():
+    """git push --tags must match a tag-push confirmation rule."""
+    assert _match_confirmation_text(
+        "Bash", "git push --tags", _TAG_RULE_TEXT
+    ) is True
+
+
+def test_git_push_version_tag_matches_tag_rule():
+    """git push origin v0.10.1 must match a tag-push confirmation rule."""
+    assert _match_confirmation_text(
+        "Bash", "git push origin v0.10.1", _TAG_RULE_TEXT
+    ) is True
+
+
+def test_git_push_refs_tags_matches_tag_rule():
+    """git push origin refs/tags/v0.10.1 must match a tag-push confirmation rule."""
+    assert _match_confirmation_text(
+        "Bash", "git push origin refs/tags/v0.10.1", _TAG_RULE_TEXT
+    ) is True
+
+
+def test_git_tag_command_matches_tag_rule():
+    """git tag v0.10.1 must match a tag-push confirmation rule."""
+    assert _match_confirmation_text(
+        "Bash", "git tag v0.10.1", _TAG_RULE_TEXT
+    ) is True
+
+
+def test_commit_and_push_main_does_not_match_tag_rule():
+    """git commit && git push origin main must NOT trigger a tag-push confirmation rule."""
+    assert _match_confirmation_text(
+        "Bash",
+        'git commit -m "x" && git push origin main',
+        _TAG_RULE_TEXT,
+    ) is False
