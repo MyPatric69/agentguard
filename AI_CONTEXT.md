@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.0  
+**Version:** 0.10.1  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -96,9 +96,42 @@ Key features:
   changed_fields?}
 
 ### Tests
-- 243/243 passing
+- 265/265 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
+
+## Dogfooding Session (2026-06-12/13)
+
+Ran `agentguard init --guided` on the AgentGuard repo itself. Found and
+fixed five issues in review/concretization/enforcement:
+
+1. Concretization prompts (_MISSION_PROMPT, _HARD_LIMITS_PROMPT,
+   _FIELD_PROMPT) had no real project-structure context and a biasing
+   "./src" few-shot example, producing nonexistent paths. Fixed: prompts
+   now include a directory-tree scan + CLAUDE.md "Architecture Overview"
+   excerpt (commit 1b3d8f4).
+2. `review --guided` "Replace a rule" bypassed AI concretization and
+   dropped `severity` for prohibited rules. Fixed: Replace unified with
+   Add flow (a0d2a82); prohibited field routed through hard-limits
+   concretization (d9e60cf); severity defaults to HARD_LIMIT
+   unconditionally regardless of AI fallback (e252f3e).
+3. Enforcer false positive: confirmation-text matching fired on ANY
+   Edit/Write call when the rule text contained generic words like
+   "modif". Fixed: write/edit confirmation matching scoped to
+   `_CORE_ARCHITECTURE_PATHS` (4fd5475).
+4. No structural distinction between `deny` (HARD_LIMIT/prohibited) and
+   `ask` (requires_confirmation) — both returned exit 2, leading an agent
+   to treat a confirmation request as "forbidden" and seek a bypass via
+   Bash. Fixed: separate `ask` permission decision (exit 0) for
+   requires_confirmation (f61d576); CLAUDE.md now instructs not to bypass
+   `deny` via alternate tools (3524223).
+5. Redundant `"rm -f" in tool_str` check caused a false positive when
+   source code contained that string literally. Fixed: removed, rm regex
+   scoped to Bash tool only (35bbb80).
+
+AgentGuard's own governance.yaml was created (15 authorized rules, 11
+prohibited HARD_LIMIT rules, 3 requires_confirmation, escalation: log to
+owner email).
 
 ## Open Items / Backlog
 
@@ -122,21 +155,18 @@ Key features:
 ### v1.0.0 — long-term
 - Intent-Aware Live Observer — LLM-based drift detection via JSONL transcript analysis
 
-### Governance Hard-Rules Extension (parked, aus Diskussion "Zuverlässigkeit & Verbindlichkeit")
-- governance.yaml-Schema um deterministische, kontextunabhängige Regeln erweitern
-  (z.B. scope.hard_rules oder Erweiterung von scope.prohibited um
-  pattern-basierte Datei/Branch/Command-Regeln)
-- Ziel: Entscheidungsklassen aus dem probabilistischen Bereich (LLM)
-  in den deterministischen Bereich (Layer 2 Enforcer) verschieben
-- Kein aktuelles To-Do — geparkter Ausgangspunkt für spätere Session
+### Governance Hard-Rules Extension (refined after dogfooding)
+- Validated approach: hardcoded path-list constants in the enforcer
+  (e.g. `_CORE_ARCHITECTURE_PATHS`), NOT free-text AI-concretized rules —
+  free-text prohibited rules (e.g. "modify outside authorized scope")
+  cannot be deterministically matched.
+- Future: derive enforceable path patterns automatically from
+  scope.authorized glob patterns (see rule 14 in AgentGuard's own
+  governance.yaml) instead of maintaining separate path lists.
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
 - pyenv migration on M5 Air (separate topic, not AgentGuard-specific)
-
-### Dogfooding
-- Run `agentguard init --guided` on the AgentGuard repo itself
-  (own governance for this project)
 
 ### Community / Outreach
 - KI-Automatisierung Skool community post — check publish status
@@ -187,4 +217,4 @@ Key features:
 
 ## Last updated
 
-2026-06-13 – fix(review): severity HARD_LIMIT now applied unconditionally for scope.prohibited rules in _run_add_rule (AI fallback, AI unavailable, user declines all covered)
+2026-06-13 – v0.10.1: dogfooding session documented (5 fixes); AI_CONTEXT updated; version bumped
