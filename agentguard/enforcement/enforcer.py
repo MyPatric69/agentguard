@@ -16,7 +16,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from agentguard.config.loader import CORE_ARCHITECTURE_PATHS, load_config
+import pathspec
+
+from agentguard.config.loader import PathPolicy, load_config, load_path_policy
 
 PROHIBITED_PATTERNS = [
     (r"\bno\s+(\w+(?:\s+\w+)?)\b", 1),
@@ -27,6 +29,7 @@ _DB_OPS = frozenset({"insert", "update", "delete", "drop", "truncate", "alter"})
 _DB_SCOPE_WORDS = ("database", "sql", "db", "table", "schema")
 _DELETION_SCOPE_WORDS = ("deletion", "delete", "remov")
 _WRITE_SCOPE_WORDS = ("write", "edit", "modif")
+_FILE_TOOL_NAMES = frozenset({"Write", "Edit", "MultiEdit", "NotebookEdit"})
 
 
 def run_enforce() -> None:
@@ -49,6 +52,21 @@ def run_enforce() -> None:
     scope = config.get("scope", {})
     if not isinstance(scope, dict):
         sys.exit(0)
+
+    # Path-policy check: evaluated first for file-targeting tools
+    if tool_name in _FILE_TOOL_NAMES:
+        rel_path = _to_rel_path(_extract_file_path(tool_name, tool_input), cwd)
+        pp_result = _match_path_policy(tool_name, rel_path, load_path_policy(config))
+        if pp_result is not None:
+            pp_decision, pp_reason = pp_result
+            if pp_decision == "deny":
+                _log_denial(cwd, tool_name, tool_input, pp_reason, session_id)
+                _log_tool_call(cwd, tool_name, tool_input, "deny", pp_reason, session_id)
+                deny(pp_reason)
+            elif pp_decision == "ask":
+                _log_tool_call(cwd, tool_name, tool_input, "ask", pp_reason, session_id)
+                ask(pp_reason)
+            # "allow": fall through to content-based prohibited/confirmation checks
 
     reason = check_prohibited(tool_name, tool_input, scope)
     if reason:
@@ -100,6 +118,45 @@ def _extract_file_path(tool_name: str, tool_input: dict) -> str:
     return str(tool_input.get("file_path", "") or tool_input.get("path", "") or "")
 
 
+def _to_rel_path(file_path_raw: str, cwd: Path) -> str | None:
+    if not file_path_raw:
+        return None
+    p = Path(file_path_raw)
+    if p.is_absolute():
+        try:
+            return str(p.relative_to(cwd))
+        except ValueError:
+            return None  # outside project root — no path_policy rule applies
+    return file_path_raw
+
+
+def _match_path_policy(
+    tool_name: str,
+    file_path: str | None,
+    path_policy: PathPolicy,
+) -> tuple[str, str] | None:
+    """Return (decision, reason) for file-targeting tools, or None if not applicable."""
+    if tool_name not in _FILE_TOOL_NAMES:
+        return None
+    if not file_path:
+        return None
+    for decision, entries in (
+        ("deny", path_policy.denied_paths),
+        ("ask", path_policy.protected_paths),
+        ("allow", path_policy.authorized_paths),
+    ):
+        spec = pathspec.PathSpec.from_lines("gitignore", [e.pattern for e in entries])
+        if spec.match_file(file_path):
+            for entry in entries:
+                single = pathspec.PathSpec.from_lines("gitignore", [entry.pattern])
+                if single.match_file(file_path):
+                    return (decision, entry.reason)
+    return (
+        path_policy.default_for_unmatched,
+        "No path_policy rule matched; default_for_unmatched applies",
+    )
+
+
 def _extract_keywords(text: str) -> list[str]:
     keywords = []
     for pattern, group in PROHIBITED_PATTERNS:
@@ -147,13 +204,6 @@ def _match_confirmation_text(
     # only tag-related push operations, not all git push commands
     if _is_tag_push(tool_str) and "git push" in confirmation_text:
         return True
-    if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
-        if any(kw in confirmation_text for kw in _WRITE_SCOPE_WORDS):
-            if file_path and any(
-                file_path == p or file_path.startswith(p) or ("/" + p) in file_path
-                for p in CORE_ARCHITECTURE_PATHS
-            ):
-                return True
     for keyword in _extract_keywords(confirmation_text):
         if len(keyword) > 3 and keyword in tool_str:
             return True

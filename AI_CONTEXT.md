@@ -74,7 +74,8 @@ Key features:
 - Validation: deterministic structural checks, no LLM
 - Pinning: SHA-256 hashes of prompt+output in governance.yaml
 - Enforcer signals: prohibited/HARD_LIMIT → deny() exit 2; requires_confirmation → ask() exit 0 (per Claude Code hooks docs)
-- Write/edit confirmation: path-scoped to _CORE_ARCHITECTURE_PATHS — only fires for agentguard/enforcement/, agentguard/cli.py, agentguard/guided/, agentguard/review/, agentguard/config/, .claude/settings.json, governance.yaml
+- path_policy evaluated FIRST for file-targeting tools (Write/Edit/MultiEdit/NotebookEdit) via pathspec gitwildmatch; denied_paths→deny, protected_paths→ask, authorized_paths→allow (then content checks still run), unmatched→default_for_unmatched. Backward compat: no path_policy key → protected_paths=CORE_ARCHITECTURE_PATHS, default="allow"
+- CORE_ARCHITECTURE_PATHS constant lives in agentguard/config/loader.py (moved from enforcer to avoid circular import)
 - Version: single source of truth via importlib.metadata
 - Terminal: PTY via Python stdlib pty + WebSocket + xterm.js
 - Resize: binary protocol (0x01 prefix + cols/rows uint16)
@@ -118,7 +119,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 278/278 passing
+- 289/289 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -239,4 +240,4 @@ owner email).
 
 ## Last updated
 
-2026-06-14 – Added path_policy schema + load_path_policy() to config/loader.py (Hard-Rules Extension prep)
+2026-06-14 – path_policy enforcement wired into enforcer.py via pathspec; 289 tests passing

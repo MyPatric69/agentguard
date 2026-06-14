@@ -8,7 +8,11 @@ import json
 import pytest
 
 from agentguard.cli import _write_hook_config
-from agentguard.enforcement.enforcer import _match_confirmation_text, run_enforce
+from agentguard.enforcement.enforcer import (
+    _match_confirmation_text,
+    _match_path_policy,
+    run_enforce,
+)
 
 # ── Shared governance configs ─────────────────────────────────────────────────
 
@@ -414,15 +418,16 @@ killswitch: Ctrl+C
 """
 
 
-# ── 20. Path-aware: Edit to core architecture path matches ───────────────────
+# ── 20. Path-aware branch removed: _match_confirmation_text no longer checks paths
 
-def test_write_scope_match_core_architecture_path():
+def test_write_scope_no_match_core_architecture_path_via_text():
+    # Path-based protection now handled by path_policy, not _match_confirmation_text.
     assert _match_confirmation_text(
         "Edit",
         "agentguard/enforcement/enforcer.py old new",
         "modify core architecture or design patterns",
         file_path="agentguard/enforcement/enforcer.py",
-    ) is True
+    ) is False
 
 
 # ── 21. Path-aware: Edit to non-core path does not match ────────────────────
@@ -559,3 +564,247 @@ def test_commit_and_push_main_does_not_match_tag_rule():
         'git commit -m "x" && git push origin main',
         _TAG_RULE_TEXT,
     ) is False
+
+
+# ── path_policy integration tests ─────────────────────────────────────────────
+
+_GOV_PATH_POLICY_DENIED = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+path_policy:
+  denied_paths:
+    - pattern: "secrets/**"
+      reason: "no secret access allowed"
+  default_for_unmatched: allow
+"""
+
+_GOV_PATH_POLICY_PROTECTED = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+path_policy:
+  protected_paths:
+    - pattern: "agentguard/enforcement/**"
+      reason: "core enforcement layer"
+  default_for_unmatched: allow
+"""
+
+_GOV_PATH_POLICY_AUTHORIZED_WITH_PROHIBITED = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited:
+    - action: "No database operations"
+      reason: "No DB access"
+      severity: "HARD_LIMIT"
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+path_policy:
+  authorized_paths:
+    - pattern: "tests/**"
+      reason: "test files are authorized"
+  default_for_unmatched: allow
+"""
+
+_GOV_PATH_POLICY_DEFAULT_DENY = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+path_policy:
+  denied_paths: []
+  default_for_unmatched: deny
+"""
+
+_GOV_PATH_POLICY_DEFAULT_ASK = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+path_policy:
+  denied_paths: []
+  default_for_unmatched: ask
+"""
+
+_GOV_PATH_POLICY_PRECEDENCE = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+path_policy:
+  denied_paths:
+    - pattern: "agentguard/**"
+      reason: "deny all agentguard files"
+  protected_paths:
+    - pattern: "agentguard/enforcement/**"
+      reason: "would be ask if denied did not win"
+  default_for_unmatched: allow
+"""
+
+_GOV_NO_PATH_POLICY = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+
+# ── 28. denied_paths match → deny (exit 2) ────────────────────────────────────
+
+def test_path_policy_denied_paths_blocks_file(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_DENIED)
+    tool_input = {"file_path": "secrets/api_key.txt", "content": "key: value"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "no secret access allowed" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── 29. protected_paths match → ask (exit 0, permissionDecision="ask") ────────
+
+def test_path_policy_protected_paths_asks_for_file(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_PROTECTED)
+    tool_input = {"file_path": "agentguard/enforcement/enforcer.py", "old_string": "x", "new_string": "y"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert "core enforcement layer" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── 30. authorized_paths allow, but content-based prohibited still fires ───────
+
+def test_path_policy_authorized_allows_but_prohibited_still_fires(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_AUTHORIZED_WITH_PROHIBITED)
+    tool_input = {"file_path": "tests/test_db.py", "new_string": "DROP TABLE users"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 31. no path_policy match → default_for_unmatched=deny blocks ──────────────
+
+def test_path_policy_default_deny_blocks_unmatched_file(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_DEFAULT_DENY)
+    tool_input = {"file_path": "web/src/App.jsx", "content": "x"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 32. no path_policy match → default_for_unmatched=ask gates ────────────────
+
+def test_path_policy_default_ask_gates_unmatched_file(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_DEFAULT_ASK)
+    tool_input = {"file_path": "web/src/App.jsx", "content": "x"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+# ── 33. backward compat: no path_policy key, core path → ask ─────────────────
+
+def test_path_policy_backward_compat_core_path_asks(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_NO_PATH_POLICY)
+    tool_input = {"file_path": "agentguard/enforcement/enforcer.py", "old_string": "x", "new_string": "y"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+# ── 34. backward compat: no path_policy key, unrelated new file → allow ───────
+
+def test_path_policy_backward_compat_unrelated_file_falls_through(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_NO_PATH_POLICY)
+    tool_input = {"file_path": "tests/new_test.py", "content": "def test_x(): pass"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Write", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+
+
+# ── 35. Bash tool: path_policy never applies ──────────────────────────────────
+
+def test_path_policy_bash_tool_unaffected(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_DENIED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "cat secrets/api_key.txt"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+
+
+# ── 36. precedence: denied_paths wins over protected_paths ───────────────────
+
+def test_path_policy_precedence_denied_beats_protected(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PATH_POLICY_PRECEDENCE)
+    tool_input = {"file_path": "agentguard/enforcement/enforcer.py", "old_string": "x", "new_string": "y"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "deny all agentguard files" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# ── _match_path_policy unit tests ─────────────────────────────────────────────
+
+def test_match_path_policy_returns_none_for_bash():
+    from agentguard.config.loader import PathPolicy
+    assert _match_path_policy("Bash", "secrets/key.txt", PathPolicy()) is None
+
+
+def test_match_path_policy_returns_none_for_empty_path():
+    from agentguard.config.loader import PathPolicy
+    assert _match_path_policy("Edit", None, PathPolicy()) is None
