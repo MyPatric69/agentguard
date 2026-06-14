@@ -22,7 +22,7 @@ runs before, during, and after observability tools do.
 ## Stack
 
 - Python 3.11+
-- Click (CLI), Rich (output), PyYAML (config), python-dotenv (env)
+- Click (CLI), Rich (output), PyYAML (config), python-dotenv (env), pathspec (glob path matching)
 - Optional AI: Anthropic SDK, OpenAI SDK
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
@@ -217,4 +217,4 @@ owner email).
 
 ## Last updated
 
-2026-06-13 – Auto-synced 1 commit(s) to 469fb32
+2026-06-14 – Added pathspec to required dependencies (Hard-Rules Extension prep)
