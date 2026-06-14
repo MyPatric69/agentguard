@@ -74,7 +74,7 @@ Key features:
 - Validation: deterministic structural checks, no LLM
 - Pinning: SHA-256 hashes of prompt+output in governance.yaml
 - Enforcer signals: prohibited/HARD_LIMIT → deny() exit 2; requires_confirmation → ask() exit 0 (per Claude Code hooks docs)
-- path_policy evaluated FIRST for file-targeting tools (Write/Edit/MultiEdit/NotebookEdit) via pathspec gitwildmatch; denied_paths→deny, protected_paths→ask, authorized_paths→allow (then content checks still run), unmatched→default_for_unmatched. Backward compat: no path_policy key → protected_paths=CORE_ARCHITECTURE_PATHS, default="allow"
+- path_policy evaluated FIRST for file-targeting tools (Write/Edit/MultiEdit/NotebookEdit) via pathspec gitignore-style patterns; denied_paths→deny, protected_paths→ask, authorized_paths→allow (then content checks still run), unmatched→default_for_unmatched. Backward compat: no path_policy key → protected_paths=CORE_ARCHITECTURE_PATHS, default="allow"
 - CORE_ARCHITECTURE_PATHS constant lives in agentguard/config/loader.py (moved from enforcer to avoid circular import)
 - Version: single source of truth via importlib.metadata
 - Terminal: PTY via Python stdlib pty + WebSocket + xterm.js
@@ -98,7 +98,11 @@ Key features:
 
 ### path_policy Schema (new, optional)
 
-Top-level `governance.yaml` key for deterministic glob-based path enforcement:
+Top-level `governance.yaml` key for deterministic, glob-based path access control.
+Patterns use gitignore syntax (via pathspec). Evaluated in order:
+denied_paths → protected_paths → authorized_paths → default_for_unmatched. First match wins.
+Only applies to file-editing tools (Write/Edit/MultiEdit/NotebookEdit).
+
 ```yaml
 path_policy:
   denied_paths:        # always block — pattern + reason required
@@ -240,4 +244,4 @@ owner email).
 
 ## Last updated
 
-2026-06-14 – path_policy enforcement wired into enforcer.py via pathspec; 289 tests passing
+2026-06-14 – path_policy feature complete: schema, enforcement, docs (README, CHANGELOG, AI_CONTEXT); 289 tests passing

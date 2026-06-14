@@ -692,11 +692,24 @@ After `agentguard init`, your project contains `.claude/settings.json`:
 Every tool call Claude Code attempts fires `agentguard enforce` first.
 AgentGuard reads your `governance.yaml` and checks:
 
+- **For file-editing tools (Write, Edit, MultiEdit, NotebookEdit)** — first, the target
+  path is checked against `path_policy` (if configured):
+  - `denied_paths` match → `exit 2` (deny)
+  - `protected_paths` match → `exit 0` (ask)
+  - `authorized_paths` match → proceed to the content-based checks below
+  - No match → `default_for_unmatched` applies (`deny`/`ask`/`allow`)
+
+  Governance configs without a `path_policy` section use a built-in
+  backward-compatible default (no behavior change for existing users).
+
 - Does this action violate the **prohibited scope** (HARD_LIMIT)?
   → `exit 2` (deny) — Claude Code is blocked and cannot proceed.
 
 - Does this action require **human confirmation**?
   → `exit 0` (ask) — Claude Code receives the confirmation prompt and pauses for owner response.
+
+These content-based checks run for all tool calls, including Bash, and for file-editing
+tools after `path_policy` returns `allow` or when no `path_policy` is configured.
 
 This is deterministic — it fires every time, regardless of model behavior or context length.
 
@@ -790,6 +803,29 @@ override:
   require_reason: true
   log_overrides: true
 ```
+
+### path_policy (optional)
+
+Controls which files an agent may touch, using gitignore-style glob patterns:
+
+```yaml
+path_policy:
+  denied_paths:
+    - pattern: "secrets/**"
+      reason: "credentials must never be touched by agents"
+  protected_paths:
+    - pattern: "agentguard/enforcement/**"
+      reason: "core enforcement layer — requires explicit sign-off"
+  authorized_paths:
+    - pattern: "tests/**"
+      reason: "test files are safe to modify freely"   # reason optional here
+  default_for_unmatched: "ask"   # "deny" | "ask" | "allow"
+```
+
+Evaluation order for each file-editing tool call: `denied_paths` → `protected_paths` → `authorized_paths` → `default_for_unmatched`. First match wins. Patterns use gitignore syntax (via [pathspec](https://pypi.org/project/pathspec/)).
+
+If the `path_policy` section is absent from `governance.yaml`, AgentGuard uses a built-in
+default that preserves pre-path_policy behavior exactly — no new gates for existing users.
 
 ### Why structured governance matters
 
