@@ -2,10 +2,42 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+class GovernanceConfigError(ValueError):
+    pass
+
+
+CORE_ARCHITECTURE_PATHS = (
+    "agentguard/enforcement/",
+    "agentguard/cli.py",
+    "agentguard/guided/",
+    "agentguard/review/",
+    "agentguard/config/",
+    ".claude/settings.json",
+    "governance.yaml",
+)
+
+_VALID_UNMATCHED = frozenset({"deny", "ask", "allow"})
+
+
+@dataclass
+class PathPolicyEntry:
+    pattern: str
+    reason: str = ""
+
+
+@dataclass
+class PathPolicy:
+    denied_paths: list[PathPolicyEntry] = field(default_factory=list)
+    protected_paths: list[PathPolicyEntry] = field(default_factory=list)
+    authorized_paths: list[PathPolicyEntry] = field(default_factory=list)
+    default_for_unmatched: str = "allow"
 
 DEFAULTS: dict[str, Any] = {
     "owner": "",
@@ -84,3 +116,66 @@ def find_config(project_path: str | Path) -> Path | None:
 def get_severity(config: dict, rule: str) -> str:
     """Return normalized severity string for a given rule key."""
     return config.get("severity", {}).get(rule, "warning").lower()
+
+
+def _parse_path_entries(
+    entries: list, section: str, require_reason: bool
+) -> list[PathPolicyEntry]:
+    result = []
+    for i, entry in enumerate(entries or []):
+        if not isinstance(entry, dict):
+            raise GovernanceConfigError(
+                f"path_policy.{section}[{i}] must be a mapping, got {type(entry).__name__!r}"
+            )
+        pattern = entry.get("pattern", "")
+        if not isinstance(pattern, str) or not pattern.strip():
+            raise GovernanceConfigError(
+                f"path_policy.{section}[{i}] missing required non-empty 'pattern'"
+            )
+        reason = str(entry.get("reason", "") or "")
+        if require_reason and not reason:
+            raise GovernanceConfigError(
+                f"path_policy.{section}[{i}] missing required 'reason'"
+            )
+        result.append(PathPolicyEntry(pattern=pattern, reason=reason))
+    return result
+
+
+def load_path_policy(governance: dict) -> PathPolicy:
+    """Parse path_policy from a loaded governance dict.
+
+    If the key is absent, returns a backward-compatible default that preserves
+    existing _CORE_ARCHITECTURE_PATHS enforcement and allows all other paths.
+    """
+    raw = governance.get("path_policy")
+    if raw is None:
+        protected = [
+            PathPolicyEntry(pattern=p, reason="core architecture path")
+            for p in CORE_ARCHITECTURE_PATHS
+        ]
+        return PathPolicy(
+            denied_paths=[],
+            protected_paths=protected,
+            authorized_paths=[],
+            default_for_unmatched="allow",
+        )
+
+    default_for_unmatched = raw.get("default_for_unmatched", "ask")
+    if default_for_unmatched not in _VALID_UNMATCHED:
+        raise GovernanceConfigError(
+            f"path_policy.default_for_unmatched must be one of"
+            f" {sorted(_VALID_UNMATCHED)!r}, got {default_for_unmatched!r}"
+        )
+
+    return PathPolicy(
+        denied_paths=_parse_path_entries(
+            raw.get("denied_paths", []), "denied_paths", require_reason=True
+        ),
+        protected_paths=_parse_path_entries(
+            raw.get("protected_paths", []), "protected_paths", require_reason=True
+        ),
+        authorized_paths=_parse_path_entries(
+            raw.get("authorized_paths", []), "authorized_paths", require_reason=False
+        ),
+        default_for_unmatched=default_for_unmatched,
+    )

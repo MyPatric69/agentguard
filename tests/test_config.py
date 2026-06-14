@@ -1,6 +1,16 @@
 """Tests for config/loader.py."""
 
-from agentguard.config.loader import DEFAULTS, find_config, get_severity, load_config
+import pytest
+
+from agentguard.config.loader import (
+    CORE_ARCHITECTURE_PATHS,
+    DEFAULTS,
+    GovernanceConfigError,
+    find_config,
+    get_severity,
+    load_config,
+    load_path_policy,
+)
 
 
 def test_load_config_returns_defaults_when_file_missing(tmp_path):
@@ -130,3 +140,81 @@ def test_load_config_legacy_string_scope_preserved(tmp_path):
     config = load_config(gov)
     assert config["scope"]["authorized"] == "read and modify Python files in ./src"
     assert config["scope"]["prohibited"] == "no database operations"
+
+
+# ── path_policy loading ───────────────────────────────────────────────────────
+
+def test_load_path_policy_full_section(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "path_policy:\n"
+        "  denied_paths:\n"
+        "    - pattern: 'secrets/**'\n"
+        "      reason: 'no secret access'\n"
+        "  protected_paths:\n"
+        "    - pattern: 'agentguard/enforcement/**'\n"
+        "      reason: 'core layer'\n"
+        "  authorized_paths:\n"
+        "    - pattern: 'tests/**'\n"
+        "      reason: 'test files'\n"
+        "  default_for_unmatched: deny\n"
+    )
+    raw = load_config(gov)
+    policy = load_path_policy(raw)
+    assert len(policy.denied_paths) == 1
+    assert policy.denied_paths[0].pattern == "secrets/**"
+    assert policy.denied_paths[0].reason == "no secret access"
+    assert len(policy.protected_paths) == 1
+    assert policy.protected_paths[0].pattern == "agentguard/enforcement/**"
+    assert len(policy.authorized_paths) == 1
+    assert policy.authorized_paths[0].pattern == "tests/**"
+    assert policy.default_for_unmatched == "deny"
+
+
+def test_load_path_policy_absent_returns_backward_compat_defaults(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text("owner: Alice\n")
+    raw = load_config(gov)
+    policy = load_path_policy(raw)
+    assert policy.denied_paths == []
+    assert policy.authorized_paths == []
+    assert policy.default_for_unmatched == "allow"
+    protected_patterns = [e.pattern for e in policy.protected_paths]
+    for path in CORE_ARCHITECTURE_PATHS:
+        assert path in protected_patterns
+
+
+def test_load_path_policy_default_for_unmatched_omitted_defaults_to_ask(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "path_policy:\n"
+        "  denied_paths:\n"
+        "    - pattern: 'secrets/**'\n"
+        "      reason: 'sensitive'\n"
+    )
+    raw = load_config(gov)
+    policy = load_path_policy(raw)
+    assert policy.default_for_unmatched == "ask"
+
+
+def test_load_path_policy_invalid_default_for_unmatched_raises(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "path_policy:\n"
+        "  default_for_unmatched: maybe\n"
+    )
+    raw = load_config(gov)
+    with pytest.raises(GovernanceConfigError, match="default_for_unmatched"):
+        load_path_policy(raw)
+
+
+def test_load_path_policy_missing_pattern_raises(tmp_path):
+    gov = tmp_path / "governance.yaml"
+    gov.write_text(
+        "path_policy:\n"
+        "  denied_paths:\n"
+        "    - reason: 'forgot the pattern'\n"
+    )
+    raw = load_config(gov)
+    with pytest.raises(GovernanceConfigError, match="pattern"):
+        load_path_policy(raw)

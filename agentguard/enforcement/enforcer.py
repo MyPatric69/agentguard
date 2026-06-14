@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from agentguard.config.loader import load_config
+from agentguard.config.loader import CORE_ARCHITECTURE_PATHS, load_config
 
 PROHIBITED_PATTERNS = [
     (r"\bno\s+(\w+(?:\s+\w+)?)\b", 1),
@@ -27,15 +27,6 @@ _DB_OPS = frozenset({"insert", "update", "delete", "drop", "truncate", "alter"})
 _DB_SCOPE_WORDS = ("database", "sql", "db", "table", "schema")
 _DELETION_SCOPE_WORDS = ("deletion", "delete", "remov")
 _WRITE_SCOPE_WORDS = ("write", "edit", "modif")
-_CORE_ARCHITECTURE_PATHS = (
-    "agentguard/enforcement/",
-    "agentguard/cli.py",
-    "agentguard/guided/",
-    "agentguard/review/",
-    "agentguard/config/",
-    ".claude/settings.json",
-    "governance.yaml",
-)
 
 
 def run_enforce() -> None:
@@ -160,7 +151,7 @@ def _match_confirmation_text(
         if any(kw in confirmation_text for kw in _WRITE_SCOPE_WORDS):
             if file_path and any(
                 file_path == p or file_path.startswith(p) or ("/" + p) in file_path
-                for p in _CORE_ARCHITECTURE_PATHS
+                for p in CORE_ARCHITECTURE_PATHS
             ):
                 return True
     for keyword in _extract_keywords(confirmation_text):

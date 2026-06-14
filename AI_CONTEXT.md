@@ -95,8 +95,30 @@ Key features:
 - governance_history: list of {date, action, tool, version,
   changed_fields?}
 
+### path_policy Schema (new, optional)
+
+Top-level `governance.yaml` key for deterministic glob-based path enforcement:
+```yaml
+path_policy:
+  denied_paths:        # always block — pattern + reason required
+    - pattern: "secrets/**"
+      reason: "no secret access"
+  protected_paths:     # require confirmation — pattern + reason required
+    - pattern: "agentguard/enforcement/**"
+      reason: "core layer"
+  authorized_paths:    # explicitly allowed — reason optional
+    - pattern: "tests/**"
+  default_for_unmatched: "deny" | "ask" | "allow"  # default: "ask" if key present
+```
+Backward compat: if `path_policy` key is absent, `load_path_policy()` returns
+`protected_paths` = CORE_ARCHITECTURE_PATHS, `default_for_unmatched="allow"` —
+exactly the pre-existing enforcement behavior, no new gate for existing users.
+
+Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/config/loader.py`.
+`CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
+
 ### Tests
-- 273/273 passing
+- 278/278 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -217,4 +239,4 @@ owner email).
 
 ## Last updated
 
-2026-06-14 – Added pathspec to required dependencies (Hard-Rules Extension prep)
+2026-06-14 – Added path_policy schema + load_path_policy() to config/loader.py (Hard-Rules Extension prep)
