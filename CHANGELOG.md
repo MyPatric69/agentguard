@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-06-14
+
 ### Added
 - New `path_policy` governance.yaml section for deterministic,
   glob-pattern-based path access control (`denied_paths`, `protected_paths`,

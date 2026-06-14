@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.2  
+**Version:** 0.10.3  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -163,12 +163,10 @@ owner email).
 ## Open Items / Backlog
 
 **Priority order (current session):**
-1. Dogfooding — `init --guided` on AgentGuard repo itself
-2. Governance Hard-Rules Extension (builds on dogfooding findings)
-3. v0.11.0 Email Notification (pending SMTP/service decision)
-4. Medium-term quick wins (PDF export, pin timestamp fix)
-5. v1.0.0 Intent-Aware Live Observer
-6. Outreach/Tooling (ongoing, reactive)
+1. v0.11.0 Email Notification (pending SMTP/service decision)
+2. Medium-term quick wins (PDF export, pin timestamp fix)
+3. v1.0.0 Intent-Aware Live Observer
+4. Outreach/Tooling (ongoing, reactive)
 
 ### v0.11.0 — planned
 - Email notification when `escalation.method: "email"` is configured —
@@ -182,14 +180,12 @@ owner email).
 ### v1.0.0 — long-term
 - Intent-Aware Live Observer — LLM-based drift detection via JSONL transcript analysis
 
-### Governance Hard-Rules Extension (refined after dogfooding)
-- Validated approach: hardcoded path-list constants in the enforcer
-  (e.g. `_CORE_ARCHITECTURE_PATHS`), NOT free-text AI-concretized rules —
-  free-text prohibited rules (e.g. "modify outside authorized scope")
-  cannot be deterministically matched.
-- Future: derive enforceable path patterns automatically from
-  scope.authorized glob patterns (see rule 14 in AgentGuard's own
-  governance.yaml) instead of maintaining separate path lists.
+### path_policy tooling (future)
+- `agentguard init --guided` / `agentguard review --guided` /
+  `agentguard check` currently do not generate or validate
+  `path_policy` — it's manual-edit only (YAML, documented in
+  README). Extend guided flows and validation once real-world
+  usage patterns are clearer.
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
@@ -244,4 +240,4 @@ owner email).
 
 ## Last updated
 
-2026-06-14 – path_policy feature complete: schema, enforcement, docs (README, CHANGELOG, AI_CONTEXT); 289 tests passing
+2026-06-14 – v0.10.3 released: path_policy feature complete (Hard-Rules Extension); 289 tests passing

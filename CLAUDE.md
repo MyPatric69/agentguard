@@ -3,7 +3,7 @@
 ## Project Purpose
 AgentGuard is a governance layer for autonomous AI agents. It provides pre-flight checks (Layer 1), runtime enforcement (Layer 2), runtime monitoring (Layer 3), and post-session reporting and audit (Layer 4). The goal is to make AI agents safer by ensuring governance prerequisites are in place before execution begins.
 
-## Architecture Overview (v0.9.0)
+## Architecture Overview
 
 ```
 agentguard/
@@ -50,6 +50,11 @@ Project directory (runtime):
 ```
 
 ## Key Design Principles
+
+- `path_policy` (optional governance.yaml key): evaluated first by
+  enforcer.py (Layer 2) for file-editing tools via pathspec
+  (gitignore-style globs). Schema and loading in `agentguard/config/loader.py`.
+  See README §path_policy and governance.yaml Reference for details.
 
 - Enforcement layer: deterministic, no LLM, exit 0 or 2
 - Concretization layer: LLM with temperature=0, human confirms
