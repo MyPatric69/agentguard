@@ -53,6 +53,47 @@ def _project_tree(project_root: str = ".") -> str:
     return "\n".join(lines)
 
 
+def _generate_default_path_policy(project_root: str = ".") -> dict:
+    """Generate a default path_policy dict from the project's top-level directories.
+
+    Deterministic — no AI/LLM involved. Reuses _EXCLUDED_DIRS so noise dirs
+    are never added to authorized_paths.
+    """
+    root = os.path.abspath(project_root)
+    try:
+        entries = os.listdir(root)
+    except OSError:
+        entries = []
+
+    top_dirs = sorted(
+        d for d in entries
+        if os.path.isdir(os.path.join(root, d))
+        and d not in _EXCLUDED_DIRS
+        and not d.endswith(".egg-info")
+    )
+
+    authorized: list[dict] = [
+        {"pattern": f"{d}/**", "reason": "Auto-detected project directory"}
+        for d in top_dirs
+    ]
+    authorized.append({"pattern": "*.md", "reason": "Documentation"})
+
+    policy: dict = {
+        "denied_paths": [
+            {"pattern": ".env*", "reason": "Secrets must never be written by the agent"},
+            {"pattern": ".git/**", "reason": "Git internals must not be modified directly"},
+        ],
+        "protected_paths": [],
+        "authorized_paths": authorized,
+        "default_for_unmatched": "ask",
+    }
+
+    from agentguard.config.loader import load_path_policy
+    load_path_policy({"path_policy": policy})
+
+    return policy
+
+
 def _claude_md_architecture(project_root: str = ".") -> str | None:
     """Extract the ## Architecture Overview section from CLAUDE.md, or return None."""
     claude_md = os.path.join(os.path.abspath(project_root), "CLAUDE.md")

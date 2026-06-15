@@ -123,7 +123,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 289/289 passing
+- 296/296 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -163,15 +163,9 @@ owner email).
 ## Open Items / Backlog
 
 **Priority order (current session):**
-1. v0.11.0 Email Notification (pending SMTP/service decision)
-2. Medium-term quick wins (PDF export, pin timestamp fix)
-3. v1.0.0 Intent-Aware Live Observer
-4. Outreach/Tooling (ongoing, reactive)
-
-### v0.11.0 — planned
-- Email notification when `escalation.method: "email"` is configured —
-  notify owner on governance.yaml changes (e.g. via inline editor).
-  SMTP/service choice still open.
+1. Medium-term quick wins (PDF export, pin timestamp fix)
+2. v1.0.0 Intent-Aware Live Observer
+3. Outreach/Tooling (ongoing, reactive)
 
 ### Medium-term
 - Session Report PDF export (Web UI)
@@ -179,13 +173,21 @@ owner email).
 
 ### v1.0.0 — long-term
 - Intent-Aware Live Observer — LLM-based drift detection via JSONL transcript analysis
+- Governance change approval workflow (folds in former v0.11.0 escalation idea):
+  proposals to governance.yaml not made by the present owner (e.g. via inline editor)
+  go through a git PR with required reviewer — `escalation.contact` becomes the PR
+  reviewer/assignee. Runtime events (loop/critical-failure) remain a local
+  terminal/desktop concern (see optional "watch desktop notification" idea below),
+  not an owner-escalation concern.
 
 ### path_policy tooling (future)
-- `agentguard init --guided` / `agentguard review --guided` /
-  `agentguard check` currently do not generate or validate
-  `path_policy` — it's manual-edit only (YAML, documented in
-  README). Extend guided flows and validation once real-world
-  usage patterns are clearer.
+- `agentguard init --guided` now generates a default `path_policy` (no AI) from the
+  project's directory structure. Remaining future work: `agentguard check` validation
+  (next commit) and `agentguard review --guided` editing support (still future).
+
+### Optional / future
+- `agentguard watch` could optionally fire a local desktop notification (OS-native,
+  no new dependency) on loop/critical-failure detection.
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
@@ -240,4 +242,4 @@ owner email).
 
 ## Last updated
 
-2026-06-14 – v0.10.3 released: path_policy feature complete (Hard-Rules Extension); 289 tests passing
+2026-06-15 – feat(guided): generate default path_policy in init --guided

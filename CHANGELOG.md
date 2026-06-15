@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `agentguard init --guided` now generates a default `path_policy`
+  section deterministically from the project's directory structure
+  (no AI involved).
+
 ## [0.10.3] - 2026-06-14
 
 ### Added

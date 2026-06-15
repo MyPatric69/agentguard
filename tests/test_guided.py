@@ -1407,3 +1407,116 @@ def test_review_interactive_guided_exits_on_n(tmp_path):
     updated = load_governance(gov_path)
     authorized = updated.get("scope", {}).get("authorized", [])
     assert any(r.get("action") == "Deploy to staging" for r in authorized)
+
+
+# ── 50. _generate_default_path_policy: authorized dirs detected ───────────────
+
+def test_generate_default_path_policy_authorized_dirs(tmp_path):
+    from agentguard.guided.concretizer import _generate_default_path_policy
+
+    (tmp_path / "mypackage").mkdir()
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "web").mkdir()
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "README.md").write_text("# readme")
+
+    policy = _generate_default_path_policy(str(tmp_path))
+
+    auth_patterns = [e["pattern"] for e in policy["authorized_paths"]]
+    assert "mypackage/**" in auth_patterns
+    assert "tests/**" in auth_patterns
+    assert "web/**" in auth_patterns
+    assert "*.md" in auth_patterns
+    assert ".git/**" not in auth_patterns
+    assert "__pycache__/**" not in auth_patterns
+
+
+# ── 51. _generate_default_path_policy: denied_paths always present ────────────
+
+def test_generate_default_path_policy_denied_always_has_env_and_git(tmp_path):
+    from agentguard.guided.concretizer import _generate_default_path_policy
+
+    policy = _generate_default_path_policy(str(tmp_path))
+
+    denied_patterns = [e["pattern"] for e in policy["denied_paths"]]
+    assert ".env*" in denied_patterns
+    assert ".git/**" in denied_patterns
+
+
+# ── 52. _generate_default_path_policy: protected empty, default ask ───────────
+
+def test_generate_default_path_policy_protected_empty_default_ask(tmp_path):
+    from agentguard.guided.concretizer import _generate_default_path_policy
+
+    policy = _generate_default_path_policy(str(tmp_path))
+
+    assert policy["protected_paths"] == []
+    assert policy["default_for_unmatched"] == "ask"
+
+
+# ── 53. _generate_default_path_policy: no subdirs → only *.md ────────────────
+
+def test_generate_default_path_policy_no_subdirectories(tmp_path):
+    from agentguard.guided.concretizer import _generate_default_path_policy
+
+    policy = _generate_default_path_policy(str(tmp_path))
+
+    auth_patterns = [e["pattern"] for e in policy["authorized_paths"]]
+    assert auth_patterns == ["*.md"]
+    assert policy["denied_paths"]
+
+
+# ── 54. _generate_default_path_policy: passes load_path_policy validation ─────
+
+def test_generate_default_path_policy_passes_load_path_policy(tmp_path):
+    from agentguard.config.loader import load_path_policy
+    from agentguard.guided.concretizer import _generate_default_path_policy
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
+
+    policy = _generate_default_path_policy(str(tmp_path))
+    result = load_path_policy({"path_policy": policy})
+
+    assert len(result.denied_paths) == 2
+    assert len(result.authorized_paths) == 3  # src/**, tests/**, *.md
+    assert result.default_for_unmatched == "ask"
+
+
+# ── 55. init --guided: governance.yaml contains valid path_policy ─────────────
+
+def test_guided_complete_flow_governance_yaml_has_path_policy():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+        assert result.exit_code == 0, result.output
+        gov = Path("governance.yaml").read_text()
+
+    assert "path_policy:" in gov
+    assert 'pattern: ".env*"' in gov
+    assert 'pattern: ".git/**"' in gov
+    assert 'default_for_unmatched: "ask"' in gov
+
+
+# ── 56. init --guided: review panel shows Path Policy summary ─────────────────
+
+def test_guided_complete_flow_review_panel_shows_path_policy_summary():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with (
+            mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
+            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
+        ):
+            result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
+
+    assert result.exit_code == 0, result.output
+    assert "Path Policy:" in result.output
+    assert "default: ask" in result.output
