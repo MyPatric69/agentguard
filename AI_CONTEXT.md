@@ -172,13 +172,82 @@ owner email).
 - `agentguard verify --repair` — review timestamp accuracy for repaired pins
 
 ### v1.0.0 — long-term
-- Intent-Aware Live Observer — LLM-based drift detection via JSONL transcript analysis
-- Governance change approval workflow (folds in former v0.11.0 escalation idea):
-  proposals to governance.yaml not made by the present owner (e.g. via inline editor)
-  go through a git PR with required reviewer — `escalation.contact` becomes the PR
-  reviewer/assignee. Runtime events (loop/critical-failure) remain a local
-  terminal/desktop concern (see optional "watch desktop notification" idea below),
-  not an owner-escalation concern.
+Three components, recommended order (decided 2026-06-15):
+
+**A) Async Approval Workflow** — Architecture sketch validated
+2026-06-15, ready to start. Replaces the former "v0.11.0 Email
+Notification" and "governance change approval via inline editor" ideas
+with a general mechanism: ANY `ask`-gated action that is not resolved
+during the session gets a durable, reviewable proposal — eventually a
+GitHub PR (Stage 2).
+
+Validated facts (empirical, 2026-06-15):
+- PreToolUse hook input includes `session_id`, `tool_use_id`,
+  `transcript_path`, `permission_mode`, `effort`, `cwd`.
+- Stop hook fires (possibly multiple times per session) with the same
+  `session_id` + `transcript_path`, plus `last_assistant_message` and
+  `stop_hook_active`.
+- `permission_mode` is identical ("default") in interactive and `-p`
+  sessions — not a usable interactive/non-interactive signal. Approach
+  abandoned in favor of retroactive, log-based detection, which works
+  identically for both session types.
+- PreToolUse "ask" decisions do not reveal whether the user
+  subsequently approved — the hook never receives that answer.
+- `session.log`'s `input_summary` is truncated to ~100 chars — not
+  sufficient for reconstructing a diff; `transcript_path` has the full,
+  untruncated tool call.
+
+Stage 1 design (local detection + recording, no network/git):
+1. Register AgentGuard as a PostToolUse hook (new — currently
+   PreToolUse only). Log `{session_id, tool_use_id, timestamp}` on
+   PostToolUse — this means the tool call executed (approved, whether
+   via "allow" or an interactively-confirmed "ask").
+2. On Stop: for each PreToolUse "ask" entry with this `session_id`,
+   check whether a PostToolUse entry with the same `tool_use_id`
+   exists.
+   - Exists → approved+executed, no proposal needed (optional audit
+     log only).
+   - Missing → unresolved → create/update a proposal record.
+3. Proposal record at `.agentguard/proposals/<tool_use_id>.json`
+   (local, gitignored, consumed by Stage 2):
+   - `tool_use_id`, `session_id`, `timestamp`, `tool_name`, `file_path`
+   - full diff/content (old_string/new_string or full file content),
+     sourced from `transcript_path` (not session.log's truncated
+     `input_summary`)
+   - the governance `reason` that triggered "ask"
+   - `status: "pending"` (Stage 2 updates on PR creation)
+4. Idempotency: `tool_use_id` as filename — Stop firing multiple times
+   per session does not create duplicates.
+
+Stage 2 preview (not yet designed in detail): a command
+(`agentguard propose` or similar) reads `.agentguard/proposals/*.json`
+with `status: "pending"`, creates a branch + PR per proposal (grouping
+strategy TBD), sets `escalation.contact` as reviewer, updates `status`
+to `"pr_created"` with the PR URL. New optional dependency: `gh` CLI or
+GitHub API client (itself subject to "Add new external dependencies" —
+requires_confirmation).
+
+**B) Inline Governance Editor** (Web UI) — open design questions
+(2026-06-15):
+- Current state: GovernanceView.jsx is read-only (color-coded display);
+  Setup/Review panels launch CLI wizards in an embedded terminal
+  (xterm.js PTY) — functionally complete, but not "native" editing.
+- Open question: is the editor single-owner convenience (same trust
+  level as CLI, no approval needed for its own edits) or a
+  multi-user/team feature (non-owner edits would route through
+  Component A)?
+- Recommended starting point: hybrid — simple operations (delete rule,
+  edit reason text, toggle severity, add/remove path_policy patterns
+  without AI) become native forms; complex operations (Add new rule
+  with AI concretization, per `_run_add_rule`) stay in the embedded
+  terminal, avoiding large-scale duplication of reviewer.py/
+  concretizer.py logic.
+
+**C) Intent-Aware Live Observer** — LLM-based drift detection via JSONL
+transcript analysis (Layer 3: LLM allowed, warnings only, never blocks).
+Open question: what defines "intent" to compare drift against (user's
+initial prompt? a new `--intent` flag? governance.yaml's authorized
+scope)? Treat as a separate exploratory track — does not block A or B.
 
 ### path_policy tooling (future)
 - `agentguard init --guided` generates a default `path_policy` (commit 130a877).
@@ -186,8 +255,9 @@ owner email).
 - Remaining future work: `agentguard review --guided` editing support.
 
 ### Optional / future
-- `agentguard watch` could optionally fire a local desktop notification (OS-native,
-  no new dependency) on loop/critical-failure detection.
+- `agentguard watch` could optionally fire a local desktop notification
+  (OS-native, no new dependency) on loop/critical-failure detection —
+  independent of the v1.0.0 components above.
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
@@ -242,4 +312,4 @@ owner email).
 
 ## Last updated
 
-2026-06-15 – chore: release v0.10.4
+2026-06-15 – v1.0.0 architecture captured: async approval workflow (Component A, Stage 1+2 design), inline governance editor (B), intent-aware live observer (C)
