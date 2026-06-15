@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.3  
+**Version:** 0.10.4  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -242,4 +242,4 @@ owner email).
 
 ## Last updated
 
-2026-06-15 – feat(check): validate path_policy in preflight checks
+2026-06-15 – chore: release v0.10.4

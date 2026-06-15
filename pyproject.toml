@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentguard-governance"
-version = "0.10.3"
+version = "0.10.4"
 description = "Governance layer for autonomous AI agents — pre-flight checks, runtime monitoring, and post-session reporting."
 readme = "README.md"
 requires-python = ">=3.11"
