@@ -183,6 +183,15 @@ agentguard check --format json            # machine-readable output
 agentguard check --ai-review              # include AI-powered scope quality review
 ```
 
+**What it validates:**
+
+- Required governance fields (owner, scope, escalation, killswitch)
+- `path_policy` — if present: validates structure and reports denied / protected /
+  authorized path counts (PASS/FAIL). If absent: reports INFO with no score impact
+  (backward-compatible defaults apply).
+- Instruction file directives (loop detection, root cause, API research rules)
+- Harness patterns (attempt counter, action log)
+
 **Exit codes:**
 - `0` — OK or warnings only (with or without AI review)
 - `1` — CRITICAL findings found

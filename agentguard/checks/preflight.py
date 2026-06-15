@@ -114,6 +114,39 @@ def _check_scope(config: dict, findings: list[Finding], *, ai_review: bool = Fal
         findings.append(Finding("ok", "Confirmation requirements defined"))
 
 
+def check_path_policy(governance: dict) -> Finding:
+    """Check path_policy configuration in governance dict.
+
+    Absent → INFO (backward-compatible defaults apply, no score impact).
+    Valid  → ok with counts summary.
+    Invalid → critical (broken config blocks enforcement).
+    """
+    from agentguard.config.loader import GovernanceConfigError, load_path_policy
+
+    if "path_policy" not in governance:
+        return Finding(
+            "info",
+            "path_policy not configured. AgentGuard uses backward-compatible defaults "
+            "(protected_paths=core architecture paths, default_for_unmatched=allow). "
+            "Run `agentguard init --guided` to generate one, or add manually — "
+            "see README path_policy section.",
+        )
+
+    try:
+        policy = load_path_policy(governance)
+        n_denied = len(policy.denied_paths)
+        n_protected = len(policy.protected_paths)
+        n_authorized = len(policy.authorized_paths)
+        default = policy.default_for_unmatched
+        return Finding(
+            "ok",
+            f"path_policy: {n_denied} denied, {n_protected} protected, "
+            f"{n_authorized} authorized paths, default_for_unmatched={default}",
+        )
+    except GovernanceConfigError as exc:
+        return Finding("critical", str(exc))
+
+
 def run_preflight(
     project_path: str | Path,
     config_path: str | Path | None = None,
@@ -160,6 +193,8 @@ def run_preflight(
         findings.append(Finding(get_severity(config, "no_killswitch"), "No killswitch defined"))
     else:
         findings.append(Finding("ok", "Killswitch defined"))
+
+    findings.append(check_path_policy(config))
 
     # ── Instruction file checks ───────────────────────────────────────────────
 

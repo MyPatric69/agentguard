@@ -30,7 +30,7 @@ runs before, during, and after observability tools do.
 ## Current State (v0.10.0)
 
 ### CLI Commands (12 total)
-- `agentguard check` — pre-flight: governance + prompt + harness checks
+- `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
 - `agentguard check --ai-review` — + AI scope quality score 1-10
 - `agentguard init --interactive` — basic setup, no AI required
 - `agentguard init --guided` — AI-concretized 5-step governance dialog
@@ -123,7 +123,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 296/296 passing
+- 303/303 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -181,9 +181,9 @@ owner email).
   not an owner-escalation concern.
 
 ### path_policy tooling (future)
-- `agentguard init --guided` now generates a default `path_policy` (no AI) from the
-  project's directory structure. Remaining future work: `agentguard check` validation
-  (next commit) and `agentguard review --guided` editing support (still future).
+- `agentguard init --guided` generates a default `path_policy` (commit 130a877).
+- `agentguard check` validates `path_policy` if present (this commit).
+- Remaining future work: `agentguard review --guided` editing support.
 
 ### Optional / future
 - `agentguard watch` could optionally fire a local desktop notification (OS-native,
@@ -242,4 +242,4 @@ owner email).
 
 ## Last updated
 
-2026-06-15 – feat(guided): generate default path_policy in init --guided
+2026-06-15 – feat(check): validate path_policy in preflight checks

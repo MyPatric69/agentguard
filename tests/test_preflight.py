@@ -409,3 +409,144 @@ def test_enforcement_log_present_no_session_log_info(tmp_path):
     (proj / "agentguard-enforcement.log").write_text('{"tool":"Bash","decision":"deny"}\n')
     findings = run_preflight(proj)
     assert not _find(findings, "info", "session log")
+
+
+# ── check_path_policy unit tests ─────────────────────────────────────────────
+
+def test_check_path_policy_absent_returns_info():
+    from agentguard.checks.preflight import check_path_policy
+
+    result = check_path_policy({})
+
+    assert result.severity == "info"
+    assert "path_policy not configured" in result.message
+    assert "backward-compatible defaults" in result.message
+    assert "agentguard init --guided" in result.message
+
+
+def test_check_path_policy_absent_does_not_affect_score(tmp_path):
+    gov_without = _VALID_GOV
+    gov_with = _VALID_GOV + (
+        "path_policy:\n"
+        "  denied_paths:\n"
+        '    - pattern: ".env*"\n'
+        '      reason: "Secrets"\n'
+        "  protected_paths: []\n"
+        "  authorized_paths: []\n"
+        '  default_for_unmatched: "ask"\n'
+    )
+    (tmp_path / "without").mkdir()
+    (tmp_path / "with").mkdir()
+    proj_without = _make_project(tmp_path / "without", governance_yaml=gov_without, claude_md=_FULL_CLAUDE)
+    proj_with = _make_project(tmp_path / "with", governance_yaml=gov_with, claude_md=_FULL_CLAUDE)
+
+    findings_without = run_preflight(proj_without)
+    findings_with = run_preflight(proj_with)
+
+    criticals_without = sum(1 for f in findings_without if f.severity == "critical")
+    criticals_with = sum(1 for f in findings_with if f.severity == "critical")
+    assert criticals_without == criticals_with
+
+
+def test_check_path_policy_valid_returns_ok_with_counts():
+    from agentguard.checks.preflight import check_path_policy
+
+    governance = {
+        "path_policy": {
+            "denied_paths": [
+                {"pattern": ".env*", "reason": "Secrets"},
+                {"pattern": ".git/**", "reason": "Git internals"},
+            ],
+            "protected_paths": [
+                {"pattern": "agentguard/**", "reason": "Core layer"},
+            ],
+            "authorized_paths": [
+                {"pattern": "tests/**"},
+                {"pattern": "*.md"},
+            ],
+            "default_for_unmatched": "ask",
+        }
+    }
+
+    result = check_path_policy(governance)
+
+    assert result.severity == "ok"
+    assert "2 denied" in result.message
+    assert "1 protected" in result.message
+    assert "2 authorized" in result.message
+    assert "default_for_unmatched=ask" in result.message
+
+
+def test_check_path_policy_invalid_default_returns_critical():
+    from agentguard.checks.preflight import check_path_policy
+
+    governance = {
+        "path_policy": {
+            "denied_paths": [],
+            "protected_paths": [],
+            "authorized_paths": [],
+            "default_for_unmatched": "maybe",
+        }
+    }
+
+    result = check_path_policy(governance)
+
+    assert result.severity == "critical"
+    assert "default_for_unmatched" in result.message
+
+
+def test_check_path_policy_missing_pattern_returns_critical():
+    from agentguard.checks.preflight import check_path_policy
+
+    governance = {
+        "path_policy": {
+            "denied_paths": [{"reason": "no pattern here"}],
+            "protected_paths": [],
+            "authorized_paths": [],
+            "default_for_unmatched": "ask",
+        }
+    }
+
+    result = check_path_policy(governance)
+
+    assert result.severity == "critical"
+    assert "pattern" in result.message
+
+
+# ── path_policy integration via CLI check command ─────────────────────────────
+
+def test_cli_check_output_includes_path_policy_info_when_absent(tmp_path):
+    from click.testing import CliRunner
+
+    from agentguard.cli import main
+
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
+    runner = CliRunner()
+    result = runner.invoke(main, ["check", "--path", str(proj)])
+
+    assert "path_policy" in result.output.lower()
+    assert "not configured" in result.output.lower()
+
+
+def test_cli_check_output_includes_path_policy_ok_when_present(tmp_path):
+    from click.testing import CliRunner
+
+    from agentguard.cli import main
+
+    gov = _VALID_GOV + (
+        "path_policy:\n"
+        "  denied_paths:\n"
+        '    - pattern: ".env*"\n'
+        '      reason: "Secrets"\n'
+        "  protected_paths: []\n"
+        "  authorized_paths:\n"
+        '    - pattern: "src/**"\n'
+        '  default_for_unmatched: "ask"\n'
+    )
+    proj = _make_project(tmp_path, governance_yaml=gov, claude_md=_FULL_CLAUDE)
+    runner = CliRunner()
+    result = runner.invoke(main, ["check", "--path", str(proj)])
+
+    assert "path_policy:" in result.output
+    assert "1 denied" in result.output
+    assert "1 authorized" in result.output

@@ -11,6 +11,9 @@ All notable changes to this project will be documented in this file.
 - `agentguard init --guided` now generates a default `path_policy`
   section deterministically from the project's directory structure
   (no AI involved).
+- `agentguard check` now validates `path_policy` (if present) and
+  reports its presence/absence informationally (no score impact when
+  absent, for backward compatibility).
 
 ## [0.10.3] - 2026-06-14
 
