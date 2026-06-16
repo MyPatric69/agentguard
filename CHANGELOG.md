@@ -11,6 +11,9 @@ All notable changes to this project will be documented in this file.
 - AgentGuard now registers as a PostToolUse hook and logs executed
   tool calls to session.log — foundation for async approval workflow
   (Component A, v1.0.0).
+- New `agentguard/enforcement/transcript.py` — parses Claude Code JSONL
+  transcripts to extract full, untruncated tool call details by
+  tool_use_id (used by async approval workflow, Component A).
 
 ## [0.10.4] - 2026-06-15
 

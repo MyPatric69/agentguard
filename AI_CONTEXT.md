@@ -123,7 +123,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 309/309 passing
+- 315/315 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -280,6 +280,7 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 - `agentguard/checks/report.py` — Layer 4, generate_report_data() + generate_report()
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2, session logging
+- `agentguard/enforcement/transcript.py` — JSONL transcript parser, get_tool_call() for full tool input by tool_use_id
 - `agentguard/checks/runtime.py` — Layer 3, live watch feed
 - `agentguard/guided/concretizer.py` — AI concretization
 - `agentguard/guided/validator.py` — structural validation
@@ -312,4 +313,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-16 – PostToolUse hook logging added (enforcer dispatch, log_post_tool_use, 6 new tests)
+2026-06-16 – PostToolUse hook logging + JSONL transcript parser (transcript.py, get_tool_call, 315 tests)
