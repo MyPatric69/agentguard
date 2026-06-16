@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.4  
+**Version:** 0.10.5  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -174,12 +174,12 @@ owner email).
 ### v1.0.0 — long-term
 Three components, recommended order (decided 2026-06-15):
 
-**A) Async Approval Workflow** — Architecture sketch validated
-2026-06-15, ready to start. Replaces the former "v0.11.0 Email
-Notification" and "governance change approval via inline editor" ideas
-with a general mechanism: ANY `ask`-gated action that is not resolved
-during the session gets a durable, reviewable proposal — eventually a
-GitHub PR (Stage 2).
+**A) Async Approval Workflow** — **Stage 1 complete (v0.10.5,
+2026-06-16, commits 2f7977c + 5667342 + 5f2a577).** Replaces the
+former "v0.11.0 Email Notification" and "governance change approval via
+inline editor" ideas with a general mechanism: ANY `ask`-gated action
+that is not resolved during the session gets a durable, reviewable
+proposal — eventually a GitHub PR (Stage 2).
 
 Validated facts (empirical, 2026-06-15):
 - PreToolUse hook input includes `session_id`, `tool_use_id`,
@@ -313,4 +313,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-16 – Stop hook handler: Pre/Post correlation + proposal writer; tool_use_id in PreToolUse log entries (325 tests)
+2026-06-16 – v0.10.5 released: Component A Stage 1 complete (PostToolUse logging, transcript parser, Stop hook proposal writer, 325 tests)
