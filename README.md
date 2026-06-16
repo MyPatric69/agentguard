@@ -146,9 +146,13 @@ All three together — that's the foundation.
 
 ### Session Logging (automatic)
 
-Every tool call Claude Code makes is automatically logged to
-`.agentguard/session.log` in your project directory — written
-by the PreToolUse hook without any configuration required.
+`.agentguard/session.log` in your project directory is written
+by two hooks automatically. The **PreToolUse** hook logs
+enforcement decisions (allow / ask / deny) before each tool call.
+The **PostToolUse** hook logs confirmed executions
+(`event: "post_tool_use"`) after the call completes — no
+additional configuration required beyond the hook entries in
+`.claude/settings.json`.
 
 ```bash
 # Watch live in terminal
@@ -689,16 +693,19 @@ offline with no API calls and no external dependencies.
 ## How AgentGuard Enforces — Layer 2
 
 After `agentguard init`, your project contains `.claude/settings.json`
-with both hooks registered:
+with all three hooks registered:
 
 ```json
 {
   "hooks": {
     "PreToolUse": [{
-      "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+      "matcher": ".*",
       "hooks": [{"type": "command", "command": "agentguard enforce"}]
     }],
     "PostToolUse": [{
+      "hooks": [{"type": "command", "command": "agentguard enforce"}]
+    }],
+    "Stop": [{
       "hooks": [{"type": "command", "command": "agentguard enforce"}]
     }]
   }
@@ -708,8 +715,24 @@ with both hooks registered:
 The **PreToolUse** hook fires before every tool call and enforces
 governance rules (allow / ask / deny). The **PostToolUse** hook fires
 after execution and records confirmed tool calls to
-`.agentguard/session.log` — the foundation for the async approval
-workflow (Component A). Both hooks must be registered for full coverage.
+`.agentguard/session.log`. The **Stop** hook fires at the end of each
+session and correlates PreToolUse `ask` decisions against PostToolUse
+confirmed executions: any `ask`-gated action with no matching
+PostToolUse entry is unresolved — Stage 1 records it as a local
+proposal file, Stage 2 will surface it as a GitHub PR via
+`agentguard propose`. All three hooks must be registered for full
+governance coverage.
+
+### Proposal Records
+
+When an `ask`-gated action is not approved during a session —
+rejected by the owner, or no owner present in headless/CI runs —
+AgentGuard's Stop hook writes a durable proposal record to
+`.agentguard/proposals/<tool_use_id>.json` containing the full
+diff, governance reason, and `status: "pending"`. These records
+are local and gitignored — the foundation for Stage 2 PR-based
+approval (see v1.0.0 roadmap).
+
 AgentGuard reads your `governance.yaml` and checks:
 
 - **For file-editing tools (Write, Edit, MultiEdit, NotebookEdit)** — first, the target
