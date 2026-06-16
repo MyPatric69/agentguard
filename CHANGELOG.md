@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- AgentGuard now registers as a PostToolUse hook and logs executed
+  tool calls to session.log — foundation for async approval workflow
+  (Component A, v1.0.0).
+
 ## [0.10.4] - 2026-06-15
 
 ### Added

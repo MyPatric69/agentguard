@@ -688,7 +688,8 @@ offline with no API calls and no external dependencies.
 
 ## How AgentGuard Enforces — Layer 2
 
-After `agentguard init`, your project contains `.claude/settings.json`:
+After `agentguard init`, your project contains `.claude/settings.json`
+with both hooks registered:
 
 ```json
 {
@@ -696,12 +697,19 @@ After `agentguard init`, your project contains `.claude/settings.json`:
     "PreToolUse": [{
       "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
       "hooks": [{"type": "command", "command": "agentguard enforce"}]
+    }],
+    "PostToolUse": [{
+      "hooks": [{"type": "command", "command": "agentguard enforce"}]
     }]
   }
 }
 ```
 
-Every tool call Claude Code attempts fires `agentguard enforce` first.
+The **PreToolUse** hook fires before every tool call and enforces
+governance rules (allow / ask / deny). The **PostToolUse** hook fires
+after execution and records confirmed tool calls to
+`.agentguard/session.log` — the foundation for the async approval
+workflow (Component A). Both hooks must be registered for full coverage.
 AgentGuard reads your `governance.yaml` and checks:
 
 - **For file-editing tools (Write, Edit, MultiEdit, NotebookEdit)** — first, the target

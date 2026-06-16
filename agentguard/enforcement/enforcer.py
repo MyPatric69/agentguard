@@ -1,6 +1,6 @@
 """
-AgentGuard PreToolUse Hook Enforcer.
-Called by Claude Code as a PreToolUse hook.
+AgentGuard Hook Enforcer.
+Called by Claude Code as a PreToolUse and PostToolUse hook.
 Input: JSON on stdin (Claude Code hook format)
 Output: JSON on stdout if denied, nothing if allowed
 Exit: 0 = allow, 2 = block
@@ -36,6 +36,20 @@ def run_enforce() -> None:
     try:
         hook_input: dict[str, Any] = json.loads(sys.stdin.read())
     except Exception:
+        sys.exit(0)
+
+    try:
+        with open("/tmp/agentguard_hook_debug.jsonl", "a") as _dbg:
+            _dbg.write(json.dumps(hook_input) + "\n")
+    except OSError:
+        pass
+
+    hook_event_name: str = hook_input.get("hook_event_name", "PreToolUse")
+
+    if hook_event_name == "PostToolUse":
+        log_post_tool_use(hook_input)
+        sys.exit(0)
+    elif hook_event_name != "PreToolUse":
         sys.exit(0)
 
     tool_name: str = hook_input.get("tool_name", "")
@@ -83,6 +97,29 @@ def run_enforce() -> None:
     sys.exit(0)
 
 
+def _write_session_log(cwd: Path, entry: dict) -> None:
+    log_dir = cwd / ".agentguard"
+    try:
+        log_dir.mkdir(exist_ok=True)
+        with open(log_dir / "session.log", "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
+
+
+def log_post_tool_use(data: dict) -> None:
+    cwd = Path(data.get("cwd", "."))
+    entry = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "event": "post_tool_use",
+        "tool": data.get("tool_name", ""),
+        "tool_use_id": data.get("tool_use_id", ""),
+        "session_id": data.get("session_id", ""),
+        "duration_ms": data.get("duration_ms"),
+    }
+    _write_session_log(cwd, entry)
+
+
 def _log_tool_call(
     cwd: Path,
     tool: str,
@@ -99,13 +136,7 @@ def _log_tool_call(
         "reason": reason,
         "session_id": session_id,
     }
-    log_dir = cwd / ".agentguard"
-    try:
-        log_dir.mkdir(exist_ok=True)
-        with open(log_dir / "session.log", "a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except OSError:
-        pass
+    _write_session_log(cwd, entry)
 
 
 def _flatten_input(tool_input: dict) -> str:

@@ -123,7 +123,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 303/303 passing
+- 309/309 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -312,4 +312,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-15 – v1.0.0 architecture captured: async approval workflow (Component A, Stage 1+2 design), inline governance editor (B), intent-aware live observer (C)
+2026-06-16 – PostToolUse hook logging added (enforcer dispatch, log_post_tool_use, 6 new tests)

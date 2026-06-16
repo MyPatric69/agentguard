@@ -11,6 +11,7 @@ from agentguard.cli import _write_hook_config
 from agentguard.enforcement.enforcer import (
     _match_confirmation_text,
     _match_path_policy,
+    log_post_tool_use,
     run_enforce,
 )
 
@@ -808,3 +809,147 @@ def test_match_path_policy_returns_none_for_bash():
 def test_match_path_policy_returns_none_for_empty_path():
     from agentguard.config.loader import PathPolicy
     assert _match_path_policy("Edit", None, PathPolicy()) is None
+
+
+# ── PostToolUse dispatch ───────────────────────────────────────────────────────
+
+def _post_hook(
+    tool_name: str,
+    cwd: str,
+    *,
+    session_id: str = "test",
+    tool_use_id: str = "tuid-1",
+    duration_ms: int | None = 100,
+) -> str:
+    data: dict = {
+        "hook_event_name": "PostToolUse",
+        "tool_name": tool_name,
+        "cwd": cwd,
+        "session_id": session_id,
+        "tool_use_id": tool_use_id,
+        "tool_response": {"stdout": "ok", "stderr": "", "interrupted": False},
+    }
+    if duration_ms is not None:
+        data["duration_ms"] = duration_ms
+    return json.dumps(data)
+
+
+# ── 37. PostToolUse → log_post_tool_use writes correct entry ─────────────────
+
+def test_post_tool_use_writes_session_log(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_post_hook("Bash", str(tmp_path), session_id="sess-99", tool_use_id="tuid-abc", duration_ms=250)),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+
+    session_log = tmp_path / ".agentguard" / "session.log"
+    assert session_log.exists()
+    entries = [json.loads(line) for line in session_log.read_text().splitlines()]
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry["event"] == "post_tool_use"
+    assert entry["tool"] == "Bash"
+    assert entry["tool_use_id"] == "tuid-abc"
+    assert entry["session_id"] == "sess-99"
+    assert entry["duration_ms"] == 250
+    assert "timestamp" in entry
+    from datetime import datetime
+    dt = datetime.fromisoformat(entry["timestamp"])
+    assert dt.tzname() == "UTC"
+
+
+# ── 38. PostToolUse → exits 0, does NOT run enforcement ──────────────────────
+
+def test_post_tool_use_skips_enforcement(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_post_hook("Bash", str(tmp_path))),
+    )
+    import agentguard.enforcement.enforcer as mod
+    called = []
+    orig = mod.check_prohibited
+    monkeypatch.setattr(mod, "check_prohibited", lambda *a, **kw: called.append(True) or orig(*a, **kw))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert not called
+
+
+# ── 39. PreToolUse dispatch still enforces (regression) ──────────────────────
+
+def test_pre_tool_use_dispatch_still_enforces(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    hook = json.dumps({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "rm -rf dist"},
+        "cwd": str(tmp_path),
+        "session_id": "test",
+    })
+    monkeypatch.setattr("sys.stdin", io.StringIO(hook))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ── 40. Unknown hook_event_name → exits 0 silently, nothing written ──────────
+
+def test_unknown_hook_event_exits_0_silently(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    hook = json.dumps({
+        "hook_event_name": "SomeFutureHook",
+        "tool_name": "Bash",
+        "tool_input": {"command": "rm -rf /"},
+        "cwd": str(tmp_path),
+        "session_id": "test",
+    })
+    monkeypatch.setattr("sys.stdin", io.StringIO(hook))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+    assert not (tmp_path / ".agentguard" / "session.log").exists()
+
+
+# ── 41. duration_ms absent in PostToolUse → null in log entry ────────────────
+
+def test_post_tool_use_duration_ms_absent_logged_as_null(tmp_path, monkeypatch):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBITED)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_post_hook("Read", str(tmp_path), duration_ms=None)),
+    )
+    with pytest.raises(SystemExit):
+        run_enforce()
+    session_log = tmp_path / ".agentguard" / "session.log"
+    entries = [json.loads(line) for line in session_log.read_text().splitlines()]
+    assert entries[0]["duration_ms"] is None
+
+
+# ── 42. log_post_tool_use unit: direct call writes expected fields ────────────
+
+def test_log_post_tool_use_direct(tmp_path):
+    data = {
+        "cwd": str(tmp_path),
+        "tool_name": "Edit",
+        "tool_use_id": "tuid-direct",
+        "session_id": "sess-direct",
+        "duration_ms": 42,
+    }
+    log_post_tool_use(data)
+    session_log = tmp_path / ".agentguard" / "session.log"
+    assert session_log.exists()
+    entry = json.loads(session_log.read_text().strip())
+    assert entry["event"] == "post_tool_use"
+    assert entry["tool"] == "Edit"
+    assert entry["tool_use_id"] == "tuid-direct"
+    assert entry["session_id"] == "sess-direct"
+    assert entry["duration_ms"] == 42
