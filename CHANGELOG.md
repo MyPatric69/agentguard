@@ -14,6 +14,13 @@ All notable changes to this project will be documented in this file.
 - New `agentguard/enforcement/transcript.py` — parses Claude Code JSONL
   transcripts to extract full, untruncated tool call details by
   tool_use_id (used by async approval workflow, Component A).
+- Stop hook handler correlates PreToolUse "ask" decisions against
+  PostToolUse executions — unresolved asks (rejected or headless
+  sessions) are written as proposal records to
+  `.agentguard/proposals/<tool_use_id>.json` for future PR-based
+  approval (Component A, Stage 2).
+- PreToolUse session.log entries now include `tool_use_id` field,
+  enabling correlation with PostToolUse entries.
 
 ## [0.10.4] - 2026-06-15
 

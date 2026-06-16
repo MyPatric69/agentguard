@@ -123,7 +123,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 315/315 passing
+- 325/325 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -313,4 +313,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-16 – PostToolUse hook logging + JSONL transcript parser (transcript.py, get_tool_call, 315 tests)
+2026-06-16 – Stop hook handler: Pre/Post correlation + proposal writer; tool_use_id in PreToolUse log entries (325 tests)
