@@ -87,7 +87,14 @@ def create_pr_for_proposal(proposal: dict, reviewer: str, cwd: str) -> str:
         if reviewer:
             gh_cmd.extend(["--reviewer", reviewer])
 
-        pr_url = _run_subprocess(gh_cmd, cwd=worktree_dir).strip()
+        try:
+            pr_url = _run_subprocess(gh_cmd, cwd=worktree_dir).strip()
+        except RuntimeError as exc:
+            if "already exists" not in str(exc):
+                raise
+            pr_url = _lookup_existing_pr(branch_name, worktree_dir)
+            if not pr_url:
+                raise
 
         proposal["status"] = "pr_created"
         proposal["pr_url"] = pr_url
@@ -177,6 +184,17 @@ def _apply_file_change(
         target.write_text(text)
     elif tool_name == "NotebookEdit":
         target.write_text(json.dumps(tool_input, indent=2))
+
+
+def _lookup_existing_pr(branch_name: str, cwd: str) -> str:
+    """Return the URL of the open PR for branch_name, or empty string if none."""
+    result = subprocess.run(
+        ["gh", "pr", "list", "--head", branch_name, "--json", "url", "--jq", ".[0].url"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _format_pr_body(proposal: dict) -> str:

@@ -258,6 +258,67 @@ def test_create_pr_absolute_file_path_converted_to_relative(
     assert not Path(add_args[1]).is_absolute()
 
 
+@patch("agentguard.proposal._lookup_existing_pr")
+@patch("agentguard.proposal._apply_file_change")
+@patch("agentguard.proposal._ensure_gh_label")
+@patch("agentguard.proposal._run_subprocess")
+@patch("agentguard.proposal._run_git")
+@patch("agentguard.proposal.os.path.exists", return_value=False)
+def test_create_pr_recovers_when_pr_already_exists(
+    mock_exists, mock_git, mock_sub, mock_label, mock_apply, mock_lookup, tmp_path
+):
+    """gh pr create 'already exists' error → look up existing PR URL and recover."""
+    mock_git.side_effect = _git_side_effect
+    mock_sub.side_effect = RuntimeError(
+        "Command failed: gh pr create\na pull request for branch already exists"
+    )
+    mock_lookup.return_value = PR_URL
+
+    proposals_dir = tmp_path / ".agentguard" / "proposals"
+    proposals_dir.mkdir(parents=True)
+    proposal = dict(PROPOSAL)
+    proposal_file = proposals_dir / "tooluseabcd1234.json"
+    proposal_file.write_text(json.dumps(proposal))
+
+    pr_url = create_pr_for_proposal(proposal, "patric@hayna.net", str(tmp_path))
+
+    assert pr_url == PR_URL
+    updated = json.loads(proposal_file.read_text())
+    assert updated["status"] == "pr_created"
+    assert updated["pr_url"] == PR_URL
+    mock_lookup.assert_called_once()
+
+
+@patch("agentguard.proposal._lookup_existing_pr")
+@patch("agentguard.proposal._apply_file_change")
+@patch("agentguard.proposal._ensure_gh_label")
+@patch("agentguard.proposal._run_subprocess")
+@patch("agentguard.proposal._run_git")
+@patch("agentguard.proposal.os.path.exists", return_value=False)
+def test_create_pr_reraises_when_pr_already_exists_but_not_found(
+    mock_exists, mock_git, mock_sub, mock_label, mock_apply, mock_lookup, tmp_path
+):
+    """gh pr create 'already exists' but gh pr list returns empty → re-raise original error."""
+    mock_git.side_effect = _git_side_effect
+    original_error = RuntimeError(
+        "Command failed: gh pr create\na pull request for branch already exists"
+    )
+    mock_sub.side_effect = original_error
+    mock_lookup.return_value = ""
+
+    proposals_dir = tmp_path / ".agentguard" / "proposals"
+    proposals_dir.mkdir(parents=True)
+    proposal = dict(PROPOSAL)
+    proposal_file = proposals_dir / "tooluseabcd1234.json"
+    proposal_file.write_text(json.dumps(proposal))
+
+    with pytest.raises(RuntimeError, match="already exists"):
+        create_pr_for_proposal(proposal, "patric@hayna.net", str(tmp_path))
+
+    # Status must remain pending
+    assert json.loads(proposal_file.read_text())["status"] == "pending"
+
+
 def test_create_pr_raises_for_null_tool_input(tmp_path):
     proposal = dict(PROPOSAL)
     proposal["tool_input"] = None
