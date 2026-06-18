@@ -58,8 +58,13 @@ def create_pr_for_proposal(proposal: dict, reviewer: str, cwd: str) -> str:
         _run_git(["checkout", "-b", branch_name], cwd=worktree_dir)
 
         if file_path and tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
-            _apply_file_change(tool_name, file_path, tool_input, Path(worktree_dir))
-            _run_git(["add", file_path], cwd=worktree_dir)
+            fp = Path(file_path)
+            if fp.is_absolute():
+                relative_path = fp.relative_to(Path(cwd).resolve())
+            else:
+                relative_path = fp
+            _apply_file_change(tool_name, str(relative_path), tool_input, Path(worktree_dir))
+            _run_git(["add", str(relative_path)], cwd=worktree_dir)
         else:
             notes_file = f".agentguard-proposal-{tool_use_id[:8]}.md"
             (Path(worktree_dir) / notes_file).write_text(_format_proposal_notes(proposal))

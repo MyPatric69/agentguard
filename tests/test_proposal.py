@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -221,6 +222,39 @@ def test_create_pr_idempotency_deletes_existing_branch(
     )
     assert delete_branch is not None
     assert "agentguard/proposal/toolusea" in " ".join(delete_branch)
+
+
+@patch("agentguard.proposal._apply_file_change")
+@patch("agentguard.proposal._ensure_gh_label")
+@patch("agentguard.proposal._run_subprocess")
+@patch("agentguard.proposal._run_git")
+@patch("agentguard.proposal.os.path.exists", return_value=False)
+def test_create_pr_absolute_file_path_converted_to_relative(
+    mock_exists, mock_git, mock_sub, mock_label, mock_apply, tmp_path
+):
+    """Absolute file_path in proposal is converted to relative for git add and _apply_file_change."""
+    mock_git.side_effect = _git_side_effect
+    mock_sub.return_value = PR_URL + "\n"
+
+    proposals_dir = tmp_path / ".agentguard" / "proposals"
+    proposals_dir.mkdir(parents=True)
+
+    cwd_resolved = Path(str(tmp_path)).resolve()
+    abs_file_path = str(cwd_resolved / "agentguard" / "foo.py")
+    proposal = dict(PROPOSAL, file_path=abs_file_path)
+    proposal_file = proposals_dir / "tooluseabcd1234.json"
+    proposal_file.write_text(json.dumps(proposal))
+
+    create_pr_for_proposal(proposal, "patric@hayna.net", str(tmp_path))
+
+    # _apply_file_change must receive the relative path
+    assert mock_apply.call_args.args[1] == "agentguard/foo.py"
+
+    # git add must receive the relative path, not the absolute one
+    git_arg_lists = [c.args[0] for c in mock_git.call_args_list]
+    add_args = next(a for a in git_arg_lists if a[0] == "add" and len(a) == 2)
+    assert add_args[1] == "agentguard/foo.py"
+    assert not Path(add_args[1]).is_absolute()
 
 
 def test_create_pr_raises_for_null_tool_input(tmp_path):
