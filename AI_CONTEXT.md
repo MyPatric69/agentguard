@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.5  
+**Version:** 0.10.6  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -27,9 +27,9 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
 
-## Current State (v0.10.5+)
+## Current State (v0.10.6)
 
-### CLI Commands (12 total)
+### CLI Commands (14 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
 - `agentguard check --ai-review` — + AI scope quality score 1-10
 - `agentguard init --interactive` — basic setup, no AI required
@@ -124,7 +124,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 347/347 passing
+- 350/350 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -177,11 +177,13 @@ Three components, recommended order (decided 2026-06-15):
 
 **A) Async Approval Workflow** — **Stage 1 + Stage 2 complete.**
 Stage 1: v0.10.5 (2026-06-16, commits 2f7977c + 5667342 + 5f2a577).
-Stage 2: `agentguard propose` (2026-06-18). Replaces the
-former "v0.11.0 Email Notification" and "governance change approval via
-inline editor" ideas with a general mechanism: ANY `ask`-gated action
-that is not resolved during the session gets a durable, reviewable
-proposal — eventually a GitHub PR (Stage 2).
+Stage 2: `agentguard propose` (v0.10.6, 2026-06-18, commits caa9543 +
+4a98d7b + c86f3cb). Replaces the former "v0.11.0 Email Notification"
+and "governance change approval via inline editor" ideas with a general
+mechanism: ANY `ask`-gated action that is not resolved during the
+session gets a durable, reviewable proposal — surfaced as a GitHub PR.
+Note: `escalation.contact` in governance.yaml must be a **GitHub
+username** (not an email address) for `gh pr create --reviewer` to work.
 
 Validated facts (empirical, 2026-06-15):
 - PreToolUse hook input includes `session_id`, `tool_use_id`,
@@ -316,4 +318,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-18 – agentguard propose (Stage 2, Component A)
+2026-06-18 – v0.10.6 release (async approval workflow Stage 2 complete)

@@ -12,8 +12,10 @@ agentguard/
 │   ├── runtime.py        # Layer 3: session log monitoring, loop/stall/burn
 │   └── report.py         # Layer 4: post-session governance report
 ├── enforcement/
-│   └── enforcer.py       # Layer 2: PreToolUse hook, exit 0/2,
-│                         #          writes .agentguard/session.log
+│   ├── enforcer.py       # Layer 2: PreToolUse/PostToolUse/Stop hooks,
+│   │                     #          exit 0/2, writes .agentguard/session.log
+│   └── transcript.py     # JSONL transcript parser, get_tool_call() by tool_use_id
+├── proposal.py           # Stage 2: pending proposals → GitHub PRs
 ├── guided/
 │   ├── concretizer.py    # AI concretization (sonnet/gpt-4o, temperature=0)
 │   ├── validator.py      # Deterministic structural validation
@@ -43,10 +45,11 @@ web/                       # React/Vite frontend (built to web/dist/)
 
 Project directory (runtime):
 ├── governance.yaml            # Governance definition
-├── .claude/settings.json      # AgentGuard PreToolUse hook
+├── .claude/settings.json      # AgentGuard PreToolUse + PostToolUse + Stop hooks
 ├── CLAUDE.md                  # Governance context for Claude Code
 └── .agentguard/
-    └── session.log            # Auto-generated tool call log (gitignored)
+    ├── session.log            # Auto-generated tool call log (gitignored)
+    └── proposals/             # Proposal records for unresolved ask-gated actions (gitignored)
 ```
 
 ## Key Design Principles

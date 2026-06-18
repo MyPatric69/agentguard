@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-06-18
+
 ### Added
 - `agentguard propose` command: reads pending proposals from
   `.agentguard/proposals/` and creates a GitHub PR per proposal
@@ -15,6 +17,18 @@ All notable changes to this project will be documented in this file.
   (`https://cli.github.com`). Branches from `main` via git worktree
   for clean isolation; updates each proposal's `status` to
   `"pr_created"` and records the `pr_url` on success.
+
+### Fixed
+- `agentguard propose`: convert absolute `file_path` to relative before
+  git worktree operations — absolute paths from proposal JSON were
+  rejected by git as outside the worktree.
+- `agentguard propose`: force push proposal branches (`--force`) to
+  handle retry after partial failure when the branch already exists on
+  the remote.
+- `agentguard propose`: recover gracefully when a PR already exists for
+  a proposal branch — looks up the existing PR URL via `gh pr list`,
+  records it as `pr_created`, and continues. Re-raises only if the PR
+  is no longer open.
 
 ## [0.10.5] - 2026-06-16
 

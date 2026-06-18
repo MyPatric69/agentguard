@@ -533,6 +533,25 @@ Both verify and repair are available in the browser:
 
 ---
 
+### `agentguard propose`
+
+Creates GitHub PRs for unresolved ask-gated proposals in `.agentguard/proposals/`.
+
+```bash
+agentguard propose                          # create one PR per pending proposal
+agentguard propose --dry-run               # preview proposals without creating PRs
+agentguard propose --path ./my-project     # specify project directory
+```
+
+**Requirements:**
+- `gh` CLI installed and authenticated (`brew install gh && gh auth login`)
+- `escalation.contact` in `governance.yaml` must be a **GitHub username** (not an email address) — used as PR reviewer via `gh pr create --reviewer`
+- The repo must have a `main` branch
+
+See [Proposal Records and `agentguard propose`](#proposal-records-and-agentguard-propose) for full details on how proposals are created and what each PR contains.
+
+---
+
 ## Consistency & Reproducibility
 
 When `agentguard init --guided` generates governance rules, it records
@@ -736,13 +755,14 @@ diff, governance reason, and `status: "pending"`.
 Run `agentguard propose` to surface pending proposals as GitHub PRs:
 
 ```bash
-agentguard propose              # create one PR per pending proposal
-agentguard propose --dry-run    # preview proposals without creating PRs
+agentguard propose                          # create one PR per pending proposal
+agentguard propose --dry-run               # preview proposals without creating PRs
+agentguard propose --path ./my-project     # specify project directory
 ```
 
 **Requirements:**
 - `gh` CLI must be installed and authenticated (`brew install gh && gh auth login`)
-- `escalation.contact` must be set in `governance.yaml` — this person is added as PR reviewer
+- `escalation.contact` in `governance.yaml` must be a **GitHub username** (not an email address) — used as PR reviewer via `gh pr create --reviewer`
 - The repo must have a `main` branch
 
 Each PR:
