@@ -7,6 +7,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `agentguard propose` command: reads pending proposals from
+  `.agentguard/proposals/` and creates a GitHub PR per proposal
+  via `gh` CLI, with `escalation.contact` as reviewer. Supports
+  `--dry-run` to preview without creating PRs. Requires `gh` CLI
+  (`https://cli.github.com`). Branches from `main` via git worktree
+  for clean isolation; updates each proposal's `status` to
+  `"pr_created"` and records the `pr_url` on success.
+
 ## [0.10.5] - 2026-06-16
 
 ### Added

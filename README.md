@@ -598,6 +598,8 @@ Detects loops, stalls, and token burn in real time.
 | `agentguard review --guided` | AI-assisted governance update | Yes |
 | `agentguard verify` | Check governance consistency/drift | No |
 | `agentguard override` | Proceed despite critical gaps | No |
+| `agentguard propose` | Create GitHub PRs for unresolved ask-gated proposals | No (requires `gh` CLI) |
+| `agentguard propose --dry-run` | Preview pending proposals without creating PRs | No |
 | `agentguard web` | Browser UI — check, governance, terminal | No (API key optional) |
 | `agentguard web --path p1 --path p2` | Multi-project browser UI | No |
 
@@ -723,15 +725,35 @@ proposal file, Stage 2 will surface it as a GitHub PR via
 `agentguard propose`. All three hooks must be registered for full
 governance coverage.
 
-### Proposal Records
+### Proposal Records and `agentguard propose`
 
 When an `ask`-gated action is not approved during a session —
 rejected by the owner, or no owner present in headless/CI runs —
 AgentGuard's Stop hook writes a durable proposal record to
 `.agentguard/proposals/<tool_use_id>.json` containing the full
-diff, governance reason, and `status: "pending"`. These records
-are local and gitignored — the foundation for Stage 2 PR-based
-approval (see v1.0.0 roadmap).
+diff, governance reason, and `status: "pending"`.
+
+Run `agentguard propose` to surface pending proposals as GitHub PRs:
+
+```bash
+agentguard propose              # create one PR per pending proposal
+agentguard propose --dry-run    # preview proposals without creating PRs
+```
+
+**Requirements:**
+- `gh` CLI must be installed and authenticated (`brew install gh && gh auth login`)
+- `escalation.contact` must be set in `governance.yaml` — this person is added as PR reviewer
+- The repo must have a `main` branch
+
+Each PR:
+- Is branched from `main` via git worktree (never disrupts your working branch)
+- Contains the proposed file change (Write/Edit) or a proposal notes file (Bash/other tools)
+- Sets `escalation.contact` as reviewer
+- Uses the `agentguard-proposal` label (created automatically if absent)
+- Updates the local proposal record to `status: "pr_created"` with the PR URL on success
+
+If `tool_input` is missing from a proposal (transcript was unavailable at session end),
+the proposal is skipped with a warning — status remains `"pending"`.
 
 AgentGuard reads your `governance.yaml` and checks:
 

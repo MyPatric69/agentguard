@@ -27,7 +27,7 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
 
-## Current State (v0.10.0)
+## Current State (v0.10.5+)
 
 ### CLI Commands (12 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -43,6 +43,7 @@ runs before, during, and after observability tools do.
 - `agentguard verify` — prompt-pin drift detection
 - `agentguard verify --repair` — generate baseline pins from existing governance (no AI)
 - `agentguard override` — documented exception with mandatory reason
+- `agentguard propose` — create GitHub PRs for pending proposals; `--dry-run` to preview; requires `gh` CLI
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
 ### Web UI (v0.9.0)
@@ -123,7 +124,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 325/325 passing
+- 347/347 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -174,8 +175,9 @@ owner email).
 ### v1.0.0 — long-term
 Three components, recommended order (decided 2026-06-15):
 
-**A) Async Approval Workflow** — **Stage 1 complete (v0.10.5,
-2026-06-16, commits 2f7977c + 5667342 + 5f2a577).** Replaces the
+**A) Async Approval Workflow** — **Stage 1 + Stage 2 complete.**
+Stage 1: v0.10.5 (2026-06-16, commits 2f7977c + 5667342 + 5f2a577).
+Stage 2: `agentguard propose` (2026-06-18). Replaces the
 former "v0.11.0 Email Notification" and "governance change approval via
 inline editor" ideas with a general mechanism: ANY `ask`-gated action
 that is not resolved during the session gets a durable, reviewable
@@ -281,6 +283,7 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2, session logging
 - `agentguard/enforcement/transcript.py` — JSONL transcript parser, get_tool_call() for full tool input by tool_use_id
+- `agentguard/proposal.py` — Stage 2: get_pending_proposals(), create_pr_for_proposal(), format_proposal_summary()
 - `agentguard/checks/runtime.py` — Layer 3, live watch feed
 - `agentguard/guided/concretizer.py` — AI concretization
 - `agentguard/guided/validator.py` — structural validation
@@ -313,4 +316,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-16 – v0.10.5 released: Component A Stage 1 complete (PostToolUse logging, transcript parser, Stop hook proposal writer, 325 tests)
+2026-06-18 – agentguard propose (Stage 2, Component A)

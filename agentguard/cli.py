@@ -1256,6 +1256,82 @@ def web_cmd(host: str, port: int, no_browser: bool, path: tuple) -> None:
     start(host=host, port=port, open_browser=not no_browser, project_paths=list(path))
 
 
+@main.command("propose")
+@click.option("--path", default=".", show_default=True, help="Project path.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show pending proposals without creating PRs.",
+)
+def propose_cmd(path: str, dry_run: bool) -> None:
+    """Create GitHub PRs for unresolved ask-gated proposals."""
+    import shutil as _shutil
+
+    from agentguard.proposal import (
+        create_pr_for_proposal,
+        format_proposal_summary,
+        get_pending_proposals,
+    )
+
+    if not dry_run and not _shutil.which("gh"):
+        _console.print(
+            "[red]gh CLI required for agentguard propose.[/red]\n"
+            "Install: https://cli.github.com",
+            highlight=False,
+        )
+        sys.exit(1)
+
+    proposals = get_pending_proposals(path)
+
+    if not proposals:
+        _console.print("No pending proposals found.", style="dim")
+        return
+
+    if dry_run:
+        _console.print(f"[bold]{len(proposals)} pending proposal(s):[/bold]\n")
+        for p in proposals:
+            _console.print(f"  • {format_proposal_summary(p)}")
+        return
+
+    config_path = find_config(path)
+    from agentguard.config.loader import load_config as _load_config
+    config = _load_config(config_path) if config_path else {}
+    reviewer = config.get("escalation", {}).get("contact", "")
+
+    created = 0
+    skipped = 0
+
+    for proposal in proposals:
+        tool_use_id = proposal.get("tool_use_id", "")
+        _console.print(f"\n[bold]Processing:[/bold] {format_proposal_summary(proposal)}")
+
+        if proposal.get("tool_input") is None:
+            _console.print(
+                f"  ⚠  proposal {tool_use_id} has no tool_input"
+                " — cannot create PR, skipping",
+                style="yellow",
+            )
+            skipped += 1
+            continue
+
+        try:
+            pr_url = _with_spinner(
+                "Creating branch, pushing, and opening PR...",
+                create_pr_for_proposal,
+                proposal,
+                reviewer,
+                path,
+            )
+            _console.print(f"  ✅ PR created: {pr_url}", style="green")
+            created += 1
+        except Exception as exc:
+            _console.print(f"  ✗ Failed: {exc}", style="red")
+            skipped += 1
+
+    _console.print(f"\n[bold]{created} PR(s) created, {skipped} skipped[/bold]")
+
+
 @main.command()
 @click.option("--reason", required=True, help="Mandatory reason for overriding CRITICAL findings.")
 @click.option("--path", default=".", show_default=True, help="Project directory.")
