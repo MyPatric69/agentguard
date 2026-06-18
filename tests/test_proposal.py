@@ -119,8 +119,9 @@ def test_create_pr_branch_name_and_commit(
     assert "agentguard/foo.py" in commit_msg
     assert "agentguard" in commit_msg
 
-    # Push targets the proposal branch
+    # Push targets the proposal branch with --force
     push_args = next(a for a in git_arg_lists if "push" in a)
+    assert "--force" in push_args
     assert "agentguard/proposal/toolusea" in " ".join(push_args)
 
 

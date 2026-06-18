@@ -72,7 +72,7 @@ def create_pr_for_proposal(proposal: dict, reviewer: str, cwd: str) -> str:
 
         commit_msg = f"proposal: {tool_name} {file_path or '(no file)'} (agentguard)"
         _run_git(["commit", "-m", commit_msg], cwd=worktree_dir)
-        _run_git(["push", "origin", branch_name], cwd=worktree_dir)
+        _run_git(["push", "--force", "origin", branch_name], cwd=worktree_dir)
 
         _ensure_gh_label(cwd)
 
