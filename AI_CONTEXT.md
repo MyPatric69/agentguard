@@ -231,8 +231,11 @@ to `"pr_created"` with the PR URL. New optional dependency: `gh` CLI or
 GitHub API client (itself subject to "Add new external dependencies" —
 requires_confirmation).
 
-**B) Inline Governance Editor** (Web UI) — open design questions
-(2026-06-15):
+**B) Inline Governance Editor** (Web UI) — **deprioritized.**
+Developers prefer CLI over web forms — Component B is nice-to-have,
+deprioritized. Start with Component C instead.
+
+Open design questions (2026-06-15):
 - Current state: GovernanceView.jsx is read-only (color-coded display);
   Setup/Review panels launch CLI wizards in an embedded terminal
   (xterm.js PTY) — functionally complete, but not "native" editing.
@@ -262,6 +265,11 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 - `agentguard watch` could optionally fire a local desktop notification
   (OS-native, no new dependency) on loop/critical-failure detection —
   independent of the v1.0.0 components above.
+- KI-erkannte Governance-Use-Cases: während einer Session erkennt
+  AgentGuard (via Stop-Hook oder Observer) potenzielle neue
+  governance.yaml-Regeln und schreibt diese als Proposals
+  (.agentguard/proposals/) — Owner freigibt via PR. Erweiterung
+  von Component A, nicht Component B.
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
@@ -318,4 +326,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-18 – v0.10.6 release (async approval workflow Stage 2 complete)
+2026-06-19 – Reprioritized v1.0.0 components (C before B), added KI use-case idea to Optional/future
