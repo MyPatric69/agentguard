@@ -69,12 +69,12 @@ export default function WatchPanel({ projectPath }) {
         fontSize: '12px',
         opacity: dimmed ? 0.45 : 1,
       }}>
-        {/* Compact row */}
+        {/* Compact clickable row */}
         <div
           onClick={() => toggleExpand(key)}
           style={{
-            display: 'flex', gap: '10px', alignItems: 'center',
-            padding: '6px 0', cursor: 'pointer',
+            display: 'flex', gap: '8px', alignItems: 'center',
+            padding: '6px 4px', cursor: 'pointer',
           }}
         >
           <span style={{
@@ -83,57 +83,72 @@ export default function WatchPanel({ projectPath }) {
           }}>
             {entry.decision === 'allow' ? '✓' : '✗'}
           </span>
-          <span style={{ color: 'var(--accent)', flexShrink: 0, width: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{
+            color: 'var(--accent)', flexShrink: 0, width: '60px',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             {entry.tool}
           </span>
           <span style={{
             color: 'var(--text-secondary)', flex: 1,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
-            {entry.input_summary}
+            {entry.input_summary || '—'}
           </span>
           {entry.reason && (
             <span style={{
               color: entry.decision === 'deny' ? 'var(--critical)' : 'var(--warning)',
               fontSize: '11px', flexShrink: 0,
-              maxWidth: '150px', overflow: 'hidden',
+              maxWidth: '140px', overflow: 'hidden',
               textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              background: entry.decision === 'deny' ? 'rgba(239,68,68,0.12)' : 'rgba(251,191,36,0.12)',
-              borderRadius: '4px', padding: '1px 5px',
+              background: entry.decision === 'deny' ? 'rgba(239,68,68,0.10)' : 'rgba(251,191,36,0.10)',
+              borderRadius: '4px', padding: '1px 6px',
             }}>
               {entry.reason}
             </span>
           )}
           <span style={{
-            color: 'var(--text-muted)', flexShrink: 0, fontSize: '10px'
+            flexShrink: 0, fontSize: '10px', color: 'var(--text-muted)',
+            minWidth: '55px', textAlign: 'right',
           }}>
             {new Date(entry.timestamp).toLocaleTimeString()}
           </span>
           <span style={{
-            color: 'var(--text-muted)', flexShrink: 0, fontSize: '11px', width: '12px', textAlign: 'center'
+            flexShrink: 0, minWidth: '20px', textAlign: 'center',
+            color: isExpanded ? 'var(--accent)' : 'var(--text-muted)',
+            fontSize: '11px',
           }}>
             {isExpanded ? '▾' : '▸'}
           </span>
         </div>
-        {/* Expanded detail */}
+        {/* Expanded detail panel */}
         {isExpanded && (
           <div style={{
-            paddingLeft: '20px', paddingBottom: '8px',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '6px', marginBottom: '4px',
-            background: 'var(--bg-surface)',
-            fontSize: '12px', lineHeight: '1.6',
+            borderLeft: '2px solid var(--accent)',
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-elevated, rgba(255,255,255,0.04))',
+            padding: '8px 8px 8px 20px',
+            fontSize: '12px', lineHeight: '1.6', width: '100%',
+            boxSizing: 'border-box',
           }}>
-            <div style={{ padding: '6px 8px' }}>
-              <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Input: </span>
-              <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
-                {entry.input_summary}
+            <div style={{ marginBottom: entry.reason ? '6px' : 0 }}>
+              <span style={{ color: 'var(--text-muted)', fontWeight: '600', marginRight: '8px' }}>Input:</span>
+              <span style={{
+                color: 'var(--text-secondary)',
+                wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+                display: 'block', marginTop: '2px',
+              }}>
+                {entry.input_summary || '—'}
               </span>
             </div>
             {entry.reason && (
-              <div style={{ padding: '0 8px 4px' }}>
-                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Reason: </span>
-                <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
+              <div>
+                <span style={{ color: 'var(--text-muted)', fontWeight: '600', marginRight: '8px' }}>Reason:</span>
+                <span style={{
+                  color: 'var(--critical)',
+                  wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+                  display: 'block', marginTop: '2px',
+                }}>
                   {entry.reason}
                 </span>
               </div>
