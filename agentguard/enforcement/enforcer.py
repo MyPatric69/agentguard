@@ -213,6 +213,8 @@ def handle_stop(data: dict, cwd_str: str) -> None:
                     "model": cost_result["model"],
                     "total_usd": cost_result["total_usd"],
                     "input_tokens": cost_result["input_tokens"],
+                    "cache_write_tokens": cost_result["cache_write_tokens"],
+                    "cache_read_tokens": cost_result["cache_read_tokens"],
                     "output_tokens": cost_result["output_tokens"],
                     "pricing_source": cost_result["pricing_source"],
                 })

@@ -352,6 +352,8 @@ def test_handle_stop_session_cost_entry_written_to_log(tmp_path, monkeypatch):
     assert entry["model"] == "claude-sonnet-4-6"
     assert entry["total_usd"] > 0
     assert "input_tokens" in entry
+    assert "cache_write_tokens" in entry
+    assert "cache_read_tokens" in entry
     assert "output_tokens" in entry
     assert entry["pricing_source"] in ("live", "fallback")
 

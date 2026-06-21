@@ -37,7 +37,8 @@ def _fetch_text(url: str) -> str:
     """Fetch URL as UTF-8 text. Raises on any error."""
     import urllib.request  # noqa: PLC0415
 
-    with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; AgentGuard)"})
+    with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
         charset = resp.headers.get_content_charset() or "utf-8"
         return resp.read().decode(charset, errors="ignore")
 
