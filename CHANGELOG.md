@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-06-21
+
 ### Added
 - Web UI: Live Watch tab now loads last 50 historical entries on open,
   with visual distinction from live entries (dimmed + `── live ──` separator).

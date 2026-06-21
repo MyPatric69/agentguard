@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.7  
+**Version:** 0.10.8  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -26,8 +26,9 @@ runs before, during, and after observability tools do.
 - Optional AI: Anthropic SDK, OpenAI SDK
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
+- Frontend: web/vite.config.js outDir = '../agentguard/web/dist' (builds directly into package)
 
-## Current State (v0.10.7)
+## Current State (v0.10.8)
 
 ### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -46,7 +47,7 @@ runs before, during, and after observability tools do.
 - `agentguard propose` — create GitHub PRs for pending proposals; `--dry-run` to preview; requires `gh` CLI
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
-### Web UI (v0.9.0 + unreleased additions)
+### Web UI (v0.10.8)
 Seven tabs: Pre-Flight Check, Governance, Verify Pins, Live Watch,
 Terminal, Setup Governance, Review & Update.
 
@@ -358,4 +359,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Auto-synced 1 commit(s) to 950785a
+2026-06-21 – v0.10.8 release (Web UI: live watch history, session cost header, cost awareness editor)
