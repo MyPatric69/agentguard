@@ -325,7 +325,7 @@ def _log_tool_call(
         "timestamp": datetime.now(UTC).isoformat(),
         "tool": tool,
         "tool_use_id": tool_use_id,
-        "input_summary": _flatten_input(tool_input)[:100],
+        "input_summary": _flatten_input(tool_input)[:500],
         "decision": decision,
         "reason": reason,
         "session_id": session_id,
@@ -529,7 +529,7 @@ def _log_denial(
     entry = {
         "timestamp": datetime.now(UTC).isoformat(),
         "tool": tool,
-        "input_summary": _flatten_input(tool_input)[:100],
+        "input_summary": _flatten_input(tool_input)[:500],
         "decision": "deny",
         "reason": reason,
         "session_id": session_id,
