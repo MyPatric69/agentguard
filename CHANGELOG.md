@@ -7,6 +7,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-06-21
+
+### Fixed
+- Web UI: Live Watch expanded rows now correctly wrap long
+  unbroken strings (file paths, long commands) via
+  overflowWrap:anywhere — wordBreak:break-word alone was
+  insufficient for strings without spaces.
+
 ## [1.0.6] - 2026-06-21
 
 ### Fixed

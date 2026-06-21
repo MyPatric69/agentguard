@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.0.6  
+**Version:** 1.0.7  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -28,7 +28,7 @@ runs before, during, and after observability tools do.
 - Build: hatchling, PyPI: agentguard-governance
 - Frontend: web/vite.config.js outDir = '../agentguard/web/dist' (builds directly into package)
 
-## Current State (v1.0.6)
+## Current State (v1.0.7)
 
 ### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Auto-synced 1 commit(s) to 3cbae42
+2026-06-21 – v1.0.7: overflowWrap:anywhere for Live Watch expanded rows
