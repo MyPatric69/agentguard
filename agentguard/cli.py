@@ -958,11 +958,11 @@ def watch(log_path: str | None, interval: float, loop_threshold: int) -> None:
 
 
 @main.command()
-@click.option("--session", "session_log", default="agentguard.log", show_default=True)
+@click.option("--path", default=".", show_default=True, help="Project path.")
 @click.option("--output", "output_path", default="report.md", show_default=True)
-def report(session_log: str, output_path: str) -> None:
+def report(path: str, output_path: str) -> None:
     """Generate post-session governance report."""
-    text = generate_report(session_log, output_path)
+    text = generate_report(path, output_path)
     click.echo(text)
     click.echo(f"\nReport written to: {output_path}")
 

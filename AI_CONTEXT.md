@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.8  
+**Version:** 0.10.9  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -28,7 +28,7 @@ runs before, during, and after observability tools do.
 - Build: hatchling, PyPI: agentguard-governance
 - Frontend: web/vite.config.js outDir = '../agentguard/web/dist' (builds directly into package)
 
-## Current State (v0.10.8)
+## Current State (v0.10.9)
 
 ### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -38,7 +38,7 @@ runs before, during, and after observability tools do.
 - `agentguard enforce` — PreToolUse hook, exit 0/2, writes .agentguard/session.log
 - `agentguard watch` — live feed of all tool calls, auto-discovers session.log
 - `agentguard watch --loop-threshold N` — custom loop detection threshold (default: 6)
-- `agentguard report` — post-session Markdown governance report
+- `agentguard report` — post-session Markdown report with ROI Summary (cost, ask/deny/allow breakdown, proposals); use `--path .`
 - `agentguard review` — interactive governance update cycle
 - `agentguard review --guided` — AI-assisted field update
 - `agentguard verify` — prompt-pin drift detection
@@ -47,7 +47,7 @@ runs before, during, and after observability tools do.
 - `agentguard propose` — create GitHub PRs for pending proposals; `--dry-run` to preview; requires `gh` CLI
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
-### Web UI (v0.10.8)
+### Web UI (v0.10.9)
 Seven tabs: Pre-Flight Check, Governance, Verify Pins, Live Watch,
 Terminal, Setup Governance, Review & Update.
 
@@ -67,8 +67,10 @@ Key features:
   - Allow/deny counters
 - Verify Pins tab: Run Verify + Repair Pins button (brownfield baseline)
   - Repair Pins calls /api/verify-repair, then auto-runs verify
-- Session Report tab: stat cards, tool distribution bar chart, blocked actions, runtime warnings
-  - Reads .agentguard/session.log + agentguard.log via /api/report
+- Session Report tab: ROI Summary table (cost/ask/deny breakdown/proposals), stat cards
+  (Total/Allowed/Ask/Blocked/Warnings), tool distribution bar chart, proposals section
+  with per-entry status badges, blocked actions, runtime warnings
+  - Reads .agentguard/session.log + agentguard.log + proposals/ via /api/report
 - Terminal tab: Cost Awareness Thresholds inline editor
   - View/edit mode, levels auto-assigned (warn/alert/critical)
   - Saves via POST /api/governance/update with cost_awareness key
@@ -134,7 +136,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 422/422 passing
+- 431/431 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -359,4 +361,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v0.10.8 release (Web UI: live watch history, session cost header, cost awareness editor)
+2026-06-21 – v0.10.9 release

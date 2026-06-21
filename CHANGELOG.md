@@ -7,6 +7,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-06-21
+
+### Changed
+- `agentguard report` now takes `--path .` (project directory) instead of
+  `--session agentguard.log`. Reads from `.agentguard/session.log` via the
+  existing `generate_report_data()` call — no separate log argument needed.
+- `generate_report()` rebuilt on top of `generate_report_data()`: single
+  source of truth, no duplicate parsing.
+
+### Added
+- **ROI Summary** section in `agentguard report` output: session cost
+  (model + total_usd + pricing source), ask/deny/allow breakdown with
+  percentages, unresolved proposals count, PRs created.
+- `generate_report_data()` now returns `asked`, `asked_entries`,
+  `session_cost`, `session_id`, and `proposals` (total/pending/pr_created/
+  entries) — available to both CLI and Web UI `GET /api/report`.
+- Non-decision entries (`session_cost`, `post_tool_use`,
+  `session_cost_notified`) are filtered out of `total`/`allowed`/`denied`
+  counts in `generate_report_data()`.
+- **Web UI Report tab**: ROI Summary table at top, Ask stat card, proposals
+  section with per-entry status badges and PR links.
+- 9 new tests (7 in `test_report.py`, 1 in `test_web_server.py`).
+
 ## [0.10.8] - 2026-06-21
 
 ### Added

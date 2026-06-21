@@ -394,11 +394,13 @@ Start with the default (6) and adjust based on experience.
 
 ### `agentguard report`
 
-Generate a post-session Markdown governance report.
+Generate a post-session Markdown governance report with ROI Summary (session cost,
+ask/deny/allow breakdown, unresolved proposals, PRs created).
 
 ```bash
-agentguard report                                      # reads agentguard.log, writes report.md
-agentguard report --session ./run1.log --output r.md   # custom paths
+agentguard report                          # reads .agentguard/session.log in current dir
+agentguard report --path ./myproject       # specify project directory
+agentguard report --output custom.md       # custom output path
 ```
 
 ---
@@ -598,7 +600,9 @@ Exit 2 = denied (prohibited / HARD_LIMIT). Exit 0 = allowed or requires confirma
 Detects loops, stalls, and token burn in real time.
 
 ### Layer 4 — After the session (Reporting & Audit)
-`agentguard report` generates a Markdown governance report.
+`agentguard report` generates a Markdown governance report with ROI Summary —
+session cost, ask/allow/deny breakdown with percentages, unresolved proposals,
+PRs created. Reads `.agentguard/session.log` and `agentguard.log`.
 `agentguard verify` checks governance consistency via prompt pins.
 `agentguard review` updates governance for changed projects.
 

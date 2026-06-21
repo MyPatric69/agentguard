@@ -417,6 +417,42 @@ def test_governance_update_cost_awareness(tmp_path):
     assert "cost_awareness" in history[-1]["action"]
 
 
+def test_report_returns_roi_fields(tmp_path):
+    """GET /api/report returns asked, session_cost, proposals after ROI refactor."""
+    import json as _json
+
+    log_dir = tmp_path / ".agentguard"
+    log_dir.mkdir()
+    proposals_dir = log_dir / "proposals"
+    proposals_dir.mkdir()
+    entries = [
+        {"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
+         "decision": "allow", "input_summary": "ls", "session_id": "s1"},
+        {"timestamp": "2026-06-21T10:01:00+00:00", "tool": "Edit",
+         "decision": "ask", "input_summary": "edit file", "session_id": "s1"},
+        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
+         "total_usd": 0.07, "pricing_source": "live"},
+    ]
+    (log_dir / "session.log").write_text(
+        "\n".join(_json.dumps(e) for e in entries) + "\n"
+    )
+    (proposals_dir / "abc.json").write_text(_json.dumps({
+        "tool_use_id": "abc", "session_id": "s1", "tool_name": "Edit",
+        "file_path": "test.py", "governance_reason": "review needed",
+        "status": "pending", "timestamp": "2026-06-21T10:01:00+00:00", "pr_url": None,
+    }))
+    resp = client.get(f"/api/report?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["asked"] == 1
+    assert data["session_cost"]["total_usd"] == 0.07
+    assert data["session_cost"]["model"] == "claude-sonnet-4-6"
+    assert data["proposals"]["total"] == 1
+    assert data["proposals"]["pending"] == 1
+    assert data["session_id"] == "s1"
+    assert data["total"] == 2
+
+
 # WebSocket PTY endpoint (/ws/terminal) requires a real PTY process and cannot
 # be tested with TestClient. Manual test: open the web UI Terminal tab and
 # verify the shell connects and agentguard commands run interactively.

@@ -38,6 +38,23 @@ export default function ReportPanel({ projectPath }) {
     </div>
   )
 
+  const roiRow = (label, value) => (
+    <tr key={label}>
+      <td style={{
+        padding: '6px 12px 6px 0',
+        fontSize: '12px', color: 'var(--text-muted)',
+        borderBottom: '1px solid var(--border)',
+        whiteSpace: 'nowrap'
+      }}>{label}</td>
+      <td style={{
+        padding: '6px 0 6px 12px',
+        fontSize: '12px', color: 'var(--text-primary)',
+        borderBottom: '1px solid var(--border)',
+        fontFamily: 'monospace'
+      }}>{value}</td>
+    </tr>
+  )
+
   return (
     <div>
       {/* Header */}
@@ -89,6 +106,44 @@ export default function ReportPanel({ projectPath }) {
           }}>
             Generated: {report.generated}
             {report.duration && ` · Session duration: ${report.duration}`}
+            {report.session_id && ` · Session: ${report.session_id.slice(0, 8)}`}
+          </div>
+
+          {/* ROI Summary */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px', padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              fontSize: '13px', fontWeight: '600', marginBottom: '12px'
+            }}>ROI Summary</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {roiRow('Session Duration', report.duration || 'N/A')}
+                {roiRow('Session Cost',
+                  report.session_cost
+                    ? `$${report.session_cost.total_usd?.toFixed(4)} · ${report.session_cost.model}`
+                    : 'N/A'
+                )}
+                {roiRow('Pricing Source',
+                  report.session_cost?.pricing_source || 'N/A'
+                )}
+                {roiRow('Total Tool Calls', report.total)}
+                {roiRow('→ Allowed',
+                  `${report.allowed} (${report.total > 0 ? Math.round(report.allowed / report.total * 100) : 0}%)`
+                )}
+                {roiRow('→ Ask (confirmed/unresolved)',
+                  `${report.asked ?? 0} (${report.total > 0 ? Math.round((report.asked ?? 0) / report.total * 100) : 0}%)`
+                )}
+                {roiRow('→ Denied',
+                  `${report.denied} (${report.total > 0 ? Math.round(report.denied / report.total * 100) : 0}%)`
+                )}
+                {roiRow('Unresolved Proposals', report.proposals?.pending ?? 0)}
+                {roiRow('PRs Created', report.proposals?.pr_created ?? 0)}
+              </tbody>
+            </table>
           </div>
 
           {/* Stat Cards */}
@@ -98,6 +153,8 @@ export default function ReportPanel({ projectPath }) {
             <StatCard label="Total Calls" value={report.total} />
             <StatCard label="Allowed" value={report.allowed}
                       color="var(--ok)" />
+            <StatCard label="Ask" value={report.asked ?? 0}
+                      color={(report.asked ?? 0) > 0 ? 'var(--warning)' : 'var(--ok)'} />
             <StatCard label="Blocked" value={report.denied}
                       color={report.denied > 0 ? 'var(--critical)' : 'var(--ok)'} />
             <StatCard label="Warnings"
@@ -161,7 +218,7 @@ export default function ReportPanel({ projectPath }) {
                 fontSize: '13px', fontWeight: '600',
                 color: 'var(--critical)', marginBottom: '12px'
               }}>
-                🚫 Blocked Actions ({report.denied_entries.length})
+                Blocked Actions ({report.denied_entries.length})
               </div>
               {report.denied_entries.map((entry, i) => (
                 <div key={i} style={{
@@ -196,6 +253,70 @@ export default function ReportPanel({ projectPath }) {
             </div>
           )}
 
+          {/* Proposals */}
+          {(report.proposals?.total ?? 0) > 0 && (
+            <div style={{
+              background: 'rgba(245,158,11,0.05)',
+              border: '1px solid rgba(245,158,11,0.2)',
+              borderRadius: '12px', padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                fontSize: '13px', fontWeight: '600',
+                color: 'var(--warning)', marginBottom: '4px'
+              }}>
+                Proposals ({report.proposals.total})
+              </div>
+              <div style={{
+                fontSize: '11px', color: 'var(--text-muted)',
+                marginBottom: '12px'
+              }}>
+                {report.proposals.pending} pending · {report.proposals.pr_created} PR created
+              </div>
+              {report.proposals.entries.map((p, i) => (
+                <div key={i} style={{
+                  background: 'var(--bg-surface)',
+                  borderRadius: '8px', padding: '10px 12px',
+                  marginBottom: '8px', fontSize: '12px'
+                }}>
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between',
+                    marginBottom: '4px'
+                  }}>
+                    <span style={{
+                      color: 'var(--accent)', fontFamily: 'monospace'
+                    }}>{p.tool_name}</span>
+                    <span style={{
+                      fontSize: '11px', padding: '1px 6px',
+                      borderRadius: '4px',
+                      background: p.status === 'pending'
+                        ? 'rgba(245,158,11,0.15)'
+                        : 'rgba(34,197,94,0.15)',
+                      color: p.status === 'pending'
+                        ? 'var(--warning)'
+                        : 'var(--ok)'
+                    }}>{p.status}</span>
+                  </div>
+                  <div style={{
+                    fontFamily: 'monospace', fontSize: '11px',
+                    color: 'var(--text-muted)', marginBottom: '4px'
+                  }}>{p.file_path}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                    {p.governance_reason}
+                  </div>
+                  {p.pr_url && (
+                    <div style={{ marginTop: '4px', fontSize: '11px' }}>
+                      <a href={p.pr_url} target="_blank" rel="noreferrer"
+                         style={{ color: 'var(--accent)' }}>
+                        {p.pr_url}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Watch Warnings */}
           {report.watch_events.length > 0 && (
             <div style={{
@@ -207,7 +328,7 @@ export default function ReportPanel({ projectPath }) {
                 fontSize: '13px', fontWeight: '600',
                 color: 'var(--warning)', marginBottom: '12px'
               }}>
-                ⚠️ Runtime Warnings ({report.watch_events.length})
+                Runtime Warnings ({report.watch_events.length})
               </div>
               {report.watch_events.map((event, i) => (
                 <div key={i} style={{
