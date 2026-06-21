@@ -56,6 +56,7 @@ export default function App() {
   const [pendingCommand, setPendingCommand] = useState(null)
   const [projects, setProjects] = useState([])
   const [version, setVersion] = useState('')
+  const [sessionCost, setSessionCost] = useState(null)
 
   const runInTerminal = (cmd) => {
     setPendingCommand(cmd)
@@ -86,6 +87,18 @@ export default function App() {
       .then(r => r.json())
       .then(d => setProjectName(d.name))
       .catch(() => setProjectName(''))
+  }, [projectPath])
+
+  useEffect(() => {
+    const fetchCost = () => {
+      fetch(`/api/session/cost?path=${encodeURIComponent(projectPath)}`)
+        .then(r => r.json())
+        .then(d => setSessionCost(d.session_cost))
+        .catch(() => {})
+    }
+    fetchCost()
+    const id = setInterval(fetchCost, 30_000)
+    return () => clearInterval(id)
   }, [projectPath])
 
   const handleStatusChange = (status, detail) => {
@@ -124,23 +137,29 @@ export default function App() {
             borderRadius: '10px'
           }}>v{version}</span>
         )}
-        {checkStatus && (
-          <div style={{
-            marginLeft: 'auto',
-            display: 'flex', alignItems: 'center', gap: '8px',
-            fontSize: '12px',
-            color: checkStatus === 'ALL CLEAR' ? 'var(--ok)' :
-                   checkStatus === 'WARNINGS' ? 'var(--warning)' :
-                   'var(--critical)',
-            cursor: 'default'
-          }}>
-            <span style={{
-              width: '8px', height: '8px', borderRadius: '50%',
-              background: 'currentColor', display: 'inline-block'
-            }}/>
-            {projectName || projectPath} — {checkStatusDetail}
-          </div>
-        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {sessionCost && (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              ${sessionCost.total_usd.toFixed(2)} · {sessionCost.model.split('-').slice(0, 3).join('-')}
+            </span>
+          )}
+          {checkStatus && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              fontSize: '12px',
+              color: checkStatus === 'ALL CLEAR' ? 'var(--ok)' :
+                     checkStatus === 'WARNINGS' ? 'var(--warning)' :
+                     'var(--critical)',
+              cursor: 'default'
+            }}>
+              <span style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: 'currentColor', display: 'inline-block'
+              }}/>
+              {projectName || projectPath} — {checkStatusDetail}
+            </div>
+          )}
+        </div>
       </header>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

@@ -69,7 +69,7 @@ async def verify(path: str = "."):
 
 @app.post("/api/governance/update")
 async def update_governance(request: Request):
-    """Update a single governance rule and save to governance.yaml."""
+    """Update a governance rule or cost_awareness block and save to governance.yaml."""
     from datetime import date
 
     import yaml
@@ -85,6 +85,22 @@ async def update_governance(request: Request):
 
     with open(gov_path) as f:
         governance = yaml.safe_load(f)
+
+    history = governance.setdefault("governance_history", [])
+
+    # cost_awareness update
+    if "cost_awareness" in body:
+        governance["cost_awareness"] = body["cost_awareness"]
+        changed = "Updated cost_awareness thresholds"
+        history.append({
+            "date": str(date.today()),
+            "action": changed,
+            "tool": "agentguard web (inline editor)",
+            "version": __version__,
+        })
+        with open(gov_path, "w") as f:
+            yaml.dump(governance, f, allow_unicode=True, sort_keys=False)
+        return {"success": True, "message": changed}
 
     section = body.get("section")
     action = body.get("action")
@@ -113,7 +129,6 @@ async def update_governance(request: Request):
 
     scope[section] = items
 
-    history = governance.setdefault("governance_history", [])
     history.append({
         "date": str(date.today()),
         "action": changed,
@@ -232,6 +247,76 @@ async def project_info(path: str = "."):
     abs_path = str(Path(path).resolve())
     name = Path(abs_path).name
     return {"name": name, "path": abs_path}
+
+
+_SKIP_EVENTS = {"session_cost", "session_cost_notified", "post_tool_use"}
+
+
+@app.get("/api/watch/history")
+async def watch_history(path: str = "."):
+    """Return last 50 decision entries from session.log, excluding cost/system events."""
+    log_path = Path(path).resolve() / ".agentguard" / "session.log"
+    if not log_path.exists():
+        return []
+    entries = []
+    try:
+        with open(log_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    if entry.get("event") in _SKIP_EVENTS:
+                        continue
+                    if "decision" not in entry:
+                        continue
+                    entries.append(entry)
+                except json.JSONDecodeError:
+                    continue
+    except OSError:
+        return []
+    return entries[-50:]
+
+
+@app.get("/api/session/cost")
+async def get_session_cost(path: str = "."):
+    """Return the most recent session_cost log entry, or null if none."""
+    log_path = Path(path).resolve() / ".agentguard" / "session.log"
+    if not log_path.exists():
+        return {"session_cost": None}
+    latest = None
+    try:
+        with open(log_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    if entry.get("event") == "session_cost":
+                        latest = entry
+                except json.JSONDecodeError:
+                    continue
+    except OSError:
+        pass
+    return {"session_cost": latest}
+
+
+@app.get("/api/cost-awareness")
+async def get_cost_awareness(path: str = "."):
+    """Return the cost_awareness block from governance.yaml, or null if absent."""
+    import yaml
+
+    gov_path = Path(path) / "governance.yaml"
+    if not gov_path.exists():
+        return {"cost_awareness": None}
+    try:
+        with open(gov_path) as f:
+            gov = yaml.safe_load(f)
+        return {"cost_awareness": gov.get("cost_awareness")}
+    except Exception:
+        return {"cost_awareness": None}
 
 
 @app.websocket("/ws/watch")

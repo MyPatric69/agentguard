@@ -46,7 +46,7 @@ runs before, during, and after observability tools do.
 - `agentguard propose` — create GitHub PRs for pending proposals; `--dry-run` to preview; requires `gh` CLI
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
-### Web UI (v0.9.0)
+### Web UI (v0.9.0 + unreleased additions)
 Seven tabs: Pre-Flight Check, Governance, Verify Pins, Live Watch,
 Terminal, Setup Governance, Review & Update.
 
@@ -58,7 +58,9 @@ Key features:
 - Run in Terminal buttons in Setup/Review panels
 - Multi-project switcher (--path flag, dropdown when >1 project)
 - Project name shown in header with check status
+- Header: session cost ($X.XX · model) polled every 30s via /api/session/cost
 - Live Watch tab: real-time tool call feed via /ws/watch WebSocket
+  - Loads last 50 historical entries on open (dimmed, separator before live)
   - Green ✓ allow / red ✗ deny per entry
   - Pulsing live status indicator
   - Allow/deny counters
@@ -66,6 +68,9 @@ Key features:
   - Repair Pins calls /api/verify-repair, then auto-runs verify
 - Session Report tab: stat cards, tool distribution bar chart, blocked actions, runtime warnings
   - Reads .agentguard/session.log + agentguard.log via /api/report
+- Terminal tab: Cost Awareness Thresholds inline editor
+  - View/edit mode, levels auto-assigned (warn/alert/critical)
+  - Saves via POST /api/governance/update with cost_awareness key
 
 ### Key Technical Decisions
 - Enforcement: deterministic, no LLM, never probabilistic
@@ -128,7 +133,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 415/415 passing
+- 422/422 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -315,7 +320,7 @@ governance.yaml's authorized scope?)
 **Python backend:**
 - `agentguard/checks/cost.py` — session cost calculation, live pricing fetch, hardcoded fallback
 - `agentguard/notifications.py` — cross-platform desktop notifications (macOS/Linux/Windows)
-- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair + /api/report + POST /api/governance/update
+- `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair + /api/report + POST /api/governance/update + GET /api/watch/history + GET /api/session/cost + GET /api/cost-awareness
 - `agentguard/checks/report.py` — Layer 4, generate_report_data() + generate_report()
 - `agentguard/checks/preflight.py` — Layer 1
 - `agentguard/enforcement/enforcer.py` — Layer 2, session logging
@@ -353,4 +358,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Auto-synced 1 commit(s) to 9c802c0
+2026-06-21 – Web UI: live watch history, session cost header, cost awareness editor

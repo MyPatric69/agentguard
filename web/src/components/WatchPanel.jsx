@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 
 export default function WatchPanel({ projectPath }) {
+  const [historyEntries, setHistoryEntries] = useState([])
   const [entries, setEntries] = useState([])
   const [status, setStatus] = useState('connecting')
   const [stats, setStats] = useState({ allowed: 0, denied: 0, total: 0 })
@@ -8,6 +9,17 @@ export default function WatchPanel({ projectPath }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
+    setHistoryEntries([])
+    fetch(`/api/watch/history?path=${encodeURIComponent(projectPath)}`)
+      .then(r => r.json())
+      .then(d => setHistoryEntries(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }, [projectPath])
+
+  useEffect(() => {
+    setEntries([])
+    setStats({ allowed: 0, denied: 0, total: 0 })
+
     const ws = new WebSocket(
       `ws://localhost:8767/ws/watch?path=${encodeURIComponent(projectPath)}`
     )
@@ -44,6 +56,51 @@ export default function WatchPanel({ projectPath }) {
     allow: 'var(--ok)',
     deny: 'var(--critical)',
   }
+
+  const renderEntry = (entry, key, dimmed) => (
+    <div key={key} style={{
+      display: 'flex', gap: '10px', alignItems: 'flex-start',
+      padding: '6px 0',
+      borderBottom: '1px solid var(--border-subtle)',
+      fontSize: '12px',
+      opacity: dimmed ? 0.45 : 1,
+    }}>
+      <span style={{
+        color: DECISION_COLOR[entry.decision] || 'var(--text-muted)',
+        flexShrink: 0, fontWeight: '700', width: '14px'
+      }}>
+        {entry.decision === 'allow' ? '✓' : '✗'}
+      </span>
+      <span style={{ color: 'var(--accent)', flexShrink: 0, width: '80px' }}>
+        {entry.tool}
+      </span>
+      <span style={{
+        color: 'var(--text-secondary)', flex: 1,
+        overflow: 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }}>
+        {entry.input_summary}
+      </span>
+      {entry.reason && (
+        <span style={{
+          color: 'var(--critical)', fontSize: '11px',
+          flexShrink: 0, maxWidth: '200px',
+          overflow: 'hidden', textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {entry.reason}
+        </span>
+      )}
+      <span style={{
+        color: 'var(--text-muted)', flexShrink: 0, fontSize: '10px'
+      }}>
+        {new Date(entry.timestamp).toLocaleTimeString()}
+      </span>
+    </div>
+  )
+
+  const hasHistory = historyEntries.length > 0
+  const hasLive = entries.length > 0
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -90,7 +147,7 @@ export default function WatchPanel({ projectPath }) {
         borderRadius: '12px', border: '1px solid var(--border)',
         overflow: 'auto', padding: '12px'
       }}>
-        {entries.length === 0 ? (
+        {!hasHistory && !hasLive ? (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             height: '100%', color: 'var(--text-muted)', fontSize: '14px',
@@ -101,46 +158,23 @@ export default function WatchPanel({ projectPath }) {
             <code style={{ fontSize: '12px' }}>claude</code>
           </div>
         ) : (
-          entries.map((entry, i) => (
-            <div key={i} style={{
-              display: 'flex', gap: '10px', alignItems: 'flex-start',
-              padding: '6px 0',
-              borderBottom: '1px solid var(--border-subtle)',
-              fontSize: '12px'
-            }}>
-              <span style={{
-                color: DECISION_COLOR[entry.decision] || 'var(--text-muted)',
-                flexShrink: 0, fontWeight: '700', width: '14px'
+          <>
+            {hasHistory && historyEntries.map((entry, i) =>
+              renderEntry(entry, `h${i}`, true)
+            )}
+            {hasHistory && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 0', margin: '4px 0',
+                fontSize: '10px', color: 'var(--text-muted)',
               }}>
-                {entry.decision === 'allow' ? '✓' : '✗'}
-              </span>
-              <span style={{ color: 'var(--accent)', flexShrink: 0, width: '80px' }}>
-                {entry.tool}
-              </span>
-              <span style={{
-                color: 'var(--text-secondary)', flex: 1,
-                overflow: 'hidden', textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                {entry.input_summary}
-              </span>
-              {entry.reason && (
-                <span style={{
-                  color: 'var(--critical)', fontSize: '11px',
-                  flexShrink: 0, maxWidth: '200px',
-                  overflow: 'hidden', textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {entry.reason}
-                </span>
-              )}
-              <span style={{
-                color: 'var(--text-muted)', flexShrink: 0, fontSize: '10px'
-              }}>
-                {new Date(entry.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-          ))
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                <span>live</span>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+              </div>
+            )}
+            {entries.map((entry, i) => renderEntry(entry, `l${i}`, false))}
+          </>
         )}
         <div ref={bottomRef} />
       </div>

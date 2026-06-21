@@ -302,6 +302,121 @@ def test_governance_update_appends_history(tmp_path):
     assert history[-1]["tool"] == "agentguard web (inline editor)"
 
 
+def test_watch_history_missing_log(tmp_path):
+    resp = client.get(f"/api/watch/history?path={tmp_path}")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_watch_history_filters_and_limits(tmp_path):
+    import json as _json
+
+    log_dir = tmp_path / ".agentguard"
+    log_dir.mkdir()
+    entries = []
+    for i in range(55):
+        entries.append({
+            "timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
+            "decision": "allow", "input_summary": f"cmd{i}", "session_id": "s1",
+        })
+    entries.append({"event": "session_cost", "total_usd": 0.12, "session_id": "s1"})
+    entries.append({"event": "post_tool_use", "tool_use_id": "x", "session_id": "s1"})
+    entries.append({"event": "session_cost_notified", "at_usd": 0.50, "session_id": "s1"})
+    (log_dir / "session.log").write_text(
+        "\n".join(_json.dumps(e) for e in entries) + "\n"
+    )
+    resp = client.get(f"/api/watch/history?path={tmp_path}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 50
+    assert all("decision" in e for e in data)
+    skip = {"session_cost", "session_cost_notified", "post_tool_use"}
+    assert all(e.get("event") not in skip for e in data)
+
+
+def test_session_cost_missing_log(tmp_path):
+    resp = client.get(f"/api/session/cost?path={tmp_path}")
+    assert resp.status_code == 200
+    assert resp.json() == {"session_cost": None}
+
+
+def test_session_cost_returns_latest(tmp_path):
+    import json as _json
+
+    log_dir = tmp_path / ".agentguard"
+    log_dir.mkdir()
+    entries = [
+        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
+         "total_usd": 0.05, "input_tokens": 100},
+        {"event": "session_cost", "session_id": "s2", "model": "claude-sonnet-4-6",
+         "total_usd": 0.12, "input_tokens": 200},
+    ]
+    (log_dir / "session.log").write_text(
+        "\n".join(_json.dumps(e) for e in entries) + "\n"
+    )
+    resp = client.get(f"/api/session/cost?path={tmp_path}")
+    data = resp.json()["session_cost"]
+    assert data is not None
+    assert data["total_usd"] == 0.12
+    assert data["session_id"] == "s2"
+
+
+def test_cost_awareness_absent(tmp_path):
+    (tmp_path / "governance.yaml").write_text("owner: Test\n")
+    resp = client.get(f"/api/cost-awareness?path={tmp_path}")
+    assert resp.status_code == 200
+    assert resp.json() == {"cost_awareness": None}
+
+
+def test_cost_awareness_returns_block(tmp_path):
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Test\n"
+        "cost_awareness:\n"
+        "  thresholds:\n"
+        "    - at_usd: 0.50\n"
+        "      level: warn\n"
+        "    - at_usd: 2.00\n"
+        "      level: alert\n"
+        "  repeat_last_threshold: true\n"
+        "  repeat_interval_usd: 2.0\n"
+    )
+    resp = client.get(f"/api/cost-awareness?path={tmp_path}")
+    assert resp.status_code == 200
+    ca = resp.json()["cost_awareness"]
+    assert ca is not None
+    assert len(ca["thresholds"]) == 2
+    assert ca["thresholds"][0]["at_usd"] == 0.5
+    assert ca["thresholds"][0]["level"] == "warn"
+    assert ca["repeat_last_threshold"] is True
+
+
+def test_governance_update_cost_awareness(tmp_path):
+    import yaml
+
+    gov = tmp_path / "governance.yaml"
+    gov.write_text("owner: Test\nscope:\n  authorized: []\n")
+    new_ca = {
+        "thresholds": [
+            {"at_usd": 1.0, "level": "warn"},
+            {"at_usd": 3.0, "level": "alert"},
+        ],
+        "repeat_last_threshold": True,
+        "repeat_interval_usd": 2.0,
+    }
+    resp = client.post("/api/governance/update", json={
+        "path": str(tmp_path),
+        "cost_awareness": new_ca,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+    data = yaml.safe_load(gov.read_text())
+    assert data["cost_awareness"]["thresholds"][0]["at_usd"] == 1.0
+    assert data["cost_awareness"]["thresholds"][1]["level"] == "alert"
+    history = data.get("governance_history", [])
+    assert len(history) >= 1
+    assert "cost_awareness" in history[-1]["action"]
+
+
 # WebSocket PTY endpoint (/ws/terminal) requires a real PTY process and cannot
 # be tested with TestClient. Manual test: open the web UI Terminal tab and
 # verify the shell connects and agentguard commands run interactively.

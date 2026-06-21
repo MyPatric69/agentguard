@@ -7,6 +7,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Web UI: Live Watch tab now loads last 50 historical entries on open,
+  with visual distinction from live entries (dimmed + `── live ──` separator).
+- Web UI: Header shows current session cost ($X.XX · model) updated
+  every 30 seconds via `GET /api/session/cost`.
+- Web UI: Terminal tab shows Cost Awareness Thresholds block with
+  inline edit form — update `governance.yaml` thresholds without
+  leaving the browser. Levels auto-assigned (warn/alert/critical).
+  Note shown: saving triggers AgentGuard confirmation.
+
 ## [0.10.7] - 2026-06-21
 
 ### Changed
