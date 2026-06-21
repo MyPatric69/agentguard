@@ -137,6 +137,7 @@ export default function WatchPanel({ projectPath }) {
                 color: 'var(--text-secondary)',
                 wordBreak: 'break-word', whiteSpace: 'pre-wrap',
                 display: 'block', marginTop: '2px', minWidth: 0,
+                overflow: 'hidden', overflowWrap: 'anywhere',
               }}>
                 {entry.input_summary || '—'}
               </span>
@@ -148,6 +149,7 @@ export default function WatchPanel({ projectPath }) {
                   color: 'var(--critical)',
                   wordBreak: 'break-word', whiteSpace: 'pre-wrap',
                   display: 'block', marginTop: '2px',
+                  overflow: 'hidden', overflowWrap: 'anywhere',
                 }}>
                   {entry.reason}
                 </span>

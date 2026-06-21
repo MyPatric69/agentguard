@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v1.0.6: input_summary 100→500 chars in session.log
+2026-06-21 – Auto-synced 1 commit(s) to 3cbae42
