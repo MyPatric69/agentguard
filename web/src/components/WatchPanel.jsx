@@ -129,14 +129,14 @@ export default function WatchPanel({ projectPath }) {
             background: 'var(--bg-elevated, rgba(255,255,255,0.04))',
             padding: '8px 8px 8px 20px',
             fontSize: '12px', lineHeight: '1.6', width: '100%',
-            boxSizing: 'border-box',
+            boxSizing: 'border-box', minWidth: 0,
           }}>
             <div style={{ marginBottom: entry.reason ? '6px' : 0 }}>
               <span style={{ color: 'var(--text-muted)', fontWeight: '600', marginRight: '8px' }}>Input:</span>
               <span style={{
                 color: 'var(--text-secondary)',
                 wordBreak: 'break-word', whiteSpace: 'pre-wrap',
-                display: 'block', marginTop: '2px',
+                display: 'block', marginTop: '2px', minWidth: 0,
               }}>
                 {entry.input_summary || '—'}
               </span>
@@ -205,7 +205,7 @@ export default function WatchPanel({ projectPath }) {
       <div style={{
         flex: 1, background: 'var(--bg-surface)',
         borderRadius: '12px', border: '1px solid var(--border)',
-        overflow: 'auto', padding: '12px'
+        overflow: 'auto', padding: '12px', width: '100%',
       }}>
         {!hasHistory && !hasLive ? (
           <div style={{

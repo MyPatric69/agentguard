@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v1.0.4: fix Live Watch expandable rows (chevron, full text, click target)
+2026-06-21 – Auto-synced 2 commit(s) to 087a909
