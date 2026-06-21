@@ -5,8 +5,11 @@ export default function WatchPanel({ projectPath }) {
   const [entries, setEntries] = useState([])
   const [status, setStatus] = useState('connecting')
   const [stats, setStats] = useState({ allowed: 0, denied: 0, total: 0 })
+  const [expanded, setExpanded] = useState({})
   const wsRef = useRef(null)
   const bottomRef = useRef(null)
+
+  const toggleExpand = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
 
   useEffect(() => {
     setHistoryEntries([])
@@ -57,45 +60,89 @@ export default function WatchPanel({ projectPath }) {
     deny: 'var(--critical)',
   }
 
-  const renderEntry = (entry, key, dimmed) => (
-    <div key={key} style={{
-      display: 'flex', gap: '10px', alignItems: 'flex-start',
-      padding: '6px 0',
-      borderBottom: '1px solid var(--border-subtle)',
-      fontSize: '12px',
-      opacity: dimmed ? 0.45 : 1,
-    }}>
-      <span style={{
-        color: DECISION_COLOR[entry.decision] || 'var(--text-muted)',
-        flexShrink: 0, fontWeight: '700', width: '14px'
+  const renderEntry = (entry, key, dimmed) => {
+    const isExpanded = expanded[key] || false
+    const decisionColor = DECISION_COLOR[entry.decision] || 'var(--text-muted)'
+    return (
+      <div key={key} style={{
+        borderBottom: '1px solid var(--border-subtle)',
+        fontSize: '12px',
+        opacity: dimmed ? 0.45 : 1,
       }}>
-        {entry.decision === 'allow' ? '✓' : '✗'}
-      </span>
-      <span style={{ color: 'var(--accent)', flexShrink: 0, width: '80px' }}>
-        {entry.tool}
-      </span>
-      <span style={{
-        color: 'var(--text-secondary)', flex: 1,
-        wordBreak: 'break-word'
-      }}>
-        {entry.input_summary}
-      </span>
-      {entry.reason && (
-        <span style={{
-          color: 'var(--critical)', fontSize: '11px',
-          flexShrink: 0, maxWidth: '200px',
-          wordBreak: 'break-word'
-        }}>
-          {entry.reason}
-        </span>
-      )}
-      <span style={{
-        color: 'var(--text-muted)', flexShrink: 0, fontSize: '10px'
-      }}>
-        {new Date(entry.timestamp).toLocaleTimeString()}
-      </span>
-    </div>
-  )
+        {/* Compact row */}
+        <div
+          onClick={() => toggleExpand(key)}
+          style={{
+            display: 'flex', gap: '10px', alignItems: 'center',
+            padding: '6px 0', cursor: 'pointer',
+          }}
+        >
+          <span style={{
+            color: decisionColor,
+            flexShrink: 0, fontWeight: '700', width: '14px'
+          }}>
+            {entry.decision === 'allow' ? '✓' : '✗'}
+          </span>
+          <span style={{ color: 'var(--accent)', flexShrink: 0, width: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {entry.tool}
+          </span>
+          <span style={{
+            color: 'var(--text-secondary)', flex: 1,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {entry.input_summary}
+          </span>
+          {entry.reason && (
+            <span style={{
+              color: entry.decision === 'deny' ? 'var(--critical)' : 'var(--warning)',
+              fontSize: '11px', flexShrink: 0,
+              maxWidth: '150px', overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              background: entry.decision === 'deny' ? 'rgba(239,68,68,0.12)' : 'rgba(251,191,36,0.12)',
+              borderRadius: '4px', padding: '1px 5px',
+            }}>
+              {entry.reason}
+            </span>
+          )}
+          <span style={{
+            color: 'var(--text-muted)', flexShrink: 0, fontSize: '10px'
+          }}>
+            {new Date(entry.timestamp).toLocaleTimeString()}
+          </span>
+          <span style={{
+            color: 'var(--text-muted)', flexShrink: 0, fontSize: '11px', width: '12px', textAlign: 'center'
+          }}>
+            {isExpanded ? '▾' : '▸'}
+          </span>
+        </div>
+        {/* Expanded detail */}
+        {isExpanded && (
+          <div style={{
+            paddingLeft: '20px', paddingBottom: '8px',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '6px', marginBottom: '4px',
+            background: 'var(--bg-surface)',
+            fontSize: '12px', lineHeight: '1.6',
+          }}>
+            <div style={{ padding: '6px 8px' }}>
+              <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Input: </span>
+              <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
+                {entry.input_summary}
+              </span>
+            </div>
+            {entry.reason && (
+              <div style={{ padding: '0 8px 4px' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Reason: </span>
+                <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
+                  {entry.reason}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const hasHistory = historyEntries.length > 0
   const hasLive = entries.length > 0
