@@ -298,3 +298,121 @@ def test_generate_report_cli_path_flag(tmp_path):
     assert result.exit_code == 0
     assert out.exists()
     assert "## ROI Summary" in out.read_text()
+
+
+# ── Executive Summary ────────────────────────────────────────────────────────
+
+
+def _make_session_log(tmp_path, entries):
+    log_dir = tmp_path / ".agentguard"
+    log_dir.mkdir(exist_ok=True)
+    (log_dir / "session.log").write_text(
+        "\n".join(json.dumps(e) for e in entries) + "\n"
+    )
+
+
+def _allow(tool="Bash", ts="2026-06-21T10:00:00+00:00"):
+    return {"timestamp": ts, "tool": tool, "decision": "allow",
+            "input_summary": "ok", "session_id": "s1"}
+
+
+def _deny(tool="Edit", ts="2026-06-21T10:01:00+00:00"):
+    return {"timestamp": ts, "tool": tool, "decision": "deny",
+            "input_summary": "bad", "reason": "prohibited", "session_id": "s1"}
+
+
+def test_executive_summary_productive_yes(tmp_path):
+    """Clean session (low deny, no proposals) → ✅ Yes."""
+    _make_session_log(tmp_path, [_allow(), _allow(ts="2026-06-21T10:01:00+00:00")])
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["productive"] == "✅ Yes"
+    assert data["executive_summary"]["governance_status"] == "All rules enforced — 0 violations"
+    assert data["executive_summary"]["open_items"] == "0 proposal(s) pending owner review"
+
+
+def test_executive_summary_review_needed_deny(tmp_path):
+    """deny >= 20% of total → ⚠️ Review needed (not ❌)."""
+    # 3 allow + 1 deny = 25% deny rate → Review needed
+    entries = [
+        _allow(ts="2026-06-21T10:00:00+00:00"),
+        _allow(ts="2026-06-21T10:01:00+00:00"),
+        _allow(ts="2026-06-21T10:02:00+00:00"),
+        _deny(ts="2026-06-21T10:03:00+00:00"),
+    ]
+    _make_session_log(tmp_path, entries)
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["productive"] == "⚠️ Review needed"
+
+
+def test_executive_summary_issues_detected_high_deny(tmp_path):
+    """deny >= 50% of total → ❌ Issues detected."""
+    # 1 allow + 1 deny = 50% deny rate → Issues detected
+    _make_session_log(tmp_path, [_allow(), _deny(ts="2026-06-21T10:01:00+00:00")])
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["productive"] == "❌ Issues detected"
+
+
+def test_executive_summary_issues_detected_burn(tmp_path):
+    """BURN_WARNING in watch log → ❌ Issues detected regardless of deny rate."""
+    _make_session_log(tmp_path, [_allow()])
+    (tmp_path / "agentguard.log").write_text(
+        json.dumps({"event": "BURN_WARNING", "message": "token burn"}) + "\n"
+    )
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["productive"] == "❌ Issues detected"
+    assert "runtime violation" in data["executive_summary"]["governance_status"]
+
+
+def test_executive_summary_cost_within_budget(tmp_path):
+    """Cost below all thresholds → '$X.XX — within budget'."""
+    _make_session_log(tmp_path, [
+        _allow(),
+        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
+         "total_usd": 0.25, "pricing_source": "live"},
+    ])
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Test\ncost_awareness:\n  thresholds:\n"
+        "    - at_usd: 0.50\n      level: warn\n"
+        "    - at_usd: 2.00\n      level: alert\n"
+    )
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["cost_label"] == "$0.2500 — within budget"
+
+
+def test_executive_summary_cost_above_alert(tmp_path):
+    """Cost above alert threshold → correct label with ⚠️."""
+    _make_session_log(tmp_path, [
+        _allow(),
+        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
+         "total_usd": 1.50, "pricing_source": "live"},
+    ])
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Test\ncost_awareness:\n  thresholds:\n"
+        "    - at_usd: 0.50\n      level: warn\n"
+        "    - at_usd: 1.00\n      level: alert\n"
+    )
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["cost_label"] == "$1.5000 — above alert threshold ⚠️"
+
+
+def test_executive_summary_no_cost_awareness(tmp_path):
+    """No cost_awareness in governance.yaml → plain '$X.XX' with no threshold label."""
+    _make_session_log(tmp_path, [
+        _allow(),
+        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
+         "total_usd": 0.42, "pricing_source": "live"},
+    ])
+    (tmp_path / "governance.yaml").write_text("owner: Test\n")
+    data = generate_report_data(tmp_path)
+    assert data["executive_summary"]["cost_label"] == "$0.4200"
+
+
+def test_executive_summary_appears_first_in_markdown(tmp_path):
+    """## Executive Summary section must appear before ## ROI Summary."""
+    _make_session_log(tmp_path, [_allow()])
+    out = tmp_path / "report.md"
+    text = generate_report(tmp_path, out)
+    exec_idx = text.index("## Executive Summary")
+    roi_idx = text.index("## ROI Summary")
+    assert exec_idx < roi_idx
+    assert "✅ Yes" in text

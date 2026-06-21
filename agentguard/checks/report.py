@@ -7,6 +7,56 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+import yaml
+
+
+def _cost_label(total_usd: float | None, cost_awareness: dict | None) -> str:
+    if total_usd is None:
+        return "N/A"
+    base = f"${total_usd:.4f}"
+    if not cost_awareness or not cost_awareness.get("thresholds"):
+        return base
+    thresholds = sorted(cost_awareness["thresholds"], key=lambda t: t["at_usd"])
+    level_hit = None
+    for t in thresholds:
+        if total_usd >= t["at_usd"]:
+            level_hit = t["level"]
+    if level_hit is None:
+        return f"{base} — within budget"
+    if level_hit == "warn":
+        return f"{base} — above warning threshold"
+    if level_hit == "alert":
+        return f"{base} — above alert threshold ⚠️"
+    return f"{base} — critical ❌"
+
+
+def _productivity_status(
+    denied: int,
+    total: int,
+    proposals_pending: int,
+    loop_count: int,
+    stall_count: int,
+    burn_count: int,
+) -> str:
+    deny_pct = denied / total * 100 if total > 0 else 0
+    if deny_pct >= 50 or burn_count > 0:
+        return "❌ Issues detected"
+    if deny_pct >= 20 or proposals_pending > 0 or loop_count > 0 or stall_count > 0:
+        return "⚠️ Review needed"
+    return "✅ Yes"
+
+
+def _governance_status(denied: int, loop_count: int, stall_count: int, burn_count: int) -> str:
+    runtime_issues = loop_count + stall_count + burn_count
+    if denied == 0 and runtime_issues == 0:
+        return "All rules enforced — 0 violations"
+    parts = []
+    if denied:
+        parts.append(f"{denied} action(s) blocked by governance rules")
+    if runtime_issues:
+        parts.append(f"{runtime_issues} runtime violation(s) detected")
+    return "; ".join(parts)
+
 
 def generate_report_data(project_path: str | Path) -> dict:
     """
@@ -80,6 +130,30 @@ def generate_report_data(project_path: str | Path) -> dict:
         "entries": proposal_entries,
     }
 
+    governance_path = path / "governance.yaml"
+    cost_awareness = None
+    if governance_path.exists():
+        try:
+            gov = yaml.safe_load(governance_path.read_text())
+            cost_awareness = gov.get("cost_awareness") if gov else None
+        except Exception:
+            pass
+
+    loop_count = watch_counts.get("LOOP_WARNING", 0)
+    stall_count = watch_counts.get("STALL_WARNING", 0)
+    burn_count = watch_counts.get("BURN_WARNING", 0)
+    total_usd = session_cost.get("total_usd") if session_cost else None
+
+    executive_summary = {
+        "productive": _productivity_status(
+            denied, total, proposals["pending"], loop_count, stall_count, burn_count
+        ),
+        "cost_label": _cost_label(total_usd, cost_awareness),
+        "work_completed": f"{total} action(s) executed, {denied} blocked by governance",
+        "governance_status": _governance_status(denied, loop_count, stall_count, burn_count),
+        "open_items": f"{proposals['pending']} proposal(s) pending owner review",
+    }
+
     return {
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "project": str(path.resolve()),
@@ -96,6 +170,8 @@ def generate_report_data(project_path: str | Path) -> dict:
         "session_cost": session_cost,
         "session_id": session_id,
         "proposals": proposals,
+        "cost_awareness": cost_awareness,
+        "executive_summary": executive_summary,
         "has_data": total > 0 or len(watch_events) > 0 or session_cost is not None,
     }
 
@@ -111,6 +187,7 @@ def generate_report(project_path: str | Path, output_path: str | Path = "report.
     asked = data["asked"]
     duration = data["duration"] or "N/A"
     proposals = data["proposals"]
+    exec_sum = data["executive_summary"]
 
     def pct(n: int) -> str:
         return f"{round(n / total * 100)}%" if total > 0 else "0%"
@@ -128,6 +205,18 @@ def generate_report(project_path: str | Path, output_path: str | Path = "report.
         "",
         f"Generated: {data['generated']}",
         f"Project: {data['project']}",
+        "",
+        "## Executive Summary",
+        "",
+        "> This report summarizes the AI agent session for non-technical stakeholders.",
+        "",
+        "| | |",
+        "|---|---|",
+        f"| **Session productive?** | {exec_sum['productive']} |",
+        f"| **AI cost** | {exec_sum['cost_label']} |",
+        f"| **Work completed** | {exec_sum['work_completed']} |",
+        f"| **Governance status** | {exec_sum['governance_status']} |",
+        f"| **Open items** | {exec_sum['open_items']} |",
         "",
         "## ROI Summary",
         "",

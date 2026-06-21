@@ -109,6 +109,78 @@ export default function ReportPanel({ projectPath }) {
             {report.session_id && ` · Session: ${report.session_id.slice(0, 8)}`}
           </div>
 
+          {/* Executive Summary */}
+          {report.executive_summary && (() => {
+            const exec = report.executive_summary
+            const borderColor = exec.productive.startsWith('✅') ? 'var(--ok)'
+              : exec.productive.startsWith('❌') ? 'var(--critical)'
+              : 'var(--warning)'
+            return (
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: `2px solid ${borderColor}`,
+                borderRadius: '12px', padding: '20px',
+                marginBottom: '20px'
+              }}>
+                <div style={{
+                  fontSize: '13px', fontWeight: '600', marginBottom: '14px',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  Executive Summary
+                  <span style={{
+                    fontSize: '11px', color: 'var(--text-muted)',
+                    fontWeight: '400'
+                  }}>for non-technical readers</span>
+                </div>
+
+                <div style={{
+                  fontSize: '24px', fontWeight: '700', marginBottom: '16px',
+                  color: borderColor
+                }}>
+                  {exec.productive}
+                </div>
+
+                <div style={{
+                  display: 'flex', gap: '32px', flexWrap: 'wrap',
+                  fontSize: '12px', marginBottom: '14px'
+                }}>
+                  <div>
+                    <div style={{ color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      AI Cost
+                    </div>
+                    <div style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                      {exec.cost_label}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      Work Completed
+                    </div>
+                    <div style={{ color: 'var(--text-primary)' }}>
+                      {exec.work_completed}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      Open Items
+                    </div>
+                    <div style={{ color: 'var(--text-primary)' }}>
+                      {exec.open_items}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  borderTop: '1px solid var(--border)',
+                  paddingTop: '10px',
+                  fontSize: '11px', color: 'var(--text-muted)'
+                }}>
+                  Governance: {exec.governance_status}
+                </div>
+              </div>
+            )
+          })()}
+
           {/* ROI Summary */}
           <div style={{
             background: 'var(--bg-surface)',

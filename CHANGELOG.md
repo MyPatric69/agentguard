@@ -7,6 +7,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `agentguard report` now includes an **Executive Summary** section for
+  non-technical stakeholders (Owner/GF/PO): session productivity status
+  (✅ Yes / ⚠️ Review needed / ❌ Issues detected), AI cost vs configured
+  thresholds, work completed, governance status, open proposals.
+  Logic: ❌ if deny ≥ 50% or BURN_WARNING; ⚠️ if deny ≥ 20% or pending
+  proposals or loop/stall events; ✅ otherwise.
+- Web UI Report tab: Executive Summary card at the top with color-coded
+  border (green/amber/red) matching the session status, cost label, work
+  completed, and open items. Governance status in footer line.
+- `generate_report_data()` returns `executive_summary` dict and
+  `cost_awareness` (read from `governance.yaml`) — available to both CLI
+  and `/api/report`.
+
 ## [0.10.9] - 2026-06-21
 
 ### Changed
