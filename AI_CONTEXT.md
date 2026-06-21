@@ -358,4 +358,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Web UI: live watch history, session cost header, cost awareness editor
+2026-06-21 – Auto-synced 1 commit(s) to 950785a
