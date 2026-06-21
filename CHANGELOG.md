@@ -7,6 +7,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Component C: cost-awareness notification — AgentGuard calculates
+  session cost from JSONL transcript (live pricing from Anthropic
+  docs, with hardcoded fallback) and fires a desktop notification
+  when configurable thresholds are exceeded (`cost_awareness.warn_at_usd`,
+  `cost_awareness.alert_at_usd` in governance.yaml).
+  Session cost is logged to session.log as `event: session_cost`.
+- `agentguard check` now validates `cost_awareness` schema
+  (INFO if absent, PASS if valid, FAIL if `warn_at_usd >= alert_at_usd`).
+- `agentguard/checks/cost.py`: session cost calculation with live
+  pricing fetch and hardcoded fallback (no new required dependencies).
+- `agentguard/notifications.py`: cross-platform desktop notifications
+  (macOS/Linux/Windows). No additional dependencies required on macOS.
+
 ## [0.10.6] - 2026-06-18
 
 ### Added

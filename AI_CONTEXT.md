@@ -124,7 +124,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 350/350 passing
+- 384/384 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -250,11 +250,19 @@ Open design questions (2026-06-15):
   terminal, avoiding large-scale duplication of reviewer.py/
   concretizer.py logic.
 
-**C) Intent-Aware Live Observer** — LLM-based drift detection via JSONL
-transcript analysis (Layer 3: LLM allowed, warnings only, never blocks).
-Open question: what defines "intent" to compare drift against (user's
-initial prompt? a new `--intent` flag? governance.yaml's authorized
-scope)? Treat as a separate exploratory track — does not block A or B.
+**C) Cost-Awareness Notification** — **Implemented (v0.11.0, 2026-06-21).**
+`agentguard/checks/cost.py` calculates session cost from JSONL transcript
+(live pricing via urllib from Anthropic docs, hardcoded fallback). Desktop
+notification fired on Stop when `cost_awareness.warn_at_usd` or
+`alert_at_usd` thresholds are exceeded. Cost always logged to session.log
+as `event: session_cost`. `agentguard check` validates `cost_awareness`
+schema. 34 new tests, ruff clean.
+
+Original C (Intent-Aware Live Observer) remains open as a separate
+future track: LLM-based drift detection via JSONL transcript analysis
+(Layer 3: LLM allowed, warnings only, never blocks). Open question:
+what defines "intent" (user's initial prompt? `--intent` flag?
+governance.yaml's authorized scope?)
 
 ### path_policy tooling (future)
 - `agentguard init --guided` generates a default `path_policy` (commit 130a877).
@@ -288,6 +296,8 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 ## Key Files
 
 **Python backend:**
+- `agentguard/checks/cost.py` — session cost calculation, live pricing fetch, hardcoded fallback
+- `agentguard/notifications.py` — cross-platform desktop notifications (macOS/Linux/Windows)
 - `agentguard/web/server.py` — FastAPI + WebSocket PTY + /ws/watch + /api/verify-repair + /api/report + POST /api/governance/update
 - `agentguard/checks/report.py` — Layer 4, generate_report_data() + generate_report()
 - `agentguard/checks/preflight.py` — Layer 1
@@ -326,4 +336,4 @@ scope)? Treat as a separate exploratory track — does not block A or B.
 
 ## Last updated
 
-2026-06-19 – Reprioritized v1.0.0 components (C before B), added KI use-case idea to Optional/future
+2026-06-21 – Component C (cost-awareness notification) implemented

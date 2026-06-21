@@ -199,6 +199,40 @@ def handle_stop(data: dict, cwd_str: str) -> None:
         except OSError:
             pass
 
+    # Cost awareness: calculate session cost and fire notification if thresholds exceeded
+    if transcript_path:
+        try:
+            from agentguard.checks.cost import calculate_session_cost, fetch_pricing  # noqa: PLC0415,I001
+            from agentguard.notifications import notify_cost  # noqa: PLC0415
+
+            pricing = fetch_pricing()
+            cost_result = calculate_session_cost(transcript_path, pricing)
+            if cost_result is not None:
+                _write_session_log(cwd, {
+                    "event": "session_cost",
+                    "model": cost_result["model"],
+                    "total_usd": cost_result["total_usd"],
+                    "input_tokens": cost_result["input_tokens"],
+                    "output_tokens": cost_result["output_tokens"],
+                    "pricing_source": cost_result["pricing_source"],
+                })
+                config_path = cwd / "governance.yaml"
+                if config_path.exists():
+                    cfg = load_config(config_path)
+                    cost_cfg = cfg.get("cost_awareness")
+                    if isinstance(cost_cfg, dict):
+                        project = cfg.get("owner", str(cwd))
+                        warn_at = cost_cfg.get("warn_at_usd")
+                        alert_at = cost_cfg.get("alert_at_usd")
+                        total = cost_result["total_usd"]
+                        mdl = cost_result["model"]
+                        if alert_at is not None and total >= float(alert_at):
+                            notify_cost(total, mdl, "alert", project)
+                        elif warn_at is not None and total >= float(warn_at):
+                            notify_cost(total, mdl, "warn", project)
+        except Exception:
+            pass
+
 
 def _log_tool_call(
     cwd: Path,

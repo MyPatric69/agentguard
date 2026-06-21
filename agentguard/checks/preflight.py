@@ -147,6 +147,37 @@ def check_path_policy(governance: dict) -> Finding:
         return Finding("critical", str(exc))
 
 
+def check_cost_awareness(governance: dict) -> Finding:
+    """Check cost_awareness configuration.
+
+    Absent → INFO (backward-compatible, no notifications).
+    Valid  → ok with threshold summary.
+    Invalid → critical.
+    """
+    from agentguard.config.loader import GovernanceConfigError, load_cost_awareness  # noqa: PLC0415
+
+    if "cost_awareness" not in governance:
+        return Finding(
+            "info",
+            "cost_awareness not configured — no session cost notifications. "
+            "Add cost_awareness.warn_at_usd / alert_at_usd to governance.yaml to enable.",
+        )
+
+    try:
+        ca = load_cost_awareness(governance) or {}
+        warn_at = ca.get("warn_at_usd")
+        alert_at = ca.get("alert_at_usd")
+        parts = []
+        if warn_at is not None:
+            parts.append(f"warn_at_usd=${float(warn_at):.2f}")
+        if alert_at is not None:
+            parts.append(f"alert_at_usd=${float(alert_at):.2f}")
+        label = ", ".join(parts) if parts else "no thresholds set"
+        return Finding("ok", f"cost_awareness configured ({label})")
+    except GovernanceConfigError as exc:
+        return Finding("critical", str(exc))
+
+
 def run_preflight(
     project_path: str | Path,
     config_path: str | Path | None = None,
@@ -195,6 +226,7 @@ def run_preflight(
         findings.append(Finding("ok", "Killswitch defined"))
 
     findings.append(check_path_policy(config))
+    findings.append(check_cost_awareness(config))
 
     # ── Instruction file checks ───────────────────────────────────────────────
 

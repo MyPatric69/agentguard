@@ -141,6 +141,32 @@ def _parse_path_entries(
     return result
 
 
+def load_cost_awareness(governance: dict) -> dict | None:
+    """Return cost_awareness config dict, or None if absent.
+
+    Raises GovernanceConfigError if warn_at_usd >= alert_at_usd.
+    """
+    raw = governance.get("cost_awareness")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise GovernanceConfigError("cost_awareness must be a mapping")
+    warn_at = raw.get("warn_at_usd")
+    alert_at = raw.get("alert_at_usd")
+    if warn_at is not None and alert_at is not None:
+        try:
+            if float(warn_at) >= float(alert_at):
+                raise GovernanceConfigError(
+                    f"cost_awareness: warn_at_usd ({warn_at}) must be less than"
+                    f" alert_at_usd ({alert_at})"
+                )
+        except (TypeError, ValueError) as exc:
+            raise GovernanceConfigError(
+                f"cost_awareness: invalid threshold value — {exc}"
+            ) from exc
+    return raw
+
+
 def load_path_policy(governance: dict) -> PathPolicy:
     """Parse path_policy from a loaded governance dict.
 

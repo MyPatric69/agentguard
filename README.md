@@ -912,6 +912,26 @@ Evaluation order for each file-editing tool call: `denied_paths` → `protected_
 If the `path_policy` section is absent from `governance.yaml`, AgentGuard uses a built-in
 default that preserves pre-path_policy behavior exactly — no new gates for existing users.
 
+### cost_awareness (optional)
+
+Fires a desktop notification when session cost exceeds a threshold:
+
+```yaml
+cost_awareness:
+  warn_at_usd: 1.00   # yellow warning notification
+  alert_at_usd: 5.00  # red alert notification
+```
+
+AgentGuard fetches live pricing from the Anthropic docs page at Stop time and
+falls back to hardcoded values if the fetch fails. No additional dependencies
+are required (macOS: `osascript` + `afplay`, Linux: `notify-send`, both are
+system builtins). Session cost is always logged to `.agentguard/session.log`
+as `event: session_cost`, regardless of whether thresholds are configured.
+
+Both thresholds are optional — you can set either one or both.
+`warn_at_usd` must be less than `alert_at_usd` if both are present.
+If `cost_awareness` is absent, no notifications are fired (backward-compatible).
+
 ### Why structured governance matters
 
 Each governance rule includes:
