@@ -27,7 +27,7 @@ runs before, during, and after observability tools do.
 - Optional Web: FastAPI + uvicorn, React 18 + Vite 5, xterm.js
 - Build: hatchling, PyPI: agentguard-governance
 
-## Current State (v0.10.6)
+## Current State (v0.10.7)
 
 ### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -353,4 +353,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v0.10.7 release (Component C complete)
+2026-06-21 – Auto-synced 1 commit(s) to 9c802c0
