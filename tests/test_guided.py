@@ -12,7 +12,6 @@ from agentguard.cli import main
 from agentguard.guided.concretizer import (
     CONCRETIZATION_MODEL_OVERRIDES,
     _normalize_from_concretized,
-    _split_mission_concretized,
     concretize_field,
     concretize_mission,
 )
@@ -21,8 +20,16 @@ from agentguard.guided.concretizer import (
 
 _MOCK_MISSION = {
     "authorized": [{"action": "Read and write Python files in ./src", "reason": "Core task"}],
-    "prohibited": [{"action": "No database operations, no git push to main", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-    "requires_confirmation": [{"action": "Any file deletion outside ./tmp", "reason": "Needs human sign-off"}],
+    "prohibited": [
+        {
+            "action": "No database operations, no git push to main",
+            "reason": "Hard limit",
+            "severity": "HARD_LIMIT",
+        }
+    ],
+    "requires_confirmation": [
+        {"action": "Any file deletion outside ./tmp", "reason": "Needs human sign-off"}
+    ],
     "confidence": "HIGH",
     "ambiguities": [],
     "_provider": "anthropic",
@@ -30,7 +37,13 @@ _MOCK_MISSION = {
 }
 
 _MOCK_FIELD = {
-    "prohibited": [{"action": "No writes to ./production directory", "reason": "Production writes prohibited", "severity": "HARD_LIMIT"}],
+    "prohibited": [
+        {
+            "action": "No writes to ./production directory",
+            "reason": "Production writes prohibited",
+            "severity": "HARD_LIMIT",
+        }
+    ],
     "enforcement_notes": "Check file paths in Write tool calls",
     "confidence": "HIGH",
     "ambiguities": [],
@@ -39,22 +52,30 @@ _MOCK_FIELD = {
 }
 
 _HAPPY_PATH_INPUT = (
-    "\n"                  # pre-inquiry screen: press ENTER
-    "Jane Smith\n"        # step 1: owner
+    "\n"  # pre-inquiry screen: press ENTER
+    "Jane Smith\n"  # step 1: owner
     "implement features\n"  # step 2: mission
-    "1\n"                 # accept mission concretization
+    "1\n"  # accept mission concretization
     "no production writes\n"  # step 3: hard limits
-    "1\n"                 # accept hard limits concretization
+    "1\n"  # accept hard limits concretization
     "owner@example.com\n"  # step 4: escalation
-    "Ctrl+C\n"            # step 5: killswitch
-    "n\n"                 # cost awareness: skip
-    "1\n"                 # final review: save
+    "Ctrl+C\n"  # step 5: killswitch
+    "n\n"  # cost awareness: skip
+    "1\n"  # final review: save
 )
 
 _MOCK_MISSION_MEDIUM = {
     "authorized": [{"action": "Read and write Python files in ./src", "reason": "Core task"}],
-    "prohibited": [{"action": "No database operations, no git push to main", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-    "requires_confirmation": [{"action": "Any file deletion outside ./tmp", "reason": "Needs sign-off"}],
+    "prohibited": [
+        {
+            "action": "No database operations, no git push to main",
+            "reason": "Hard limit",
+            "severity": "HARD_LIMIT",
+        }
+    ],
+    "requires_confirmation": [
+        {"action": "Any file deletion outside ./tmp", "reason": "Needs sign-off"}
+    ],
     "confidence": "MEDIUM",
     "ambiguities": ["Definition of 'features' is unclear", "Scope of file access not bounded"],
     "_provider": "anthropic",
@@ -64,12 +85,15 @@ _MOCK_MISSION_MEDIUM = {
 
 # ── 1. Complete happy path: governance.yaml created ───────────────────────────
 
+
 def test_guided_complete_flow_saves_governance_yaml():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -81,6 +105,7 @@ def test_guided_complete_flow_saves_governance_yaml():
 
 
 # ── 2. Concretize field: AI response is parsed correctly ─────────────────────
+
 
 def test_concretize_field_parses_ai_response(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
@@ -104,6 +129,7 @@ def test_concretize_field_parses_ai_response(monkeypatch):
 
 
 # ── 3. Concretize mission: splits into three scope fields ────────────────────
+
 
 def test_concretize_mission_returns_three_scope_fields(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
@@ -131,6 +157,7 @@ def test_concretize_mission_returns_three_scope_fields(monkeypatch):
 
 # ── 4. No API key: concretize_field returns fallback ─────────────────────────
 
+
 def test_concretize_field_no_api_key_returns_fallback(monkeypatch):
     monkeypatch.delenv("AGENTGUARD_AI_PROVIDER", raising=False)
     monkeypatch.delenv("AGENTGUARD_AI_API_KEY", raising=False)
@@ -144,6 +171,7 @@ def test_concretize_field_no_api_key_returns_fallback(monkeypatch):
 
 
 # ── 5. API failure: concretize_field falls back gracefully ───────────────────
+
 
 def test_concretize_field_api_failure_returns_fallback(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
@@ -162,6 +190,7 @@ def test_concretize_field_api_failure_returns_fallback(monkeypatch):
 
 # ── 6. No API key in env: guided init shows clear error ──────────────────────
 
+
 def test_guided_no_api_key_shows_error():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -174,29 +203,32 @@ def test_guided_no_api_key_shows_error():
 
 # ── 7. Adjustment loop: 3 rounds max, then saved as-is ───────────────────────
 
+
 def test_guided_adjustment_loop_max_3_rounds_saves_as_is():
     runner = CliRunner()
     # Input for hard_limits: enter → adjust×2 → 3rd "2" → save as-is automatically
     user_input = (
-        "\n"                       # pre-inquiry screen: press ENTER
-        "Jane Smith\n"             # step 1: owner
-        "implement features\n"     # step 2: mission
-        "1\n"                      # accept mission
-        "no production writes\n"   # step 3: hard limits (round 0)
-        "2\n"                      # round 0: adjust
-        "be more specific\n"       # adjustment 1
-        "2\n"                      # round 1: adjust
-        "even more specific\n"     # adjustment 2
-        "2\n"                      # round 2: max rounds → save as-is
-        "owner@example.com\n"      # step 4: escalation
-        "Ctrl+C kill\n"            # step 5: killswitch
-        "n\n"                      # cost awareness: skip
-        "1\n"                      # final review: save
+        "\n"  # pre-inquiry screen: press ENTER
+        "Jane Smith\n"  # step 1: owner
+        "implement features\n"  # step 2: mission
+        "1\n"  # accept mission
+        "no production writes\n"  # step 3: hard limits (round 0)
+        "2\n"  # round 0: adjust
+        "be more specific\n"  # adjustment 1
+        "2\n"  # round 1: adjust
+        "even more specific\n"  # adjustment 2
+        "2\n"  # round 2: max rounds → save as-is
+        "owner@example.com\n"  # step 4: escalation
+        "Ctrl+C kill\n"  # step 5: killswitch
+        "n\n"  # cost awareness: skip
+        "1\n"  # final review: save
     )
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=user_input)
@@ -208,26 +240,29 @@ def test_guided_adjustment_loop_max_3_rounds_saves_as_is():
 
 # ── 9. Escalation: invalid contact triggers re-entry ────────────────────────
 
+
 def test_guided_escalation_invalid_contact_triggers_reentry():
     runner = CliRunner()
     user_input = (
-        "\n"                       # pre-inquiry screen: press ENTER
-        "Jane Smith\n"             # step 1: owner
-        "implement features\n"     # step 2: mission
-        "1\n"                      # accept mission
-        "no production writes\n"   # step 3: hard limits
-        "1\n"                      # accept hard limits
-        "invalidname\n"            # step 4: escalation (invalid — single word, no @)
-        "n\n"                      # decline override
-        "owner@example.com\n"      # step 4: escalation (valid — has @)
-        "Ctrl+C\n"                 # step 5: killswitch
-        "n\n"                      # cost awareness: skip
-        "1\n"                      # final review: save
+        "\n"  # pre-inquiry screen: press ENTER
+        "Jane Smith\n"  # step 1: owner
+        "implement features\n"  # step 2: mission
+        "1\n"  # accept mission
+        "no production writes\n"  # step 3: hard limits
+        "1\n"  # accept hard limits
+        "invalidname\n"  # step 4: escalation (invalid — single word, no @)
+        "n\n"  # decline override
+        "owner@example.com\n"  # step 4: escalation (valid — has @)
+        "Ctrl+C\n"  # step 5: killswitch
+        "n\n"  # cost awareness: skip
+        "1\n"  # final review: save
     )
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=user_input)
@@ -241,12 +276,15 @@ def test_guided_escalation_invalid_contact_triggers_reentry():
 
 # ── 10. Bug 4: Confirms field populated in governance.yaml ───────────────────
 
+
 def test_guided_confirms_field_written_to_governance_yaml():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -258,6 +296,7 @@ def test_guided_confirms_field_written_to_governance_yaml():
 
 
 # ── 8. Ctrl+C: save-progress prompt is shown ─────────────────────────────────
+
 
 def test_guided_ctrl_c_shows_save_progress_prompt():
     runner = CliRunner()
@@ -283,19 +322,30 @@ def test_guided_ctrl_c_shows_save_progress_prompt():
 
 # ── 11. Mission Format A: three explicit fields mapped correctly ──────────────
 
+
 def test_concretize_mission_format_a_maps_three_fields(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
 
     # AI returns new structured list format
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read and write Python files in ./src", "reason": "Core task"}],
-        "prohibited": [{"action": "No database writes, no git push to main", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "requires_confirmation": [{"action": "Any file deletion", "reason": "Needs sign-off"}],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
+    mock_response = json.dumps(
+        {
+            "authorized": [
+                {"action": "Read and write Python files in ./src", "reason": "Core task"}
+            ],
+            "prohibited": [
+                {
+                    "action": "No database writes, no git push to main",
+                    "reason": "Hard limit",
+                    "severity": "HARD_LIMIT",
+                }
+            ],
+            "requires_confirmation": [{"action": "Any file deletion", "reason": "Needs sign-off"}],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("implement features safely")
 
@@ -313,20 +363,23 @@ def test_concretize_mission_format_a_maps_three_fields(monkeypatch):
 
 # ── 12. Mission Format B: single concretized split into three fields ──────────
 
+
 def test_concretize_mission_format_b_split_into_three_fields(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "concretized": (
-            "Read and write Python files in ./src. "
-            "Must never delete production data. "
-            "Any deployment requires human approval."
-        ),
-        "confidence": "MEDIUM",
-        "ambiguities": [],
-    })
+    mock_response = json.dumps(
+        {
+            "concretized": (
+                "Read and write Python files in ./src. "
+                "Must never delete production data. "
+                "Any deployment requires human approval."
+            ),
+            "confidence": "MEDIUM",
+            "ambiguities": [],
+        }
+    )
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("implement features")
 
@@ -336,10 +389,13 @@ def test_concretize_mission_format_b_split_into_three_fields(monkeypatch):
     assert result.get("_format_b") is True
     assert not result.get("_fallback")
     assert any("never" in item.get("action", "").lower() for item in result["prohibited"])
-    assert any("approval" in item.get("action", "").lower() for item in result["requires_confirmation"])
+    assert any(
+        "approval" in item.get("action", "").lower() for item in result["requires_confirmation"]
+    )
 
 
-# ── 13. _split_mission_concretized: prohibited sentences extracted ────────────
+# ── 13. _normalize_from_concretized: prohibited sentences extracted ───────────
+
 
 def test_split_mission_concretized_extracts_prohibited_sentences():
     text = (
@@ -347,7 +403,10 @@ def test_split_mission_concretized_extracts_prohibited_sentences():
         "Must never write to ./production directory. "
         "Run pytest to verify changes."
     )
-    authorized, prohibited, confirmation = _split_mission_concretized(text)
+    parts = _normalize_from_concretized(text)
+    prohibited = parts["prohibited"]
+    authorized = parts["authorized"]
+    confirmation = parts["requires_confirmation"]
 
     assert isinstance(prohibited, list)
     assert any("Must never" in item.get("action", "") for item in prohibited)
@@ -355,7 +414,8 @@ def test_split_mission_concretized_extracts_prohibited_sentences():
     assert confirmation == []
 
 
-# ── 14. _split_mission_concretized: confirmation sentences extracted ──────────
+# ── 14. _normalize_from_concretized: confirmation sentences extracted ─────────
+
 
 def test_split_mission_concretized_extracts_confirmation_sentences():
     text = (
@@ -363,7 +423,10 @@ def test_split_mission_concretized_extracts_confirmation_sentences():
         "Any deployment requires human approval. "
         "Run tests automatically."
     )
-    authorized, prohibited, confirmation = _split_mission_concretized(text)
+    parts = _normalize_from_concretized(text)
+    prohibited = parts["prohibited"]
+    authorized = parts["authorized"]
+    confirmation = parts["requires_confirmation"]
 
     assert isinstance(confirmation, list)
     assert any("approval" in item.get("action", "").lower() for item in confirmation)
@@ -373,12 +436,15 @@ def test_split_mission_concretized_extracts_confirmation_sentences():
 
 # ── 15. Pre-inquiry screen shown before Step 1 ───────────────────────────────
 
+
 def test_guided_shows_pre_inquiry_screen_before_step_1():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -393,26 +459,30 @@ def test_guided_shows_pre_inquiry_screen_before_step_1():
 
 # ── 16. Ambiguity prompt shown when confidence MEDIUM + ambiguities present ───
 
+
 def test_guided_ambiguity_prompt_shown_for_medium_confidence():
     runner = CliRunner()
     # After accepting [1] mission, ambiguity panel appears → choose [1] Proceed
     user_input = (
-        "\n"                       # pre-inquiry ENTER
-        "Jane Smith\n"             # step 1: owner
-        "implement features\n"     # step 2: mission
-        "1\n"                      # accept concretized mission
-        "1\n"                      # ambiguity panel: [1] Proceed
-        "no production writes\n"   # step 3: hard limits
-        "1\n"                      # accept hard limits
-        "owner@example.com\n"      # step 4: escalation
-        "Ctrl+C\n"                 # step 5: killswitch
-        "n\n"                      # cost awareness: skip
-        "1\n"                      # final review: save
+        "\n"  # pre-inquiry ENTER
+        "Jane Smith\n"  # step 1: owner
+        "implement features\n"  # step 2: mission
+        "1\n"  # accept concretized mission
+        "1\n"  # ambiguity panel: [1] Proceed
+        "no production writes\n"  # step 3: hard limits
+        "1\n"  # accept hard limits
+        "owner@example.com\n"  # step 4: escalation
+        "Ctrl+C\n"  # step 5: killswitch
+        "n\n"  # cost awareness: skip
+        "1\n"  # final review: save
     )
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION_MEDIUM),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission",
+                return_value=_MOCK_MISSION_MEDIUM,
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=user_input)
@@ -423,12 +493,15 @@ def test_guided_ambiguity_prompt_shown_for_medium_confidence():
 
 # ── 17. Ambiguity prompt NOT shown when confidence HIGH + no ambiguities ──────
 
+
 def test_guided_ambiguity_prompt_not_shown_for_high_confidence():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -439,25 +512,29 @@ def test_guided_ambiguity_prompt_not_shown_for_high_confidence():
 
 # ── 18. [1] Proceed: ambiguities written as structured list in governance.yaml ─
 
+
 def test_guided_proceed_writes_ambiguities_as_yaml_comments():
     runner = CliRunner()
     user_input = (
         "\n"
         "Jane Smith\n"
         "implement features\n"
-        "1\n"                      # accept mission
-        "1\n"                      # ambiguity: [1] Proceed
+        "1\n"  # accept mission
+        "1\n"  # ambiguity: [1] Proceed
         "no production writes\n"
-        "1\n"                      # accept hard limits (HIGH, no ambiguity panel)
+        "1\n"  # accept hard limits (HIGH, no ambiguity panel)
         "owner@example.com\n"
         "Ctrl+C\n"
-        "n\n"                      # cost awareness: skip
+        "n\n"  # cost awareness: skip
         "1\n"
     )
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION_MEDIUM),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission",
+                return_value=_MOCK_MISSION_MEDIUM,
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=user_input)
@@ -470,22 +547,23 @@ def test_guided_proceed_writes_ambiguities_as_yaml_comments():
 
 # ── 19. [2] Address: re-concretization triggered with clarification ───────────
 
+
 def test_guided_address_ambiguity_triggers_reconcretization():
     runner = CliRunner()
     user_input = (
         "\n"
         "Jane Smith\n"
         "implement features\n"
-        "1\n"                      # accept mission (round 0)
-        "2\n"                      # ambiguity: [2] Address
+        "1\n"  # accept mission (round 0)
+        "2\n"  # ambiguity: [2] Address
         "features means Python files in ./src only\n"  # clarification
-        "1\n"                      # accept re-concretized mission (round 1)
-        "1\n"                      # ambiguity panel again: [1] Proceed (MEDIUM again)
+        "1\n"  # accept re-concretized mission (round 1)
+        "1\n"  # ambiguity panel again: [1] Proceed (MEDIUM again)
         "no production writes\n"
         "1\n"
         "owner@example.com\n"
         "Ctrl+C\n"
-        "n\n"                      # cost awareness: skip
+        "n\n"  # cost awareness: skip
         "1\n"
     )
     concretize_call_args = []
@@ -497,7 +575,10 @@ def test_guided_address_ambiguity_triggers_reconcretization():
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", side_effect=tracking_concretize_mission),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission",
+                side_effect=tracking_concretize_mission,
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=user_input)
@@ -509,12 +590,15 @@ def test_guided_address_ambiguity_triggers_reconcretization():
 
 # ── 20. Structured YAML: governance.yaml contains action/reason/severity ──────
 
+
 def test_guided_governance_yaml_has_structured_scope():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -533,12 +617,15 @@ def test_guided_governance_yaml_has_structured_scope():
 
 # ── 21. Structured YAML: reason field present for every item ──────────────────
 
+
 def test_guided_governance_yaml_has_reason_fields():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -552,16 +639,19 @@ def test_guided_governance_yaml_has_reason_fields():
 
 # ── 22. Format B fallback wraps sentences with auto-generated reason ──────────
 
+
 def test_concretize_mission_format_b_has_auto_reason(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "concretized": "Read Python files in ./src. Must never push to main.",
-        "confidence": "MEDIUM",
-        "ambiguities": [],
-    })
+    mock_response = json.dumps(
+        {
+            "concretized": "Read Python files in ./src. Must never push to main.",
+            "confidence": "MEDIUM",
+            "ambiguities": [],
+        }
+    )
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("implement features")
 
@@ -572,18 +662,29 @@ def test_concretize_mission_format_b_has_auto_reason(monkeypatch):
 
 # ── 23. Two-shot prompt produces Format A correctly ───────────────────────────
 
+
 def test_concretize_mission_two_shot_returns_format_a(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "authorized": [{"action": "Review performance metrics", "reason": "Core task"}],
-        "prohibited": [{"action": "Deploy without approval", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "requires_confirmation": [{"action": "Add new dependencies", "reason": "Security surface"}],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Review performance metrics", "reason": "Core task"}],
+            "prohibited": [
+                {
+                    "action": "Deploy without approval",
+                    "reason": "Hard limit",
+                    "severity": "HARD_LIMIT",
+                }
+            ],
+            "requires_confirmation": [
+                {"action": "Add new dependencies", "reason": "Security surface"}
+            ],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("improve system performance")
 
@@ -597,6 +698,7 @@ def test_concretize_mission_two_shot_returns_format_a(monkeypatch):
 
 # ── 24. _normalize_from_concretized: "never" → prohibited HARD_LIMIT ─────────
 
+
 def test_normalize_from_concretized_hard_limit_sentence():
     text = "Read Python files in ./src. The agent must never push to main."
     parts = _normalize_from_concretized(text)
@@ -606,6 +708,7 @@ def test_normalize_from_concretized_hard_limit_sentence():
 
 
 # ── 25. _normalize_from_concretized: "must not" → prohibited WARNING ──────────
+
 
 def test_normalize_from_concretized_must_not_is_warning():
     text = "Read source files in ./src. The agent must not write to ./production."
@@ -619,6 +722,7 @@ def test_normalize_from_concretized_must_not_is_warning():
 
 # ── 26. _normalize_from_concretized: "requires confirmation" → confirmation ───
 
+
 def test_normalize_from_concretized_requires_confirmation():
     text = "Run pytest suite. Any deployment requires human approval."
     parts = _normalize_from_concretized(text)
@@ -628,6 +732,7 @@ def test_normalize_from_concretized_requires_confirmation():
 
 
 # ── 27. _normalize_from_concretized: plain sentence → authorized ──────────────
+
 
 def test_normalize_from_concretized_plain_sentence_is_authorized():
     text = "Read and write Python files in ./src. Run the test suite."
@@ -640,19 +745,24 @@ def test_normalize_from_concretized_plain_sentence_is_authorized():
 
 # ── 28. concretize_mission uses max_tokens=800 ────────────────────────────────
 
+
 def test_concretize_mission_uses_max_tokens_800(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read files", "reason": "Core task"}],
-        "prohibited": [],
-        "requires_confirmation": [],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Read files", "reason": "Core task"}],
+            "prohibited": [],
+            "requires_confirmation": [],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         concretize_mission("implement features")
 
     assert mock_call.call_args.kwargs.get("max_tokens") == 800
@@ -660,20 +770,25 @@ def test_concretize_mission_uses_max_tokens_800(monkeypatch):
 
 # ── 29. Mission uses sonnet model for anthropic provider ──────────────────────
 
+
 def test_concretize_mission_uses_sonnet_for_anthropic(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read files", "reason": "Core task"}],
-        "prohibited": [],
-        "requires_confirmation": [],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Read files", "reason": "Core task"}],
+            "prohibited": [],
+            "requires_confirmation": [],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_mission("implement features")
 
     called_model = mock_call.call_args.args[3]
@@ -684,20 +799,25 @@ def test_concretize_mission_uses_sonnet_for_anthropic(monkeypatch):
 
 # ── 30. Mission uses gpt-4o for openai provider ───────────────────────────────
 
+
 def test_concretize_mission_uses_gpt4o_for_openai(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "openai")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read files", "reason": "Core task"}],
-        "prohibited": [],
-        "requires_confirmation": [],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Read files", "reason": "Core task"}],
+            "prohibited": [],
+            "requires_confirmation": [],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_mission("implement features")
 
     called_model = mock_call.call_args.args[3]
@@ -708,20 +828,25 @@ def test_concretize_mission_uses_gpt4o_for_openai(monkeypatch):
 
 # ── 31. AGENTGUARD_MISSION_MODEL env var overrides mission model ──────────────
 
+
 def test_concretize_mission_env_var_overrides_mission_model(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.setenv("AGENTGUARD_MISSION_MODEL", "claude-opus-4-20250514")
 
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read files", "reason": "Core task"}],
-        "prohibited": [],
-        "requires_confirmation": [],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Read files", "reason": "Core task"}],
+            "prohibited": [],
+            "requires_confirmation": [],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_mission("implement features")
 
     called_model = mock_call.call_args.args[3]
@@ -732,17 +857,20 @@ def test_concretize_mission_env_var_overrides_mission_model(monkeypatch):
 
 # ── 32. Format B fallback works even when sonnet returns it ───────────────────
 
+
 def test_concretize_mission_format_b_fallback_no_error(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "concretized": "Read Python files in ./src. Must never push to main. Deployments require human approval.",
-        "confidence": "MEDIUM",
-        "ambiguities": [],
-    })
+    mock_response = json.dumps(
+        {
+            "concretized": "Read Python files in ./src. Must never push to main. Deployments require human approval.",
+            "confidence": "MEDIUM",
+            "ambiguities": [],
+        }
+    )
     with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response):
         result = concretize_mission("implement features")
 
@@ -755,6 +883,7 @@ def test_concretize_mission_format_b_fallback_no_error(monkeypatch):
 
 
 # ── 33. Empty response triggers fallback, not "Could not concretize" ─────────
+
 
 def test_concretize_mission_empty_response_uses_fallback_not_invalid(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
@@ -772,6 +901,7 @@ def test_concretize_mission_empty_response_uses_fallback_not_invalid(monkeypatch
 
 
 # ── 34. Metadata comment uses actual mission model after save ─────────────────
+
 
 def test_save_guided_metadata_shows_mission_model():
     from pathlib import Path
@@ -804,6 +934,7 @@ def test_save_guided_metadata_shows_mission_model():
 
 # ── 35. Panel shows all items without truncation ──────────────────────────────
 
+
 def test_show_concretized_no_truncation():
     from io import StringIO
 
@@ -813,21 +944,18 @@ def test_show_concretized_no_truncation():
 
     step = {"splits_into": ["scope.authorized", "scope.prohibited", "scope.requires_confirmation"]}
     ai_result = {
-        "authorized": [
-            {"action": f"Action {i}", "reason": "Reason"} for i in range(5)
-        ],
+        "authorized": [{"action": f"Action {i}", "reason": "Reason"} for i in range(5)],
         "prohibited": [
             {"action": f"Block {i}", "reason": "Risk", "severity": "HARD_LIMIT"} for i in range(4)
         ],
-        "requires_confirmation": [
-            {"action": "Confirm deploy", "reason": "Needs sign-off"}
-        ],
+        "requires_confirmation": [{"action": "Confirm deploy", "reason": "Needs sign-off"}],
         "confidence": "HIGH",
         "ambiguities": [],
     }
 
     buf = StringIO()
     from agentguard import cli as cli_module
+
     original_console = cli_module._console
     cli_module._console = Console(file=buf, force_terminal=False)
     try:
@@ -847,10 +975,13 @@ def test_show_concretized_no_truncation():
 
 # ── 36. Ambiguities accumulated across adjustment rounds, deduped ─────────────
 
+
 def test_guided_ambiguities_accumulated_across_rounds():
     runner = CliRunner()
 
-    _prohibited_hl = [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}]
+    _prohibited_hl = [
+        {"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+    ]
     _confirmation = [{"action": "Any file deletion", "reason": "Irreversible"}]
 
     round_1_result = {
@@ -887,7 +1018,9 @@ def test_guided_ambiguities_accumulated_across_rounds():
         return "1"  # Proceed
 
     _MOCK_FIELD_HIGH = {
-        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "prohibited": [
+            {"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+        ],
         "confidence": "HIGH",
         "ambiguities": [],
         "_provider": "anthropic",
@@ -895,25 +1028,29 @@ def test_guided_ambiguities_accumulated_across_rounds():
     }
 
     user_input = (
-        "\n"                       # pre-inquiry
-        "Jane Smith\n"             # step 1: owner
-        "implement features\n"     # step 2: mission (round 1 → MEDIUM)
-        "2\n"                      # adjust
-        "be more specific\n"       # adjustment
-        "1\n"                      # accept round 2 (MEDIUM) → ambiguity panel (mocked, no prompt consumed)
-        "no production writes\n"   # step 3: hard limits
-        "1\n"                      # accept
-        "owner@example.com\n"      # step 4: escalation
-        "Ctrl+C\n"                 # step 5: killswitch
-        "n\n"                      # cost awareness: skip
-        "1\n"                      # final review: save
+        "\n"  # pre-inquiry
+        "Jane Smith\n"  # step 1: owner
+        "implement features\n"  # step 2: mission (round 1 → MEDIUM)
+        "2\n"  # adjust
+        "be more specific\n"  # adjustment
+        "1\n"  # accept round 2 (MEDIUM) → ambiguity panel (mocked, no prompt consumed)
+        "no production writes\n"  # step 3: hard limits
+        "1\n"  # accept
+        "owner@example.com\n"  # step 4: escalation
+        "Ctrl+C\n"  # step 5: killswitch
+        "n\n"  # cost awareness: skip
+        "1\n"  # final review: save
     )
 
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", side_effect=side_effect_mission),
-            mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD_HIGH),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", side_effect=side_effect_mission
+            ),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD_HIGH
+            ),
             mock.patch("agentguard.cli._show_ambiguity_panel", side_effect=mock_ambiguity_panel),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=user_input)
@@ -928,18 +1065,25 @@ def test_guided_ambiguities_accumulated_across_rounds():
 
 # ── 37. hard_limits uses sonnet model for anthropic provider ──────────────────
 
+
 def test_concretize_hard_limits_uses_sonnet_for_anthropic(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "prohibited": [
+                {"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+            ],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_field("hard_limits", "no production writes")
 
     called_model = mock_call.call_args.args[3]
@@ -950,19 +1094,24 @@ def test_concretize_hard_limits_uses_sonnet_for_anthropic(monkeypatch):
 
 # ── 38. concretize_field uses sonnet model for anthropic provider ─────────────
 
+
 def test_concretize_field_non_hard_limits_uses_sonnet_for_anthropic(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "concretized": "Email owner@example.com when 2+ failures occur",
-        "enforcement_notes": "Check escalation trigger",
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "concretized": "Email owner@example.com when 2+ failures occur",
+            "enforcement_notes": "Check escalation trigger",
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_field("escalation", "email me on failure")
 
     called_model = mock_call.call_args.args[3]
@@ -973,18 +1122,25 @@ def test_concretize_field_non_hard_limits_uses_sonnet_for_anthropic(monkeypatch)
 
 # ── 39. AGENTGUARD_MISSION_MODEL env var overrides hard_limits and field ──────
 
+
 def test_concretize_hard_limits_env_var_overrides_model(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.setenv("AGENTGUARD_MISSION_MODEL", "claude-opus-4-20250514")
 
-    mock_response = json.dumps({
-        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "prohibited": [
+                {"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+            ],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_field("hard_limits", "no production writes")
 
     called_model = mock_call.call_args.args[3]
@@ -999,13 +1155,17 @@ def test_concretize_field_env_var_overrides_model(monkeypatch):
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.setenv("AGENTGUARD_MISSION_MODEL", "claude-opus-4-20250514")
 
-    mock_response = json.dumps({
-        "concretized": "Email owner@example.com",
-        "enforcement_notes": "",
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "concretized": "Email owner@example.com",
+            "enforcement_notes": "",
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         result = concretize_field("escalation", "email me on failure")
 
     called_model = mock_call.call_args.args[3]
@@ -1015,6 +1175,7 @@ def test_concretize_field_env_var_overrides_model(monkeypatch):
 
 
 # ── 40. hard_limits fallback returns valid prohibited list on exception ────────
+
 
 def test_concretize_hard_limits_fallback_has_valid_prohibited_list(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
@@ -1037,6 +1198,7 @@ def test_concretize_hard_limits_fallback_has_valid_prohibited_list(monkeypatch):
 
 # ── 41. Step 2 question text references Claude Code ───────────────────────────
 
+
 def test_guided_step2_question_references_claude_code():
     from agentguard.cli import GUIDED_STEPS
 
@@ -1047,20 +1209,25 @@ def test_guided_step2_question_references_claude_code():
 
 # ── 42. temperature=0 used in all concretization calls ───────────────────────
 
+
 def test_concretize_mission_uses_temperature_0(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read files", "reason": "Core task"}],
-        "prohibited": [{"action": "No prod", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "requires_confirmation": [],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Read files", "reason": "Core task"}],
+            "prohibited": [{"action": "No prod", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+            "requires_confirmation": [],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         concretize_mission("implement features")
 
     assert mock_call.call_args.kwargs.get("temperature") == 0
@@ -1072,12 +1239,18 @@ def test_concretize_hard_limits_uses_temperature_0(monkeypatch):
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "prohibited": [{"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "prohibited": [
+                {"action": "No production writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+            ],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         concretize_field("hard_limits", "no production writes")
 
     assert mock_call.call_args.kwargs.get("temperature") == 0
@@ -1089,13 +1262,17 @@ def test_concretize_field_uses_temperature_0(monkeypatch):
     monkeypatch.delenv("AGENTGUARD_AI_MODEL", raising=False)
     monkeypatch.delenv("AGENTGUARD_MISSION_MODEL", raising=False)
 
-    mock_response = json.dumps({
-        "concretized": "Email owner@example.com on failure",
-        "enforcement_notes": "",
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response) as mock_call:
+    mock_response = json.dumps(
+        {
+            "concretized": "Email owner@example.com on failure",
+            "enforcement_notes": "",
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with mock.patch(
+        "agentguard.guided.concretizer._call_provider", return_value=mock_response
+    ) as mock_call:
         concretize_field("escalation", "email me on failure")
 
     assert mock_call.call_args.kwargs.get("temperature") == 0
@@ -1103,11 +1280,14 @@ def test_concretize_field_uses_temperature_0(monkeypatch):
 
 # ── 48. Governance review: menu choice routing ───────────────────────────────
 
+
 def _review_results() -> dict:
     return {
         "owner": "Jane Smith",
         "scope.authorized": [{"action": "Read files in ./src", "reason": "Core task"}],
-        "scope.prohibited": [{"action": "No prod writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "scope.prohibited": [
+            {"action": "No prod writes", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+        ],
         "scope.requires_confirmation": [],
         "escalation": "jane@example.com",
         "killswitch": "Ctrl+C",
@@ -1207,6 +1387,7 @@ def test_governance_review_choice_2_triggers_adjust_field_submenu(tmp_path, monk
 
 # ── 43. Validation error panel shown when mission has no authorized ───────────
 
+
 def test_show_validation_errors_renders_panel():
     from io import StringIO
 
@@ -1216,12 +1397,14 @@ def test_show_validation_errors_renders_panel():
     from agentguard.cli import _show_validation_errors
     from agentguard.guided.validator import ValidationIssue
 
-    issues = [ValidationIssue(
-        field="authorized",
-        severity="error",
-        message="No authorized actions defined",
-        fix="Define at least one concrete authorized action",
-    )]
+    issues = [
+        ValidationIssue(
+            field="authorized",
+            severity="error",
+            message="No authorized actions defined",
+            fix="Define at least one concrete authorized action",
+        )
+    ]
     buf = StringIO()
     original = cli_module._console
     cli_module._console = Console(file=buf, force_terminal=False)
@@ -1238,6 +1421,7 @@ def test_show_validation_errors_renders_panel():
 
 # ── 44. Validation warning panel shown when mission has no HARD_LIMIT ─────────
 
+
 def test_show_validation_warnings_renders_panel():
     from io import StringIO
 
@@ -1247,12 +1431,14 @@ def test_show_validation_warnings_renders_panel():
     from agentguard.cli import _show_validation_warnings
     from agentguard.guided.validator import ValidationIssue
 
-    issues = [ValidationIssue(
-        field="prohibited",
-        severity="warning",
-        message="No HARD_LIMIT rules defined",
-        fix="Mark your most critical prohibitions as HARD_LIMIT",
-    )]
+    issues = [
+        ValidationIssue(
+            field="prohibited",
+            severity="warning",
+            message="No HARD_LIMIT rules defined",
+            fix="Mark your most critical prohibitions as HARD_LIMIT",
+        )
+    ]
     buf = StringIO()
     original = cli_module._console
     cli_module._console = Console(file=buf, force_terminal=False)
@@ -1268,16 +1454,25 @@ def test_show_validation_warnings_renders_panel():
 
 # ── 45. concretize_mission result contains _pin dict ──────────────────────────
 
+
 def test_concretize_mission_result_has_pin():
-    mock_response = json.dumps({
-        "authorized": [{"action": "Read Python files in ./src", "reason": "Core task"}],
-        "prohibited": [{"action": "Deploy to production", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
-        "requires_confirmation": [{"action": "Delete files", "reason": "Irreversible"}],
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response), \
-         mock.patch("agentguard.guided.concretizer._get_env", return_value=("openai", "key", None, None)):
+    mock_response = json.dumps(
+        {
+            "authorized": [{"action": "Read Python files in ./src", "reason": "Core task"}],
+            "prohibited": [
+                {"action": "Deploy to production", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+            ],
+            "requires_confirmation": [{"action": "Delete files", "reason": "Irreversible"}],
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with (
+        mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response),
+        mock.patch(
+            "agentguard.guided.concretizer._get_env", return_value=("openai", "key", None, None)
+        ),
+    ):
         result = concretize_mission("Build a Python code assistant")
 
     assert "_pin" in result
@@ -1290,15 +1485,22 @@ def test_concretize_mission_result_has_pin():
 
 # ── 46. concretize_field result contains _pin dict ────────────────────────────
 
+
 def test_concretize_field_result_has_pin():
-    mock_response = json.dumps({
-        "concretized": "Send email via /api/notify only",
-        "enforcement_notes": "Block all other email calls",
-        "confidence": "HIGH",
-        "ambiguities": [],
-    })
-    with mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response), \
-         mock.patch("agentguard.guided.concretizer._get_env", return_value=("openai", "key", None, None)):
+    mock_response = json.dumps(
+        {
+            "concretized": "Send email via /api/notify only",
+            "enforcement_notes": "Block all other email calls",
+            "confidence": "HIGH",
+            "ambiguities": [],
+        }
+    )
+    with (
+        mock.patch("agentguard.guided.concretizer._call_provider", return_value=mock_response),
+        mock.patch(
+            "agentguard.guided.concretizer._get_env", return_value=("openai", "key", None, None)
+        ),
+    ):
         result = concretize_field("escalation", "Send email notifications")
 
     assert "_pin" in result
@@ -1309,6 +1511,7 @@ def test_concretize_field_result_has_pin():
 
 # ── 47. _save_guided writes concretization_pins to governance.yaml ────────────
 
+
 def test_save_guided_writes_concretization_pins(tmp_path, monkeypatch):
     from agentguard.cli import _save_guided
 
@@ -1316,8 +1519,12 @@ def test_save_guided_writes_concretization_pins(tmp_path, monkeypatch):
 
     results = {
         "owner": "Test Owner",
-        "scope.authorized": [{"action": "Read files in ./src", "reason": "Core task", "severity": "WARNING"}],
-        "scope.prohibited": [{"action": "Deploy to production", "reason": "Hard limit", "severity": "HARD_LIMIT"}],
+        "scope.authorized": [
+            {"action": "Read files in ./src", "reason": "Core task", "severity": "WARNING"}
+        ],
+        "scope.prohibited": [
+            {"action": "Deploy to production", "reason": "Hard limit", "severity": "HARD_LIMIT"}
+        ],
         "scope.requires_confirmation": [{"action": "Delete files", "reason": "Irreversible"}],
         "escalation": "owner@example.com",
         "killswitch": "Ctrl+C",
@@ -1333,9 +1540,11 @@ def test_save_guided_writes_concretization_pins(tmp_path, monkeypatch):
         },
     }
 
-    with mock.patch("agentguard.cli._write_hook_config", return_value="hook config written"), \
-         mock.patch("agentguard.cli._update_claude_md", return_value=(True, "CLAUDE.md updated")), \
-         mock.patch("agentguard.ai_review._get_env", return_value=("anthropic", "key", None, None)):
+    with (
+        mock.patch("agentguard.cli._write_hook_config", return_value="hook config written"),
+        mock.patch("agentguard.cli._update_claude_md", return_value=(True, "CLAUDE.md updated")),
+        mock.patch("agentguard.ai_review._get_env", return_value=("anthropic", "key", None, None)),
+    ):
         _save_guided(results)
 
     gov_text = (tmp_path / "governance.yaml").read_text()
@@ -1375,11 +1584,20 @@ def test_review_interactive_guided_loops_back_on_y(tmp_path):
 
     # iter 1: specific field → authorized → add rule → saved → "y" to continue
     # iter 2: all fields → keep all three → no changes → exits (no further prompt)
-    prompt_values = iter([
-        "2", "1", "2", "Run unit tests", "Quality assurance",  # iter 1: specific→authorized→add
-        "y",                                                     # Make further changes?
-        "1", "1", "1", "1",                                     # iter 2: all fields → keep ×3
-    ])
+    prompt_values = iter(
+        [
+            "2",
+            "1",
+            "2",
+            "Run unit tests",
+            "Quality assurance",  # iter 1: specific→authorized→add
+            "y",  # Make further changes?
+            "1",
+            "1",
+            "1",
+            "1",  # iter 2: all fields → keep ×3
+        ]
+    )
     with (
         mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
         mock.patch("agentguard.guided.concretizer._ai_available", return_value=False),
@@ -1401,10 +1619,16 @@ def test_review_interactive_guided_exits_on_n(tmp_path):
     governance = load_governance(gov_path)
 
     # specific field → authorized → add rule → saved → "n" to exit
-    prompt_values = iter([
-        "2", "1", "2", "Deploy to staging", "Test deployment",  # specific→authorized→add
-        "n",                                                      # Make further changes?
-    ])
+    prompt_values = iter(
+        [
+            "2",
+            "1",
+            "2",
+            "Deploy to staging",
+            "Test deployment",  # specific→authorized→add
+            "n",  # Make further changes?
+        ]
+    )
     with (
         mock.patch("click.prompt", side_effect=lambda *a, **kw: next(prompt_values)),
         mock.patch("agentguard.guided.concretizer._ai_available", return_value=False),
@@ -1417,6 +1641,7 @@ def test_review_interactive_guided_exits_on_n(tmp_path):
 
 
 # ── 50. _generate_default_path_policy: authorized dirs detected ───────────────
+
 
 def test_generate_default_path_policy_authorized_dirs(tmp_path):
     from agentguard.guided.concretizer import _generate_default_path_policy
@@ -1441,6 +1666,7 @@ def test_generate_default_path_policy_authorized_dirs(tmp_path):
 
 # ── 51. _generate_default_path_policy: denied_paths always present ────────────
 
+
 def test_generate_default_path_policy_denied_always_has_env_and_git(tmp_path):
     from agentguard.guided.concretizer import _generate_default_path_policy
 
@@ -1453,6 +1679,7 @@ def test_generate_default_path_policy_denied_always_has_env_and_git(tmp_path):
 
 # ── 52. _generate_default_path_policy: protected empty, default ask ───────────
 
+
 def test_generate_default_path_policy_protected_empty_default_ask(tmp_path):
     from agentguard.guided.concretizer import _generate_default_path_policy
 
@@ -1463,6 +1690,7 @@ def test_generate_default_path_policy_protected_empty_default_ask(tmp_path):
 
 
 # ── 53. _generate_default_path_policy: no subdirs → only *.md ────────────────
+
 
 def test_generate_default_path_policy_no_subdirectories(tmp_path):
     from agentguard.guided.concretizer import _generate_default_path_policy
@@ -1475,6 +1703,7 @@ def test_generate_default_path_policy_no_subdirectories(tmp_path):
 
 
 # ── 54. _generate_default_path_policy: passes load_path_policy validation ─────
+
 
 def test_generate_default_path_policy_passes_load_path_policy(tmp_path):
     from agentguard.config.loader import load_path_policy
@@ -1493,12 +1722,15 @@ def test_generate_default_path_policy_passes_load_path_policy(tmp_path):
 
 # ── 55. init --guided: governance.yaml contains valid path_policy ─────────────
 
+
 def test_guided_complete_flow_governance_yaml_has_path_policy():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)
@@ -1514,12 +1746,15 @@ def test_guided_complete_flow_governance_yaml_has_path_policy():
 
 # ── 56. init --guided: review panel shows Path Policy summary ─────────────────
 
+
 def test_guided_complete_flow_review_panel_shows_path_policy_summary():
     runner = CliRunner()
     with runner.isolated_filesystem():
         with (
             mock.patch("agentguard.guided.concretizer._ai_available", return_value=True),
-            mock.patch("agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION),
+            mock.patch(
+                "agentguard.guided.concretizer.concretize_mission", return_value=_MOCK_MISSION
+            ),
             mock.patch("agentguard.guided.concretizer.concretize_field", return_value=_MOCK_FIELD),
         ):
             result = runner.invoke(main, ["init", "--guided"], input=_HAPPY_PATH_INPUT)

@@ -1,4 +1,5 @@
 """AgentGuard Web Server — FastAPI bridge for the web UI."""
+
 from __future__ import annotations
 
 import asyncio
@@ -47,13 +48,12 @@ async def check(path: str = "."):
 @app.get("/api/governance")
 async def get_governance(path: str = "."):
     """Read and return governance.yaml as JSON."""
-    import yaml
+    from agentguard.review.reviewer import load_governance
 
     gov_file = Path(path) / "governance.yaml"
     if not gov_file.exists():
         return {"exists": False}
-    with open(gov_file) as f:
-        return {"exists": True, "governance": yaml.safe_load(f)}
+    return {"exists": True, "governance": load_governance(gov_file)}
 
 
 @app.get("/api/verify")
@@ -75,6 +75,7 @@ async def update_governance(request: Request):
     import yaml
 
     from agentguard import __version__
+    from agentguard.review.reviewer import load_governance
 
     body = await request.json()
     proj_path = Path(body.get("path", "."))
@@ -83,8 +84,7 @@ async def update_governance(request: Request):
     if not gov_path.exists():
         return {"success": False, "message": "No governance.yaml found"}
 
-    with open(gov_path) as f:
-        governance = yaml.safe_load(f)
+    governance = load_governance(gov_path)
 
     history = governance.setdefault("governance_history", [])
 
@@ -92,12 +92,14 @@ async def update_governance(request: Request):
     if "cost_awareness" in body:
         governance["cost_awareness"] = body["cost_awareness"]
         changed = "Updated cost_awareness thresholds"
-        history.append({
-            "date": str(date.today()),
-            "action": changed,
-            "tool": "agentguard web (inline editor)",
-            "version": __version__,
-        })
+        history.append(
+            {
+                "date": str(date.today()),
+                "action": changed,
+                "tool": "agentguard web (inline editor)",
+                "version": __version__,
+            }
+        )
         with open(gov_path, "w") as f:
             yaml.dump(governance, f, allow_unicode=True, sort_keys=False)
         return {"success": True, "message": changed}
@@ -129,12 +131,14 @@ async def update_governance(request: Request):
 
     scope[section] = items
 
-    history.append({
-        "date": str(date.today()),
-        "action": changed,
-        "tool": "agentguard web (inline editor)",
-        "version": __version__,
-    })
+    history.append(
+        {
+            "date": str(date.today()),
+            "action": changed,
+            "tool": "agentguard web (inline editor)",
+            "version": __version__,
+        }
+    )
 
     with open(gov_path, "w") as f:
         yaml.dump(governance, f, allow_unicode=True, sort_keys=False)
@@ -160,13 +164,13 @@ async def verify_repair(path: str = "."):
     import yaml
 
     from agentguard.guided.pinning import repair_pins
+    from agentguard.review.reviewer import load_governance
 
     gov_path = Path(path) / "governance.yaml"
     if not gov_path.exists():
         return {"success": False, "message": "No governance.yaml found", "repaired": 0}
 
-    with open(gov_path) as f:
-        governance = yaml.safe_load(f)
+    governance = load_governance(gov_path)
 
     new_pins = repair_pins(governance, "", "", "")
     if not new_pins:
@@ -193,14 +197,13 @@ async def verify_repair(path: str = "."):
 @app.get("/api/verify-json")
 async def verify_json(path: str = "."):
     """Return structured pin data from governance.yaml."""
-    import yaml
+    from agentguard.review.reviewer import load_governance
 
     gov_file = Path(path) / "governance.yaml"
     if not gov_file.exists():
         return {"pins": [], "success": False, "message": "No governance.yaml"}
     try:
-        with open(gov_file) as f:
-            gov = yaml.safe_load(f)
+        gov = load_governance(gov_file)
         pins = gov.get("concretization_pins", [])
         if not pins:
             return {
@@ -233,11 +236,13 @@ async def get_projects():
     for p in _project_paths:
         path = Path(p)
         gov_file = path / "governance.yaml"
-        projects.append({
-            "name": path.name,
-            "path": str(path),
-            "has_governance": gov_file.exists(),
-        })
+        projects.append(
+            {
+                "name": path.name,
+                "path": str(path),
+                "has_governance": gov_file.exists(),
+            }
+        )
     return {"projects": projects, "count": len(projects)}
 
 
@@ -306,14 +311,13 @@ async def get_session_cost(path: str = "."):
 @app.get("/api/cost-awareness")
 async def get_cost_awareness(path: str = "."):
     """Return the cost_awareness block from governance.yaml, or null if absent."""
-    import yaml
+    from agentguard.review.reviewer import load_governance
 
     gov_path = Path(path) / "governance.yaml"
     if not gov_path.exists():
         return {"cost_awareness": None}
     try:
-        with open(gov_path) as f:
-            gov = yaml.safe_load(f)
+        gov = load_governance(gov_path)
         return {"cost_awareness": gov.get("cost_awareness")}
     except Exception:
         return {"cost_awareness": None}
@@ -326,21 +330,25 @@ async def watch_ws(websocket: WebSocket, path: str = "."):
     log_path = Path(path).resolve() / ".agentguard" / "session.log"
 
     try:
-        await websocket.send_json({
-            "type": "status",
-            "message": str(log_path),
-            "exists": log_path.exists(),
-        })
+        await websocket.send_json(
+            {
+                "type": "status",
+                "message": str(log_path),
+                "exists": log_path.exists(),
+            }
+        )
 
         offset = log_path.stat().st_size if log_path.exists() else 0
 
         while True:
             await asyncio.sleep(1.0)
             if not log_path.exists():
-                await websocket.send_json({
-                    "type": "waiting",
-                    "message": "Waiting for Claude Code session...",
-                })
+                await websocket.send_json(
+                    {
+                        "type": "waiting",
+                        "message": "Waiting for Claude Code session...",
+                    }
+                )
                 continue
 
             with open(log_path) as f:
@@ -378,10 +386,11 @@ async def terminal_ws(websocket: WebSocket, path: str = "."):
             'export PS1="\\[\\033[0;32m\\]agentguard\\[\\033[0m\\] '
             '\\[\\033[0;34m\\]\\W\\[\\033[0m\\]$ "\n'
             f'cd "{abs_path}"\n'
-            'clear\n'
+            "clear\n"
         )
         os.write(fd, init_cmd.encode())
         try:
+
             async def pty_to_ws():
                 while True:
                     await asyncio.sleep(0.01)
@@ -399,11 +408,12 @@ async def terminal_ws(websocket: WebSocket, path: str = "."):
                         msg = await websocket.receive()
                         if "bytes" in msg:
                             data = msg["bytes"]
-                            if data[0:1] == b'\x01' and len(data) == 5:
-                                cols = struct.unpack('H', data[1:3])[0]
-                                rows = struct.unpack('H', data[3:5])[0]
-                                fcntl.ioctl(fd, termios.TIOCSWINSZ,
-                                            struct.pack('HHHH', rows, cols, 0, 0))
+                            if data[0:1] == b"\x01" and len(data) == 5:
+                                cols = struct.unpack("H", data[1:3])[0]
+                                rows = struct.unpack("H", data[3:5])[0]
+                                fcntl.ioctl(
+                                    fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0)
+                                )
                             else:
                                 os.write(fd, data)
                         elif "text" in msg:

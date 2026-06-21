@@ -1,4 +1,5 @@
 """Tests for AgentGuard web server API endpoints."""
+
 from __future__ import annotations
 
 import json
@@ -120,6 +121,7 @@ def test_projects_default():
 
 def test_projects_with_governance(tmp_path):
     from agentguard.web.server import set_project_paths
+
     (tmp_path / "governance.yaml").write_text("owner: Test\n")
     set_project_paths([str(tmp_path)])
     resp = client.get("/api/projects")
@@ -132,6 +134,7 @@ def test_projects_with_governance(tmp_path):
 
 def test_projects_without_governance(tmp_path):
     from agentguard.web.server import set_project_paths
+
     set_project_paths([str(tmp_path)])
     resp = client.get("/api/projects")
     assert resp.status_code == 200
@@ -154,16 +157,24 @@ def test_report_with_session_log(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     entries = [
-        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ls", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:01:00+00:00", "tool": "Edit",
-         "decision": "deny", "input_summary": "bad file",
-         "reason": "prohibited", "session_id": "s1"},
+        {
+            "timestamp": "2026-06-11T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ls",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:01:00+00:00",
+            "tool": "Edit",
+            "decision": "deny",
+            "input_summary": "bad file",
+            "reason": "prohibited",
+            "session_id": "s1",
+        },
     ]
-    (log_dir / "session.log").write_text(
-        "\n".join(_json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(_json.dumps(e) for e in entries) + "\n")
     resp = client.get(f"/api/report?path={tmp_path}")
     assert resp.status_code == 200
     data = resp.json()
@@ -188,6 +199,7 @@ def test_verify_repair_no_pins(tmp_path):
     assert data["success"] is True
     assert data["repaired"] >= 1
     import yaml
+
     updated = yaml.safe_load(gov.read_text())
     assert len(updated.get("concretization_pins", [])) >= 1
 
@@ -237,16 +249,20 @@ killswitch: Ctrl+C
 def test_governance_update_update_action(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(_EDITABLE_GOV)
-    resp = client.post("/api/governance/update", json={
-        "path": str(tmp_path),
-        "section": "authorized",
-        "action": "update",
-        "index": 0,
-        "item": {"action": "Read and write files", "reason": "Updated reason"}
-    })
+    resp = client.post(
+        "/api/governance/update",
+        json={
+            "path": str(tmp_path),
+            "section": "authorized",
+            "action": "update",
+            "index": 0,
+            "item": {"action": "Read and write files", "reason": "Updated reason"},
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
     import yaml
+
     data = yaml.safe_load(gov.read_text())
     assert data["scope"]["authorized"][0]["action"] == "Read and write files"
     assert data["scope"]["authorized"][0]["reason"] == "Updated reason"
@@ -255,15 +271,19 @@ def test_governance_update_update_action(tmp_path):
 def test_governance_update_add_action(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(_EDITABLE_GOV)
-    resp = client.post("/api/governance/update", json={
-        "path": str(tmp_path),
-        "section": "authorized",
-        "action": "add",
-        "item": {"action": "Write tests", "reason": "New rule"}
-    })
+    resp = client.post(
+        "/api/governance/update",
+        json={
+            "path": str(tmp_path),
+            "section": "authorized",
+            "action": "add",
+            "item": {"action": "Write tests", "reason": "New rule"},
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
     import yaml
+
     data = yaml.safe_load(gov.read_text())
     authorized = data["scope"]["authorized"]
     assert len(authorized) == 2
@@ -273,15 +293,14 @@ def test_governance_update_add_action(tmp_path):
 def test_governance_update_delete_action(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(_EDITABLE_GOV)
-    resp = client.post("/api/governance/update", json={
-        "path": str(tmp_path),
-        "section": "prohibited",
-        "action": "delete",
-        "index": 0
-    })
+    resp = client.post(
+        "/api/governance/update",
+        json={"path": str(tmp_path), "section": "prohibited", "action": "delete", "index": 0},
+    )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
     import yaml
+
     data = yaml.safe_load(gov.read_text())
     assert len(data["scope"]["prohibited"]) == 0
 
@@ -289,13 +308,17 @@ def test_governance_update_delete_action(tmp_path):
 def test_governance_update_appends_history(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(_EDITABLE_GOV)
-    client.post("/api/governance/update", json={
-        "path": str(tmp_path),
-        "section": "authorized",
-        "action": "add",
-        "item": {"action": "New rule", "reason": "Test"}
-    })
+    client.post(
+        "/api/governance/update",
+        json={
+            "path": str(tmp_path),
+            "section": "authorized",
+            "action": "add",
+            "item": {"action": "New rule", "reason": "Test"},
+        },
+    )
     import yaml
+
     data = yaml.safe_load(gov.read_text())
     history = data.get("governance_history", [])
     assert len(history) >= 1
@@ -315,16 +338,19 @@ def test_watch_history_filters_and_limits(tmp_path):
     log_dir.mkdir()
     entries = []
     for i in range(55):
-        entries.append({
-            "timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-            "decision": "allow", "input_summary": f"cmd{i}", "session_id": "s1",
-        })
+        entries.append(
+            {
+                "timestamp": "2026-06-21T10:00:00+00:00",
+                "tool": "Bash",
+                "decision": "allow",
+                "input_summary": f"cmd{i}",
+                "session_id": "s1",
+            }
+        )
     entries.append({"event": "session_cost", "total_usd": 0.12, "session_id": "s1"})
     entries.append({"event": "post_tool_use", "tool_use_id": "x", "session_id": "s1"})
     entries.append({"event": "session_cost_notified", "at_usd": 0.50, "session_id": "s1"})
-    (log_dir / "session.log").write_text(
-        "\n".join(_json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(_json.dumps(e) for e in entries) + "\n")
     resp = client.get(f"/api/watch/history?path={tmp_path}")
     assert resp.status_code == 200
     data = resp.json()
@@ -346,14 +372,22 @@ def test_session_cost_returns_latest(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     entries = [
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 0.05, "input_tokens": 100},
-        {"event": "session_cost", "session_id": "s2", "model": "claude-sonnet-4-6",
-         "total_usd": 0.12, "input_tokens": 200},
+        {
+            "event": "session_cost",
+            "session_id": "s1",
+            "model": "claude-sonnet-4-6",
+            "total_usd": 0.05,
+            "input_tokens": 100,
+        },
+        {
+            "event": "session_cost",
+            "session_id": "s2",
+            "model": "claude-sonnet-4-6",
+            "total_usd": 0.12,
+            "input_tokens": 200,
+        },
     ]
-    (log_dir / "session.log").write_text(
-        "\n".join(_json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(_json.dumps(e) for e in entries) + "\n")
     resp = client.get(f"/api/session/cost?path={tmp_path}")
     data = resp.json()["session_cost"]
     assert data is not None
@@ -403,10 +437,13 @@ def test_governance_update_cost_awareness(tmp_path):
         "repeat_last_threshold": True,
         "repeat_interval_usd": 2.0,
     }
-    resp = client.post("/api/governance/update", json={
-        "path": str(tmp_path),
-        "cost_awareness": new_ca,
-    })
+    resp = client.post(
+        "/api/governance/update",
+        json={
+            "path": str(tmp_path),
+            "cost_awareness": new_ca,
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
     data = yaml.safe_load(gov.read_text())
@@ -426,21 +463,43 @@ def test_report_returns_roi_fields(tmp_path):
     proposals_dir = log_dir / "proposals"
     proposals_dir.mkdir()
     entries = [
-        {"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ls", "session_id": "s1"},
-        {"timestamp": "2026-06-21T10:01:00+00:00", "tool": "Edit",
-         "decision": "ask", "input_summary": "edit file", "session_id": "s1"},
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 0.07, "pricing_source": "live"},
+        {
+            "timestamp": "2026-06-21T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ls",
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-21T10:01:00+00:00",
+            "tool": "Edit",
+            "decision": "ask",
+            "input_summary": "edit file",
+            "session_id": "s1",
+        },
+        {
+            "event": "session_cost",
+            "session_id": "s1",
+            "model": "claude-sonnet-4-6",
+            "total_usd": 0.07,
+            "pricing_source": "live",
+        },
     ]
-    (log_dir / "session.log").write_text(
-        "\n".join(_json.dumps(e) for e in entries) + "\n"
+    (log_dir / "session.log").write_text("\n".join(_json.dumps(e) for e in entries) + "\n")
+    (proposals_dir / "abc.json").write_text(
+        _json.dumps(
+            {
+                "tool_use_id": "abc",
+                "session_id": "s1",
+                "tool_name": "Edit",
+                "file_path": "test.py",
+                "governance_reason": "review needed",
+                "status": "pending",
+                "timestamp": "2026-06-21T10:01:00+00:00",
+                "pr_url": None,
+            }
+        )
     )
-    (proposals_dir / "abc.json").write_text(_json.dumps({
-        "tool_use_id": "abc", "session_id": "s1", "tool_name": "Edit",
-        "file_path": "test.py", "governance_reason": "review needed",
-        "status": "pending", "timestamp": "2026-06-21T10:01:00+00:00", "pr_url": None,
-    }))
     resp = client.get(f"/api/report?path={tmp_path}")
     assert resp.status_code == 200
     data = resp.json()

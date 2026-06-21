@@ -37,20 +37,22 @@ def _transcript_msg(
     cache_read: int = 0,
 ) -> str:
     """Build assistant message with legacy flat cache_creation_input_tokens."""
-    return json.dumps({
-        "type": "assistant",
-        "message": {
-            "id": msg_id,
-            "model": model,
-            "usage": {
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "cache_creation_input_tokens": cache_write,
-                "cache_read_input_tokens": cache_read,
+    return json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "id": msg_id,
+                "model": model,
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cache_creation_input_tokens": cache_write,
+                    "cache_read_input_tokens": cache_read,
+                },
+                "content": [],
             },
-            "content": [],
-        },
-    })
+        }
+    )
 
 
 def _transcript_msg_split_cache(
@@ -63,23 +65,25 @@ def _transcript_msg_split_cache(
     cache_read: int = 0,
 ) -> str:
     """Build assistant message with new nested cache_creation format (5m + 1h)."""
-    return json.dumps({
-        "type": "assistant",
-        "message": {
-            "id": msg_id,
-            "model": model,
-            "usage": {
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "cache_creation": {
-                    "ephemeral_5m_input_tokens": cache_write_5m,
-                    "ephemeral_1h_input_tokens": cache_write_1h,
+    return json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "id": msg_id,
+                "model": model,
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cache_creation": {
+                        "ephemeral_5m_input_tokens": cache_write_5m,
+                        "ephemeral_1h_input_tokens": cache_write_1h,
+                    },
+                    "cache_read_input_tokens": cache_read,
                 },
-                "cache_read_input_tokens": cache_read,
+                "content": [],
             },
-            "content": [],
-        },
-    })
+        }
+    )
 
 
 # ── fetch_pricing: parse markdown table ──────────────────────────────────────
@@ -105,6 +109,7 @@ def test_fetch_pricing_parses_markdown_table(monkeypatch):
 def test_fetch_pricing_fallback_on_network_error(monkeypatch):
     def _fail(url):
         raise OSError("network error")
+
     monkeypatch.setattr("agentguard.checks.cost._fetch_text", _fail)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -132,7 +137,9 @@ def test_calculate_session_cost_deduplication(tmp_path):
     transcript.write_text(
         _transcript_msg("msg_001", "claude-sonnet-4-6", 1000, 200, cache_write=500, cache_read=300)
         + "\n"
-        + _transcript_msg("msg_001", "claude-sonnet-4-6", 1000, 200, cache_write=500, cache_read=300)
+        + _transcript_msg(
+            "msg_001", "claude-sonnet-4-6", 1000, 200, cache_write=500, cache_read=300
+        )
         + "\n"
         + _transcript_msg("msg_002", "claude-sonnet-4-6", 500, 100)
         + "\n"
@@ -169,7 +176,12 @@ def test_calculate_session_cost_missing_transcript(tmp_path):
 def test_calculate_session_cost_no_usage_returns_none(tmp_path):
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
-        json.dumps({"type": "assistant", "message": {"id": "msg_001", "model": "claude-sonnet-4-6", "content": []}})
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {"id": "msg_001", "model": "claude-sonnet-4-6", "content": []},
+            }
+        )
         + "\n"
     )
     pricing = {**HARDCODED_PRICING, "_source": "fallback"}
@@ -179,9 +191,7 @@ def test_calculate_session_cost_no_usage_returns_none(tmp_path):
 
 def test_calculate_session_cost_pricing_source_live(tmp_path):
     transcript = tmp_path / "session.jsonl"
-    transcript.write_text(
-        _transcript_msg("msg_001", "claude-sonnet-4-6", 100, 50) + "\n"
-    )
+    transcript.write_text(_transcript_msg("msg_001", "claude-sonnet-4-6", 100, 50) + "\n")
     pricing = {**HARDCODED_PRICING, "_source": "live"}
     result = calculate_session_cost(str(transcript), pricing)
     assert result is not None
@@ -230,8 +240,12 @@ def test_calculate_session_cost_mixed_cache_writes_summed_correctly(tmp_path):
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
         _transcript_msg_split_cache(
-            "msg_001", "claude-sonnet-4-6", 0, 0,
-            cache_write_5m=500_000, cache_write_1h=500_000,
+            "msg_001",
+            "claude-sonnet-4-6",
+            0,
+            0,
+            cache_write_5m=500_000,
+            cache_write_1h=500_000,
         )
         + "\n"
     )
@@ -243,8 +257,7 @@ def test_calculate_session_cost_mixed_cache_writes_summed_correctly(tmp_path):
     assert result["cache_write_1h_tokens"] == 500_000
     p = HARDCODED_PRICING["claude-sonnet-4"]
     expected = round(
-        500_000 * p["cache_write_5m"] / 1_000_000
-        + 500_000 * p["cache_write_1h"] / 1_000_000,
+        500_000 * p["cache_write_5m"] / 1_000_000 + 500_000 * p["cache_write_1h"] / 1_000_000,
         6,
     )
     assert abs(result["total_usd"] - expected) < 1e-9
@@ -256,8 +269,7 @@ def test_calculate_session_cost_legacy_flat_field_treated_as_5m(tmp_path):
     """Old cache_creation_input_tokens field is treated as 5m write tokens."""
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
-        _transcript_msg("msg_001", "claude-sonnet-4-6", 0, 0, cache_write=1_000_000)
-        + "\n"
+        _transcript_msg("msg_001", "claude-sonnet-4-6", 0, 0, cache_write=1_000_000) + "\n"
     )
     pricing = {**HARDCODED_PRICING, "_source": "fallback"}
     result = calculate_session_cost(str(transcript), pricing)
@@ -295,8 +307,20 @@ def test_match_model_key_no_match():
 
 def test_match_model_key_longest_wins():
     pricing = {
-        "claude-sonnet": {"input": 1.0, "cache_write_5m": 1.0, "cache_write_1h": 1.0, "cache_read": 0.1, "output": 5.0},
-        "claude-sonnet-4": {"input": 3.0, "cache_write_5m": 3.75, "cache_write_1h": 6.0, "cache_read": 0.30, "output": 15.0},
+        "claude-sonnet": {
+            "input": 1.0,
+            "cache_write_5m": 1.0,
+            "cache_write_1h": 1.0,
+            "cache_read": 0.1,
+            "output": 5.0,
+        },
+        "claude-sonnet-4": {
+            "input": 3.0,
+            "cache_write_5m": 3.75,
+            "cache_write_1h": 6.0,
+            "cache_read": 0.30,
+            "output": 15.0,
+        },
     }
     assert _match_model_key("claude-sonnet-4-6", pricing) == "claude-sonnet-4"
 
@@ -319,7 +343,10 @@ def test_display_to_key_strips_parenthetical():
 
 
 def test_display_to_key_strips_markdown_link():
-    assert _display_to_key("Claude Mythos 5 ([limited availability](https://example.com))") == "claude-mythos-5"
+    assert (
+        _display_to_key("Claude Mythos 5 ([limited availability](https://example.com))")
+        == "claude-mythos-5"
+    )
 
 
 # ── notify_cost: correct title/message/sound ──────────────────────────────────
@@ -328,10 +355,13 @@ def test_display_to_key_strips_markdown_link():
 def test_notify_cost_warn_level(monkeypatch):
     send_calls = []
     sound_calls = []
-    monkeypatch.setattr("agentguard.notifications._send_notification", lambda t, m: send_calls.append((t, m)))
+    monkeypatch.setattr(
+        "agentguard.notifications._send_notification", lambda t, m: send_calls.append((t, m))
+    )
     monkeypatch.setattr("agentguard.notifications._play_sound", lambda lvl: sound_calls.append(lvl))
 
     from agentguard.notifications import notify_cost
+
     notify_cost(1.23, "claude-sonnet-4-6", "warn", "MyProject")
 
     assert len(send_calls) == 1
@@ -346,10 +376,13 @@ def test_notify_cost_warn_level(monkeypatch):
 def test_notify_cost_alert_level(monkeypatch):
     send_calls = []
     sound_calls = []
-    monkeypatch.setattr("agentguard.notifications._send_notification", lambda t, m: send_calls.append((t, m)))
+    monkeypatch.setattr(
+        "agentguard.notifications._send_notification", lambda t, m: send_calls.append((t, m))
+    )
     monkeypatch.setattr("agentguard.notifications._play_sound", lambda lvl: sound_calls.append(lvl))
 
     from agentguard.notifications import notify_cost
+
     notify_cost(5.50, "claude-opus-4-8", "alert", "MyProject")
 
     title, message = send_calls[0]
@@ -362,10 +395,13 @@ def test_notify_cost_alert_level(monkeypatch):
 def test_notify_cost_critical_level(monkeypatch):
     send_calls = []
     sound_calls = []
-    monkeypatch.setattr("agentguard.notifications._send_notification", lambda t, m: send_calls.append((t, m)))
+    monkeypatch.setattr(
+        "agentguard.notifications._send_notification", lambda t, m: send_calls.append((t, m))
+    )
     monkeypatch.setattr("agentguard.notifications._play_sound", lambda lvl: sound_calls.append(lvl))
 
     from agentguard.notifications import notify_cost
+
     notify_cost(10.00, "claude-opus-4-8", "critical", "MyProject")
 
     title, message = send_calls[0]
@@ -382,12 +418,15 @@ def _make_session_log(tmp_path, session_id="s1"):
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({
-            "event": "post_tool_use",
-            "tool": "Bash",
-            "tool_use_id": "t1",
-            "session_id": session_id,
-        }) + "\n"
+        json.dumps(
+            {
+                "event": "post_tool_use",
+                "tool": "Bash",
+                "tool_use_id": "t1",
+                "session_id": session_id,
+            }
+        )
+        + "\n"
     )
     return log
 
@@ -403,7 +442,9 @@ def _make_transcript(tmp_path, input_tokens=100, output_tokens=50):
 def _patch_cost_and_notify(monkeypatch):
     notify_calls = []
     monkeypatch.setattr("agentguard.checks.cost._fetch_text", lambda url: SAMPLE_MARKDOWN_TABLE)
-    monkeypatch.setattr("agentguard.notifications._send_notification", lambda t, m: notify_calls.append((t, m)))
+    monkeypatch.setattr(
+        "agentguard.notifications._send_notification", lambda t, m: notify_calls.append((t, m))
+    )
     monkeypatch.setattr("agentguard.notifications._play_sound", lambda lvl: None)
     return notify_calls
 
@@ -425,7 +466,9 @@ def _patch_cost_fixed(monkeypatch, total_usd: float):
         },
     )
     monkeypatch.setattr("agentguard.checks.cost._fetch_text", lambda url: SAMPLE_MARKDOWN_TABLE)
-    monkeypatch.setattr("agentguard.notifications._send_notification", lambda t, m: notify_calls.append((t, m)))
+    monkeypatch.setattr(
+        "agentguard.notifications._send_notification", lambda t, m: notify_calls.append((t, m))
+    )
     monkeypatch.setattr("agentguard.notifications._play_sound", lambda lvl: None)
     return notify_calls
 
@@ -452,6 +495,7 @@ def test_handle_stop_cost_below_threshold_no_notification(tmp_path, monkeypatch)
     notify_calls = _patch_cost_and_notify(monkeypatch)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
 
     assert notify_calls == []
@@ -464,6 +508,7 @@ def test_handle_stop_no_cost_awareness_no_notification(tmp_path, monkeypatch):
     notify_calls = _patch_cost_and_notify(monkeypatch)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
 
     assert notify_calls == []
@@ -476,6 +521,7 @@ def test_handle_stop_session_cost_entry_written_to_log(tmp_path, monkeypatch):
     _patch_cost_and_notify(monkeypatch)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
 
     entries = [json.loads(line) for line in session_log.read_text().splitlines() if line.strip()]
@@ -499,6 +545,7 @@ def test_handle_stop_no_transcript_no_cost_entry(tmp_path, monkeypatch):
     _patch_cost_and_notify(monkeypatch)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": ""}, str(tmp_path))
 
     entries = [json.loads(line) for line in session_log.read_text().splitlines() if line.strip()]
@@ -519,6 +566,7 @@ def test_handle_stop_old_schema_warn_fires(tmp_path, monkeypatch):
     notify_calls = _patch_cost_and_notify(monkeypatch)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
         handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
@@ -537,6 +585,7 @@ def test_handle_stop_old_schema_alert_fires_both_thresholds(tmp_path, monkeypatc
     notify_calls = _patch_cost_and_notify(monkeypatch)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
         handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
@@ -554,16 +603,19 @@ def test_handle_stop_old_schema_alert_fires_both_thresholds(tmp_path, monkeypatc
 def test_handle_stop_first_crossing_warn_fires_sentinel_written(tmp_path, monkeypatch):
     """First crossing of $0.50 → warn fires; sentinel at at_usd=0.50 written to log."""
     (tmp_path / "governance.yaml").write_text(
-        _new_schema_yaml([
-            {"at_usd": 0.50, "level": "warn"},
-            {"at_usd": 2.00, "level": "alert"},
-            {"at_usd": 5.00, "level": "critical"},
-        ])
+        _new_schema_yaml(
+            [
+                {"at_usd": 0.50, "level": "warn"},
+                {"at_usd": 2.00, "level": "alert"},
+                {"at_usd": 5.00, "level": "critical"},
+            ]
+        )
     )
     session_log = _make_session_log(tmp_path)
     notify_calls = _patch_cost_fixed(monkeypatch, 0.60)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert len(notify_calls) == 1
@@ -578,18 +630,23 @@ def test_handle_stop_first_crossing_warn_fires_sentinel_written(tmp_path, monkey
 
 def test_handle_stop_same_session_cost_same_no_repeat(tmp_path, monkeypatch):
     """Second stop with same cost → sentinel already present → no duplicate notification."""
-    (tmp_path / "governance.yaml").write_text(
-        _new_schema_yaml([{"at_usd": 0.50, "level": "warn"}])
-    )
+    (tmp_path / "governance.yaml").write_text(_new_schema_yaml([{"at_usd": 0.50, "level": "warn"}]))
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 0.60)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert notify_calls == []
@@ -598,21 +655,30 @@ def test_handle_stop_same_session_cost_same_no_repeat(tmp_path, monkeypatch):
 def test_handle_stop_cost_rises_to_alert(tmp_path, monkeypatch):
     """Cost rises to $2.00 → alert fires; warn already in notified."""
     (tmp_path / "governance.yaml").write_text(
-        _new_schema_yaml([
-            {"at_usd": 0.50, "level": "warn"},
-            {"at_usd": 2.00, "level": "alert"},
-            {"at_usd": 5.00, "level": "critical"},
-        ])
+        _new_schema_yaml(
+            [
+                {"at_usd": 0.50, "level": "warn"},
+                {"at_usd": 2.00, "level": "alert"},
+                {"at_usd": 5.00, "level": "critical"},
+            ]
+        )
     )
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 2.10)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert len(notify_calls) == 1
@@ -622,22 +688,34 @@ def test_handle_stop_cost_rises_to_alert(tmp_path, monkeypatch):
 def test_handle_stop_cost_rises_to_critical(tmp_path, monkeypatch):
     """Cost rises to $5.00 → critical fires; warn + alert already notified."""
     (tmp_path / "governance.yaml").write_text(
-        _new_schema_yaml([
-            {"at_usd": 0.50, "level": "warn"},
-            {"at_usd": 2.00, "level": "alert"},
-            {"at_usd": 5.00, "level": "critical"},
-        ])
+        _new_schema_yaml(
+            [
+                {"at_usd": 0.50, "level": "warn"},
+                {"at_usd": 2.00, "level": "alert"},
+                {"at_usd": 5.00, "level": "critical"},
+            ]
+        )
     )
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 5.20)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert len(notify_calls) == 1
@@ -647,23 +725,45 @@ def test_handle_stop_cost_rises_to_critical(tmp_path, monkeypatch):
 def test_handle_stop_repeat_critical_fires_at_7(tmp_path, monkeypatch):
     """Cost rises to $7.00 → repeat critical fires (5.00 + 2.00); sentinel at $7.00 written."""
     (tmp_path / "governance.yaml").write_text(
-        _new_schema_yaml([
-            {"at_usd": 0.50, "level": "warn"},
-            {"at_usd": 2.00, "level": "alert"},
-            {"at_usd": 5.00, "level": "critical"},
-        ], repeat_last=True, repeat_interval=2.0)
+        _new_schema_yaml(
+            [
+                {"at_usd": 0.50, "level": "warn"},
+                {"at_usd": 2.00, "level": "alert"},
+                {"at_usd": 5.00, "level": "critical"},
+            ],
+            repeat_last=True,
+            repeat_interval=2.0,
+        )
     )
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 5.00, "level": "critical"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "event": "session_cost_notified",
+                "session_id": "s1",
+                "at_usd": 5.00,
+                "level": "critical",
+            }
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 7.10)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     session_log = tmp_path / ".agentguard" / "session.log"
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
@@ -671,7 +771,11 @@ def test_handle_stop_repeat_critical_fires_at_7(tmp_path, monkeypatch):
     assert "Critical" in notify_calls[0][0]
 
     entries = [json.loads(line) for line in session_log.read_text().splitlines() if line.strip()]
-    sentinels = [e for e in entries if e.get("event") == "session_cost_notified" and e.get("session_id") == "s1"]
+    sentinels = [
+        e
+        for e in entries
+        if e.get("event") == "session_cost_notified" and e.get("session_id") == "s1"
+    ]
     new_sentinel = [s for s in sentinels if s.get("at_usd") == 7.0]
     assert len(new_sentinel) == 1
 
@@ -679,24 +783,54 @@ def test_handle_stop_repeat_critical_fires_at_7(tmp_path, monkeypatch):
 def test_handle_stop_repeat_critical_fires_at_9(tmp_path, monkeypatch):
     """Cost rises to $9.00 → repeat critical fires again ($7.00 + 2.00)."""
     (tmp_path / "governance.yaml").write_text(
-        _new_schema_yaml([
-            {"at_usd": 0.50, "level": "warn"},
-            {"at_usd": 2.00, "level": "alert"},
-            {"at_usd": 5.00, "level": "critical"},
-        ], repeat_last=True, repeat_interval=2.0)
+        _new_schema_yaml(
+            [
+                {"at_usd": 0.50, "level": "warn"},
+                {"at_usd": 2.00, "level": "alert"},
+                {"at_usd": 5.00, "level": "critical"},
+            ],
+            repeat_last=True,
+            repeat_interval=2.0,
+        )
     )
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 5.00, "level": "critical"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 7.00, "level": "critical"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "event": "session_cost_notified",
+                "session_id": "s1",
+                "at_usd": 5.00,
+                "level": "critical",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "event": "session_cost_notified",
+                "session_id": "s1",
+                "at_usd": 7.00,
+                "level": "critical",
+            }
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 9.10)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert len(notify_calls) == 1
@@ -711,12 +845,24 @@ def test_handle_stop_repeat_not_triggered_below_next_interval(tmp_path, monkeypa
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 5.00, "level": "critical"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "event": "session_cost_notified",
+                "session_id": "s1",
+                "at_usd": 5.00,
+                "level": "critical",
+            }
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 6.00)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s1", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert notify_calls == []
@@ -730,12 +876,19 @@ def test_handle_stop_different_session_does_not_share_sentinels(tmp_path, monkey
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir(exist_ok=True)
     log.write_text(
-        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s2"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.001, "level": "warn"}) + "\n"
+        json.dumps(
+            {"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s2"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.001, "level": "warn"}
+        )
+        + "\n"
     )
     notify_calls = _patch_cost_fixed(monkeypatch, 0.10)
 
     from agentguard.enforcement.enforcer import handle_stop
+
     handle_stop({"session_id": "s2", "transcript_path": str(tmp_path / "t.jsonl")}, str(tmp_path))
 
     assert len(notify_calls) == 1
@@ -747,6 +900,7 @@ def test_handle_stop_different_session_does_not_share_sentinels(tmp_path, monkey
 
 def test_get_notified_thresholds_empty_when_no_sentinels(tmp_path):
     from agentguard.enforcement.enforcer import _get_notified_thresholds
+
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir()
     log.write_text(json.dumps({"event": "session_cost", "session_id": "s1"}) + "\n")
@@ -755,27 +909,39 @@ def test_get_notified_thresholds_empty_when_no_sentinels(tmp_path):
 
 def test_get_notified_thresholds_returns_at_usd_set(tmp_path):
     from agentguard.enforcement.enforcer import _get_notified_thresholds
+
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir()
     log.write_text(
-        json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
-        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}) + "\n"
+        json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
+        + json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 2.00, "level": "alert"}
+        )
+        + "\n"
     )
     assert _get_notified_thresholds(log, "s1") == {0.50, 2.00}
 
 
 def test_get_notified_thresholds_ignores_other_sessions(tmp_path):
     from agentguard.enforcement.enforcer import _get_notified_thresholds
+
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir()
     log.write_text(
-        json.dumps({"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}) + "\n"
+        json.dumps(
+            {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50, "level": "warn"}
+        )
+        + "\n"
     )
     assert _get_notified_thresholds(log, "s2") == set()
 
 
 def test_get_notified_thresholds_ignores_entries_without_at_usd(tmp_path):
     from agentguard.enforcement.enforcer import _get_notified_thresholds
+
     log = tmp_path / ".agentguard" / "session.log"
     log.parent.mkdir()
     # Old-format sentinel without at_usd field
@@ -787,6 +953,7 @@ def test_get_notified_thresholds_ignores_entries_without_at_usd(tmp_path):
 
 def test_get_notified_thresholds_missing_file(tmp_path):
     from agentguard.enforcement.enforcer import _get_notified_thresholds
+
     assert _get_notified_thresholds(tmp_path / ".agentguard" / "nonexistent.log", "s1") == set()
 
 
@@ -795,22 +962,26 @@ def test_get_notified_thresholds_missing_file(tmp_path):
 
 def test_load_cost_awareness_absent():
     from agentguard.config.loader import load_cost_awareness
+
     assert load_cost_awareness({}) is None
 
 
 def test_load_cost_awareness_valid_new_schema():
     from agentguard.config.loader import load_cost_awareness
-    result = load_cost_awareness({
-        "cost_awareness": {
-            "thresholds": [
-                {"at_usd": 0.50, "level": "warn"},
-                {"at_usd": 2.00, "level": "alert"},
-                {"at_usd": 5.00, "level": "critical"},
-            ],
-            "repeat_last_threshold": True,
-            "repeat_interval_usd": 2.0,
+
+    result = load_cost_awareness(
+        {
+            "cost_awareness": {
+                "thresholds": [
+                    {"at_usd": 0.50, "level": "warn"},
+                    {"at_usd": 2.00, "level": "alert"},
+                    {"at_usd": 5.00, "level": "critical"},
+                ],
+                "repeat_last_threshold": True,
+                "repeat_interval_usd": 2.0,
+            }
         }
-    })
+    )
     assert result is not None
     assert len(result["thresholds"]) == 3
     assert result["thresholds"][0] == {"at_usd": 0.50, "level": "warn"}
@@ -821,15 +992,17 @@ def test_load_cost_awareness_valid_new_schema():
 
 def test_load_cost_awareness_defaults_applied():
     from agentguard.config.loader import load_cost_awareness
-    result = load_cost_awareness({
-        "cost_awareness": {"thresholds": [{"at_usd": 1.0, "level": "warn"}]}
-    })
+
+    result = load_cost_awareness(
+        {"cost_awareness": {"thresholds": [{"at_usd": 1.0, "level": "warn"}]}}
+    )
     assert result["repeat_last_threshold"] is True
     assert result["repeat_interval_usd"] == 2.0
 
 
 def test_load_cost_awareness_old_schema_auto_converted(recwarn):
     from agentguard.config.loader import load_cost_awareness
+
     result = load_cost_awareness({"cost_awareness": {"warn_at_usd": 1.0, "alert_at_usd": 5.0}})
     assert result is not None
     assert len(result["thresholds"]) == 2
@@ -842,6 +1015,7 @@ def test_load_cost_awareness_old_schema_auto_converted(recwarn):
 
 def test_load_cost_awareness_old_schema_only_warn(recwarn):
     from agentguard.config.loader import load_cost_awareness
+
     result = load_cost_awareness({"cost_awareness": {"warn_at_usd": 1.0}})
     assert len(result["thresholds"]) == 1
     assert result["thresholds"][0]["level"] == "warn"
@@ -849,93 +1023,113 @@ def test_load_cost_awareness_old_schema_only_warn(recwarn):
 
 def test_load_cost_awareness_old_schema_warn_gte_alert_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="warn_at_usd"):
         load_cost_awareness({"cost_awareness": {"warn_at_usd": 5.0, "alert_at_usd": 1.0}})
 
 
 def test_load_cost_awareness_old_schema_equal_thresholds_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="warn_at_usd"):
         load_cost_awareness({"cost_awareness": {"warn_at_usd": 1.0, "alert_at_usd": 1.0}})
 
 
 def test_load_cost_awareness_non_ascending_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="strictly ascending"):
-        load_cost_awareness({
-            "cost_awareness": {
-                "thresholds": [
-                    {"at_usd": 5.0, "level": "warn"},
-                    {"at_usd": 1.0, "level": "alert"},
-                ]
+        load_cost_awareness(
+            {
+                "cost_awareness": {
+                    "thresholds": [
+                        {"at_usd": 5.0, "level": "warn"},
+                        {"at_usd": 1.0, "level": "alert"},
+                    ]
+                }
             }
-        })
+        )
 
 
 def test_load_cost_awareness_equal_at_usd_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="strictly ascending"):
-        load_cost_awareness({
-            "cost_awareness": {
-                "thresholds": [
-                    {"at_usd": 1.0, "level": "warn"},
-                    {"at_usd": 1.0, "level": "alert"},
-                ]
+        load_cost_awareness(
+            {
+                "cost_awareness": {
+                    "thresholds": [
+                        {"at_usd": 1.0, "level": "warn"},
+                        {"at_usd": 1.0, "level": "alert"},
+                    ]
+                }
             }
-        })
+        )
 
 
 def test_load_cost_awareness_repeat_interval_zero_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="repeat_interval_usd"):
-        load_cost_awareness({
-            "cost_awareness": {
-                "thresholds": [{"at_usd": 1.0, "level": "warn"}],
-                "repeat_last_threshold": True,
-                "repeat_interval_usd": 0,
+        load_cost_awareness(
+            {
+                "cost_awareness": {
+                    "thresholds": [{"at_usd": 1.0, "level": "warn"}],
+                    "repeat_last_threshold": True,
+                    "repeat_interval_usd": 0,
+                }
             }
-        })
+        )
 
 
 def test_load_cost_awareness_repeat_interval_negative_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="repeat_interval_usd"):
-        load_cost_awareness({
-            "cost_awareness": {
-                "thresholds": [{"at_usd": 1.0, "level": "warn"}],
-                "repeat_last_threshold": True,
-                "repeat_interval_usd": -1.0,
+        load_cost_awareness(
+            {
+                "cost_awareness": {
+                    "thresholds": [{"at_usd": 1.0, "level": "warn"}],
+                    "repeat_last_threshold": True,
+                    "repeat_interval_usd": -1.0,
+                }
             }
-        })
+        )
 
 
 def test_load_cost_awareness_repeat_interval_zero_allowed_when_repeat_disabled():
     from agentguard.config.loader import load_cost_awareness
-    result = load_cost_awareness({
-        "cost_awareness": {
-            "thresholds": [{"at_usd": 1.0, "level": "warn"}],
-            "repeat_last_threshold": False,
-            "repeat_interval_usd": 0,
+
+    result = load_cost_awareness(
+        {
+            "cost_awareness": {
+                "thresholds": [{"at_usd": 1.0, "level": "warn"}],
+                "repeat_last_threshold": False,
+                "repeat_interval_usd": 0,
+            }
         }
-    })
+    )
     assert result is not None
     assert result["repeat_last_threshold"] is False
 
 
 def test_load_cost_awareness_not_mapping_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="mapping"):
         load_cost_awareness({"cost_awareness": "1.0"})
 
 
 def test_load_cost_awareness_empty_thresholds_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="non-empty"):
         load_cost_awareness({"cost_awareness": {"thresholds": []}})
 
 
 def test_load_cost_awareness_at_usd_zero_raises():
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness
+
     with pytest.raises(GovernanceConfigError, match="must be > 0"):
         load_cost_awareness({"cost_awareness": {"thresholds": [{"at_usd": 0.0, "level": "warn"}]}})
 
@@ -945,6 +1139,7 @@ def test_load_cost_awareness_at_usd_zero_raises():
 
 def test_check_cost_awareness_absent():
     from agentguard.checks.preflight import check_cost_awareness
+
     f = check_cost_awareness({})
     assert f.severity == "info"
     assert "cost_awareness" in f.message.lower()
@@ -952,17 +1147,20 @@ def test_check_cost_awareness_absent():
 
 def test_check_cost_awareness_valid_new_schema():
     from agentguard.checks.preflight import check_cost_awareness
-    f = check_cost_awareness({
-        "cost_awareness": {
-            "thresholds": [
-                {"at_usd": 0.50, "level": "warn"},
-                {"at_usd": 2.00, "level": "alert"},
-                {"at_usd": 5.00, "level": "critical"},
-            ],
-            "repeat_last_threshold": True,
-            "repeat_interval_usd": 2.0,
+
+    f = check_cost_awareness(
+        {
+            "cost_awareness": {
+                "thresholds": [
+                    {"at_usd": 0.50, "level": "warn"},
+                    {"at_usd": 2.00, "level": "alert"},
+                    {"at_usd": 5.00, "level": "critical"},
+                ],
+                "repeat_last_threshold": True,
+                "repeat_interval_usd": 2.0,
+            }
         }
-    })
+    )
     assert f.severity == "ok"
     assert "3 threshold" in f.message
     assert "2.00" in f.message
@@ -970,6 +1168,7 @@ def test_check_cost_awareness_valid_new_schema():
 
 def test_check_cost_awareness_valid_old_schema_auto_converts():
     from agentguard.checks.preflight import check_cost_awareness
+
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
         f = check_cost_awareness({"cost_awareness": {"warn_at_usd": 1.0, "alert_at_usd": 5.0}})
@@ -979,12 +1178,14 @@ def test_check_cost_awareness_valid_old_schema_auto_converts():
 
 def test_check_cost_awareness_invalid_raises_critical():
     from agentguard.checks.preflight import check_cost_awareness
+
     f = check_cost_awareness({"cost_awareness": {"thresholds": []}})
     assert f.severity == "critical"
 
 
 def test_check_cost_awareness_warn_gt_alert_old_schema():
     from agentguard.checks.preflight import check_cost_awareness
+
     f = check_cost_awareness({"cost_awareness": {"warn_at_usd": 5.0, "alert_at_usd": 1.0}})
     assert f.severity == "critical"
     assert "warn_at_usd" in f.message

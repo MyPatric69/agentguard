@@ -11,24 +11,39 @@ PRICING_URL = "https://platform.claude.com/docs/en/about-claude/pricing"
 # Hardcoded fallback — current as of 2026-06-21. Live pricing via fetch_pricing().
 HARDCODED_PRICING: dict[str, dict] = {
     "claude-fable-5": {
-        "input": 10.0, "cache_write_5m": 12.5, "cache_write_1h": 20.0,
-        "cache_read": 1.0, "output": 50.0,
+        "input": 10.0,
+        "cache_write_5m": 12.5,
+        "cache_write_1h": 20.0,
+        "cache_read": 1.0,
+        "output": 50.0,
     },
     "claude-opus-4": {
-        "input": 5.0, "cache_write_5m": 6.25, "cache_write_1h": 10.0,
-        "cache_read": 0.50, "output": 25.0,
+        "input": 5.0,
+        "cache_write_5m": 6.25,
+        "cache_write_1h": 10.0,
+        "cache_read": 0.50,
+        "output": 25.0,
     },
     "claude-sonnet-4": {
-        "input": 3.0, "cache_write_5m": 3.75, "cache_write_1h": 6.0,
-        "cache_read": 0.30, "output": 15.0,
+        "input": 3.0,
+        "cache_write_5m": 3.75,
+        "cache_write_1h": 6.0,
+        "cache_read": 0.30,
+        "output": 15.0,
     },
     "claude-haiku-4": {
-        "input": 1.0, "cache_write_5m": 1.25, "cache_write_1h": 2.0,
-        "cache_read": 0.10, "output": 5.0,
+        "input": 1.0,
+        "cache_write_5m": 1.25,
+        "cache_write_1h": 2.0,
+        "cache_read": 0.10,
+        "output": 5.0,
     },
     "claude-haiku-3": {
-        "input": 0.80, "cache_write_5m": 1.0, "cache_write_1h": 1.60,
-        "cache_read": 0.08, "output": 4.0,
+        "input": 0.80,
+        "cache_write_5m": 1.0,
+        "cache_write_1h": 1.60,
+        "cache_read": 0.08,
+        "output": 4.0,
     },
 }
 
@@ -37,7 +52,9 @@ def _fetch_text(url: str) -> str:
     """Fetch URL as UTF-8 text. Raises on any error."""
     import urllib.request  # noqa: PLC0415
 
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; AgentGuard)"})
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0 (compatible; AgentGuard)"}
+    )
     with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
         charset = resp.headers.get_content_charset() or "utf-8"
         return resp.read().decode(charset, errors="ignore")
@@ -179,7 +196,9 @@ def calculate_session_cost(
     """
     try:
         seen_ids: set[str] = set()
-        total_input = total_cache_write_5m = total_cache_write_1h = total_cache_read = total_output = 0
+        total_input = total_cache_write_5m = total_cache_write_1h = total_cache_read = (
+            total_output
+        ) = 0
         model: str | None = None
 
         with open(transcript_path) as f:

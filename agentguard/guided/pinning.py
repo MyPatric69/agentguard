@@ -68,17 +68,19 @@ def repair_pins(
         if not content:
             continue
         content_str = json.dumps(content, sort_keys=True)
-        new_pins.append({
-            "field": field,
-            "input_hash": hash_content("repaired"),
-            "prompt_hash": hash_content("repaired"),
-            "output_hash": hash_content(content_str),
-            "model": "none (repaired)",
-            "provider": "none (repaired)",
-            "temperature": 0,
-            "date": today,
-            "repaired": True,
-        })
+        new_pins.append(
+            {
+                "field": field,
+                "input_hash": hash_content("repaired"),
+                "prompt_hash": hash_content("repaired"),
+                "output_hash": hash_content(content_str),
+                "model": "none (repaired)",
+                "provider": "none (repaired)",
+                "temperature": 0,
+                "date": today,
+                "repaired": True,
+            }
+        )
     return new_pins
 
 

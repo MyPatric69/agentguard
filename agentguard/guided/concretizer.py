@@ -26,9 +26,9 @@ CONCRETIZATION_MODEL_OVERRIDES: dict[str, str] = {
     "anysphere": "cursor-fast",
 }
 
-_EXCLUDED_DIRS: frozenset[str] = frozenset({
-    ".git", "__pycache__", "node_modules", ".venv", "dist", "build", ".agentguard"
-})
+_EXCLUDED_DIRS: frozenset[str] = frozenset(
+    {".git", "__pycache__", "node_modules", ".venv", "dist", "build", ".agentguard"}
+)
 
 
 def _project_tree(project_root: str = ".") -> str:
@@ -42,8 +42,7 @@ def _project_tree(project_root: str = ".") -> str:
             dirnames.clear()
             continue
         dirnames[:] = [
-            d for d in sorted(dirnames)
-            if d not in _EXCLUDED_DIRS and not d.endswith(".egg-info")
+            d for d in sorted(dirnames) if d not in _EXCLUDED_DIRS and not d.endswith(".egg-info")
         ]
         indent = "  " * depth
         folder = os.path.basename(dirpath) if depth > 0 else "."
@@ -66,15 +65,15 @@ def _generate_default_path_policy(project_root: str = ".") -> dict:
         entries = []
 
     top_dirs = sorted(
-        d for d in entries
+        d
+        for d in entries
         if os.path.isdir(os.path.join(root, d))
         and d not in _EXCLUDED_DIRS
         and not d.endswith(".egg-info")
     )
 
     authorized: list[dict] = [
-        {"pattern": f"{d}/**", "reason": "Auto-detected project directory"}
-        for d in top_dirs
+        {"pattern": f"{d}/**", "reason": "Auto-detected project directory"} for d in top_dirs
     ]
     authorized.append({"pattern": "*.md", "reason": "Documentation"})
 
@@ -89,6 +88,7 @@ def _generate_default_path_policy(project_root: str = ".") -> dict:
     }
 
     from agentguard.config.loader import load_path_policy
+
     load_path_policy({"path_policy": policy})
 
     return policy
@@ -176,7 +176,9 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 # Classifiers for _normalize_from_concretized (priority order: HARD_LIMIT > CONFIRMATION > WARNING)
 _HARD_LIMIT_SENTENCE_RE = re.compile(r"\b(HARD_LIMIT|DENY|never|prohibited)\b", re.IGNORECASE)
-_SOFT_PROHIBITED_RE = re.compile(r"\b(must\s+not|cannot|blocked|restricted)\b|\bno\s+\w+", re.IGNORECASE)
+_SOFT_PROHIBITED_RE = re.compile(
+    r"\b(must\s+not|cannot|blocked|restricted)\b|\bno\s+\w+", re.IGNORECASE
+)
 
 
 def _ai_available() -> bool:
@@ -205,35 +207,6 @@ def _normalize_items(items: Any, default_severity: str | None = None) -> list[di
     return []
 
 
-def _split_mission_concretized(text: str) -> tuple[list[dict], list[dict], list[dict]]:
-    """Split a single-field concretized text into structured (authorized, prohibited, confirmation) items.
-
-    Checks confirmation keywords first so sentences like "cannot proceed without
-    human confirmation" are not misclassified as prohibited.
-    """
-    sentences = [s.strip() for s in _SENTENCE_SPLIT_RE.split(text) if s.strip()]
-    if not sentences:
-        return [{"action": text, "reason": _AUTO_REASON}], [], []
-
-    authorized_parts: list[str] = []
-    prohibited_parts: list[str] = []
-    confirmation_parts: list[str] = []
-
-    for sentence in sentences:
-        if _CONFIRMATION_RE.search(sentence):
-            confirmation_parts.append(sentence)
-        elif _PROHIBITED_RE.search(sentence):
-            prohibited_parts.append(sentence)
-        else:
-            authorized_parts.append(sentence)
-
-    authorized = [{"action": s, "reason": _AUTO_REASON} for s in authorized_parts] or [{"action": text, "reason": _AUTO_REASON}]
-    prohibited = [{"action": s, "reason": _AUTO_REASON, "severity": "WARNING"} for s in prohibited_parts]
-    confirmation = [{"action": s, "reason": _AUTO_REASON} for s in confirmation_parts]
-
-    return authorized, prohibited, confirmation
-
-
 def _normalize_from_concretized(text: str) -> dict[str, list[dict]]:
     """Split a flat concretized text into structured authorized/prohibited/confirmation lists.
 
@@ -257,7 +230,9 @@ def _normalize_from_concretized(text: str) -> dict[str, list[dict]]:
 
     for sentence in sentences:
         if _HARD_LIMIT_SENTENCE_RE.search(sentence):
-            prohibited.append({"action": sentence, "reason": _AUTO_REASON, "severity": "HARD_LIMIT"})
+            prohibited.append(
+                {"action": sentence, "reason": _AUTO_REASON, "severity": "HARD_LIMIT"}
+            )
         elif _CONFIRMATION_RE.search(sentence):
             confirmation.append({"action": sentence, "reason": _AUTO_REASON})
         elif _SOFT_PROHIBITED_RE.search(sentence):
@@ -268,7 +243,11 @@ def _normalize_from_concretized(text: str) -> dict[str, list[dict]]:
     if not authorized and not prohibited and not confirmation:
         authorized = [{"action": text, "reason": _AUTO_REASON}]
 
-    return {"authorized": authorized, "prohibited": prohibited, "requires_confirmation": confirmation}
+    return {
+        "authorized": authorized,
+        "prohibited": prohibited,
+        "requires_confirmation": confirmation,
+    }
 
 
 def concretize_mission(user_input: str) -> dict[str, Any]:
@@ -290,9 +269,13 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
     project_tree = _project_tree()
     arch_overview = _claude_md_architecture()
     arch_text = arch_overview or "(not available)"
-    prompt = _MISSION_PROMPT.format(user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text)
+    prompt = _MISSION_PROMPT.format(
+        user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text
+    )
     try:
-        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, max_tokens=800, temperature=0)
+        raw = _call_provider(
+            provider, api_key, base_url, concretization_model, prompt, max_tokens=800, temperature=0
+        )
         parsed: dict[str, Any] = json.loads(_strip_fences(raw))
 
         # Format A — preferred: response already has explicit three-field structure
@@ -302,7 +285,9 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
             parsed["requires_confirmation"] = _normalize_items(parsed.get("requires_confirmation"))
             parsed["_provider"] = provider
             parsed["_model"] = concretization_model
-            parsed["_pin"] = pin_concretization("mission", user_input, prompt, concretization_model, provider, parsed)
+            parsed["_pin"] = pin_concretization(
+                "mission", user_input, prompt, concretization_model, provider, parsed
+            )
             return parsed
 
         # Format B — response used single concretized field; split with robust classifier
@@ -321,7 +306,9 @@ def concretize_mission(user_input: str) -> dict[str, Any]:
                 "_model": concretization_model,
                 "_format_b": True,
             }
-            result_b["_pin"] = pin_concretization("mission", user_input, prompt, concretization_model, provider, result_b)
+            result_b["_pin"] = pin_concretization(
+                "mission", user_input, prompt, concretization_model, provider, result_b
+            )
             return result_b
 
         # Truly empty response — neither Format A nor Format B
@@ -381,13 +368,22 @@ Confidence: HIGH = fully concrete, MEDIUM = mostly concrete, LOW = still vague."
     project_tree = _project_tree()
     arch_overview = _claude_md_architecture()
     arch_text = arch_overview or "(not available)"
-    prompt = _FIELD_PROMPT.format(field_name=field_name, user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text)
+    prompt = _FIELD_PROMPT.format(
+        field_name=field_name,
+        user_input=user_input,
+        directory_tree=project_tree,
+        claude_md_excerpt=arch_text,
+    )
     try:
-        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, temperature=0)
+        raw = _call_provider(
+            provider, api_key, base_url, concretization_model, prompt, temperature=0
+        )
         result: dict[str, Any] = json.loads(_sf(raw))
         result["_provider"] = provider
         result["_model"] = concretization_model
-        result["_pin"] = pin_concretization(field_name, user_input, prompt, concretization_model, provider, result)
+        result["_pin"] = pin_concretization(
+            field_name, user_input, prompt, concretization_model, provider, result
+        )
         return result
     except Exception as exc:
         return _field_fallback(user_input, str(exc))
@@ -412,14 +408,20 @@ def _concretize_hard_limits(user_input: str) -> dict[str, Any]:
     project_tree = _project_tree()
     arch_overview = _claude_md_architecture()
     arch_text = arch_overview or "(not available)"
-    prompt = _HARD_LIMITS_PROMPT.format(user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text)
+    prompt = _HARD_LIMITS_PROMPT.format(
+        user_input=user_input, directory_tree=project_tree, claude_md_excerpt=arch_text
+    )
     try:
-        raw = _call_provider(provider, api_key, base_url, concretization_model, prompt, temperature=0)
+        raw = _call_provider(
+            provider, api_key, base_url, concretization_model, prompt, temperature=0
+        )
         result: dict[str, Any] = json.loads(_strip_fences(raw))
         result["prohibited"] = _normalize_items(result.get("prohibited"), "HARD_LIMIT")
         result["_provider"] = provider
         result["_model"] = concretization_model
-        result["_pin"] = pin_concretization("hard_limits", user_input, prompt, concretization_model, provider, result)
+        result["_pin"] = pin_concretization(
+            "hard_limits", user_input, prompt, concretization_model, provider, result
+        )
         return result
     except Exception as exc:
         return _hard_limits_fallback(user_input, str(exc))

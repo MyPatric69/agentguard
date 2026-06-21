@@ -80,10 +80,14 @@ def run_enforce() -> None:
             pp_decision, pp_reason = pp_result
             if pp_decision == "deny":
                 _log_denial(cwd, tool_name, tool_input, pp_reason, session_id)
-                _log_tool_call(cwd, tool_name, tool_input, "deny", pp_reason, session_id, tool_use_id)
+                _log_tool_call(
+                    cwd, tool_name, tool_input, "deny", pp_reason, session_id, tool_use_id
+                )
                 deny(pp_reason)
             elif pp_decision == "ask":
-                _log_tool_call(cwd, tool_name, tool_input, "ask", pp_reason, session_id, tool_use_id)
+                _log_tool_call(
+                    cwd, tool_name, tool_input, "ask", pp_reason, session_id, tool_use_id
+                )
                 ask(pp_reason)
             # "allow": fall through to content-based prohibited/confirmation checks
 
@@ -236,21 +240,25 @@ def handle_stop(data: dict, cwd_str: str) -> None:
             pricing = fetch_pricing()
             cost_result = calculate_session_cost(transcript_path, pricing)
             if cost_result is not None:
-                _write_session_log(cwd, {
-                    "event": "session_cost",
-                    "session_id": session_id,
-                    "model": cost_result["model"],
-                    "total_usd": cost_result["total_usd"],
-                    "input_tokens": cost_result["input_tokens"],
-                    "cache_write_5m_tokens": cost_result["cache_write_5m_tokens"],
-                    "cache_write_1h_tokens": cost_result["cache_write_1h_tokens"],
-                    "cache_read_tokens": cost_result["cache_read_tokens"],
-                    "output_tokens": cost_result["output_tokens"],
-                    "pricing_source": cost_result["pricing_source"],
-                })
+                _write_session_log(
+                    cwd,
+                    {
+                        "event": "session_cost",
+                        "session_id": session_id,
+                        "model": cost_result["model"],
+                        "total_usd": cost_result["total_usd"],
+                        "input_tokens": cost_result["input_tokens"],
+                        "cache_write_5m_tokens": cost_result["cache_write_5m_tokens"],
+                        "cache_write_1h_tokens": cost_result["cache_write_1h_tokens"],
+                        "cache_read_tokens": cost_result["cache_read_tokens"],
+                        "output_tokens": cost_result["output_tokens"],
+                        "pricing_source": cost_result["pricing_source"],
+                    },
+                )
                 config_path = cwd / "governance.yaml"
                 if config_path.exists():
                     from agentguard.config.loader import load_cost_awareness  # noqa: PLC0415
+
                     cfg = load_config(config_path)
                     try:
                         cost_cfg = load_cost_awareness(cfg)
@@ -270,32 +278,36 @@ def handle_stop(data: dict, cwd_str: str) -> None:
                             level = t["level"]
                             if total >= at_usd and at_usd not in notified:
                                 notify_cost(total, mdl, level, project)
-                                _write_session_log(cwd, {
-                                    "event": "session_cost_notified",
-                                    "session_id": session_id,
-                                    "at_usd": at_usd,
-                                    "level": level,
-                                })
+                                _write_session_log(
+                                    cwd,
+                                    {
+                                        "event": "session_cost_notified",
+                                        "session_id": session_id,
+                                        "at_usd": at_usd,
+                                        "level": level,
+                                    },
+                                )
 
                         if repeat_last and thresholds:
                             last_t = max(thresholds, key=lambda x: x["at_usd"])
                             last_at_usd = last_t["at_usd"]
                             if total >= last_at_usd:
-                                repeat_sentinels = sorted(
-                                    a for a in notified if a >= last_at_usd
-                                )
+                                repeat_sentinels = sorted(a for a in notified if a >= last_at_usd)
                                 if repeat_sentinels:
                                     next_repeat = repeat_sentinels[-1] + repeat_interval
                                 else:
                                     next_repeat = last_at_usd + repeat_interval
                                 if total >= next_repeat:
                                     notify_cost(total, mdl, last_t["level"], project)
-                                    _write_session_log(cwd, {
-                                        "event": "session_cost_notified",
-                                        "session_id": session_id,
-                                        "at_usd": next_repeat,
-                                        "level": last_t["level"],
-                                    })
+                                    _write_session_log(
+                                        cwd,
+                                        {
+                                            "event": "session_cost_notified",
+                                            "session_id": session_id,
+                                            "at_usd": next_repeat,
+                                            "level": last_t["level"],
+                                        },
+                                    )
         except Exception:
             pass
 
@@ -449,10 +461,7 @@ def check_prohibited(tool_name: str, tool_input: dict, scope: dict) -> str | Non
     prohibited_full = str(prohibited or "")
 
     if _match_prohibited_text(tool_name, tool_str, prohibited_text):
-        return (
-            f"Action '{tool_name}: {input_summary}' violates prohibited scope:"
-            f" {prohibited_full}"
-        )
+        return f"Action '{tool_name}: {input_summary}' violates prohibited scope: {prohibited_full}"
     return None
 
 
@@ -481,8 +490,7 @@ def check_confirmation(tool_name: str, tool_input: dict, scope: dict) -> str | N
 
     if _match_confirmation_text(tool_name, tool_str, confirmation_text, file_path):
         return (
-            f"Action '{tool_name}: {input_summary}' requires human confirmation"
-            " per governance.yaml"
+            f"Action '{tool_name}: {input_summary}' requires human confirmation per governance.yaml"
         )
     return None
 

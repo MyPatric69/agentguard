@@ -19,54 +19,62 @@ def _ask_entry(
     reason: str = "requires confirmation",
     timestamp: str = "2026-06-16T10:00:00+00:00",
 ) -> str:
-    return json.dumps({
-        "timestamp": timestamp,
-        "tool": tool,
-        "tool_use_id": tool_use_id,
-        "input_summary": "some input",
-        "decision": "ask",
-        "reason": reason,
-        "session_id": session_id,
-    })
+    return json.dumps(
+        {
+            "timestamp": timestamp,
+            "tool": tool,
+            "tool_use_id": tool_use_id,
+            "input_summary": "some input",
+            "decision": "ask",
+            "reason": reason,
+            "session_id": session_id,
+        }
+    )
 
 
 def _post_entry(tool: str, tool_use_id: str, session_id: str = "sess-1") -> str:
-    return json.dumps({
-        "timestamp": "2026-06-16T10:00:01+00:00",
-        "event": "post_tool_use",
-        "tool": tool,
-        "tool_use_id": tool_use_id,
-        "session_id": session_id,
-        "duration_ms": 100,
-    })
+    return json.dumps(
+        {
+            "timestamp": "2026-06-16T10:00:01+00:00",
+            "event": "post_tool_use",
+            "tool": tool,
+            "tool_use_id": tool_use_id,
+            "session_id": session_id,
+            "duration_ms": 100,
+        }
+    )
 
 
 def _allow_entry(tool: str, session_id: str = "sess-1") -> str:
-    return json.dumps({
-        "timestamp": "2026-06-16T10:00:00+00:00",
-        "tool": tool,
-        "tool_use_id": "",
-        "input_summary": "some input",
-        "decision": "allow",
-        "reason": None,
-        "session_id": session_id,
-    })
+    return json.dumps(
+        {
+            "timestamp": "2026-06-16T10:00:00+00:00",
+            "tool": tool,
+            "tool_use_id": "",
+            "input_summary": "some input",
+            "decision": "allow",
+            "reason": None,
+            "session_id": session_id,
+        }
+    )
 
 
 def _transcript_line(tool_name: str, tool_use_id: str, tool_input: dict) -> str:
-    return json.dumps({
-        "type": "assistant",
-        "message": {
-            "content": [
-                {
-                    "type": "tool_use",
-                    "id": tool_use_id,
-                    "name": tool_name,
-                    "input": tool_input,
-                }
-            ]
-        },
-    })
+    return json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": tool_use_id,
+                        "name": tool_name,
+                        "input": tool_input,
+                    }
+                ]
+            },
+        }
+    )
 
 
 def _stop_data(
@@ -90,13 +98,23 @@ def test_unresolved_ask_writes_proposal(tmp_path):
     session_log = tmp_path / ".agentguard" / "session.log"
     session_log.parent.mkdir()
     session_log.write_text(
-        _ask_entry("Edit", "tuid-1", reason="core enforcement layer", timestamp="2026-06-16T10:00:00+00:00")
+        _ask_entry(
+            "Edit", "tuid-1", reason="core enforcement layer", timestamp="2026-06-16T10:00:00+00:00"
+        )
         + "\n"
     )
 
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
-        _transcript_line("Edit", "tuid-1", {"file_path": "agentguard/enforcement/enforcer.py", "old_string": "x", "new_string": "y"})
+        _transcript_line(
+            "Edit",
+            "tuid-1",
+            {
+                "file_path": "agentguard/enforcement/enforcer.py",
+                "old_string": "x",
+                "new_string": "y",
+            },
+        )
         + "\n"
     )
 
@@ -145,7 +163,11 @@ def test_idempotency_pending_overwritten(tmp_path):
 
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
-        _transcript_line("Edit", "tuid-idem", {"file_path": "pyproject.toml", "old_string": "a", "new_string": "b"})
+        _transcript_line(
+            "Edit",
+            "tuid-idem",
+            {"file_path": "pyproject.toml", "old_string": "a", "new_string": "b"},
+        )
         + "\n"
     )
     data = _stop_data("sess-1", str(transcript), str(tmp_path))
@@ -170,7 +192,11 @@ def test_non_pending_proposal_not_overwritten(tmp_path):
 
     proposals_dir = tmp_path / ".agentguard" / "proposals"
     proposals_dir.mkdir(parents=True)
-    existing_proposal = {"tool_use_id": "tuid-done", "status": "pr_created", "pr_url": "https://github.com/x/y/pull/1"}
+    existing_proposal = {
+        "tool_use_id": "tuid-done",
+        "status": "pr_created",
+        "pr_url": "https://github.com/x/y/pull/1",
+    }
     (proposals_dir / "tuid-done.json").write_text(json.dumps(existing_proposal))
 
     data = _stop_data("sess-1", "", str(tmp_path))
@@ -187,9 +213,7 @@ def test_non_pending_proposal_not_overwritten(tmp_path):
 def test_no_asks_no_proposals(tmp_path):
     session_log = tmp_path / ".agentguard" / "session.log"
     session_log.parent.mkdir()
-    session_log.write_text(
-        _allow_entry("Bash") + "\n" + _post_entry("Bash", "tuid-x") + "\n"
-    )
+    session_log.write_text(_allow_entry("Bash") + "\n" + _post_entry("Bash", "tuid-x") + "\n")
 
     data = _stop_data("sess-1", "", str(tmp_path))
     handle_stop(data, str(tmp_path))
@@ -231,14 +255,18 @@ def test_no_session_log_exits_silently(tmp_path):
 
 
 def test_stop_dispatch_exit_0(tmp_path, monkeypatch, capsys):
-    (tmp_path / "governance.yaml").write_text("owner: Alice\nscope:\n  authorized: []\n  prohibited: []\n  requires_confirmation: []\nescalation:\n  contact: alice@example.com\nkillswitch: Ctrl+C\n")
-    stop_input = json.dumps({
-        "hook_event_name": "Stop",
-        "session_id": "sess-stop",
-        "transcript_path": str(tmp_path / "t.jsonl"),
-        "cwd": str(tmp_path),
-        "stop_hook_active": False,
-    })
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Alice\nscope:\n  authorized: []\n  prohibited: []\n  requires_confirmation: []\nescalation:\n  contact: alice@example.com\nkillswitch: Ctrl+C\n"
+    )
+    stop_input = json.dumps(
+        {
+            "hook_event_name": "Stop",
+            "session_id": "sess-stop",
+            "transcript_path": str(tmp_path / "t.jsonl"),
+            "cwd": str(tmp_path),
+            "stop_hook_active": False,
+        }
+    )
     monkeypatch.setattr("sys.stdin", io.StringIO(stop_input))
     with pytest.raises(SystemExit) as exc:
         run_enforce()
@@ -253,14 +281,16 @@ def test_pre_and_post_dispatch_regression(tmp_path, monkeypatch, capsys):
     gov = "owner: Alice\nscope:\n  authorized: []\n  prohibited:\n    - action: 'No git push'\n      reason: 'test'\n      severity: HARD_LIMIT\n  requires_confirmation: []\nescalation:\n  contact: a@b.com\nkillswitch: x\n"
     (tmp_path / "governance.yaml").write_text(gov)
 
-    pre_input = json.dumps({
-        "hook_event_name": "PreToolUse",
-        "tool_name": "Bash",
-        "tool_input": {"command": "git push origin main"},
-        "cwd": str(tmp_path),
-        "session_id": "sess-r",
-        "tool_use_id": "tuid-r",
-    })
+    pre_input = json.dumps(
+        {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git push origin main"},
+            "cwd": str(tmp_path),
+            "session_id": "sess-r",
+            "tool_use_id": "tuid-r",
+        }
+    )
     monkeypatch.setattr("sys.stdin", io.StringIO(pre_input))
     with pytest.raises(SystemExit) as exc:
         run_enforce()
@@ -276,14 +306,16 @@ def test_pre_tool_use_logs_tool_use_id(tmp_path, monkeypatch):
     gov = "owner: Alice\nscope:\n  authorized: []\n  prohibited: []\n  requires_confirmation: []\nescalation:\n  contact: a@b.com\nkillswitch: x\n"
     (tmp_path / "governance.yaml").write_text(gov)
 
-    pre_input = json.dumps({
-        "hook_event_name": "PreToolUse",
-        "tool_name": "Bash",
-        "tool_input": {"command": "pytest"},
-        "cwd": str(tmp_path),
-        "session_id": "sess-uid",
-        "tool_use_id": "tuid-logged",
-    })
+    pre_input = json.dumps(
+        {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "pytest"},
+            "cwd": str(tmp_path),
+            "session_id": "sess-uid",
+            "tool_use_id": "tuid-logged",
+        }
+    )
     monkeypatch.setattr("sys.stdin", io.StringIO(pre_input))
     with pytest.raises(SystemExit):
         run_enforce()

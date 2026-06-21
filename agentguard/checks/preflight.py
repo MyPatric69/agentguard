@@ -62,7 +62,9 @@ def _scope_non_empty(field_value: object) -> bool:
 def _scope_text(field_value: object) -> str:
     """Extract plain text from scope field — handles both string and structured list."""
     if isinstance(field_value, list):
-        return " ".join(item.get("action", "") for item in field_value if isinstance(item, dict)).strip()
+        return " ".join(
+            item.get("action", "") for item in field_value if isinstance(item, dict)
+        ).strip()
     return str(field_value or "").strip()
 
 
@@ -86,30 +88,40 @@ def _check_scope(config: dict, findings: list[Finding], *, ai_review: bool = Fal
     else:
         findings.append(Finding("ok", "Authorized scope defined"))
         if not ai_review:
-            findings.append(Finding(
-                "info",
-                "Run agentguard check --ai-review for AI-powered scope quality assessment",
-            ))
+            findings.append(
+                Finding(
+                    "info",
+                    "Run agentguard check --ai-review for AI-powered scope quality assessment",
+                )
+            )
 
     # prohibited
     if not _scope_non_empty(prohibited):
-        findings.append(Finding(get_severity(config, "no_scope"), "No prohibited actions defined in scope"))
+        findings.append(
+            Finding(get_severity(config, "no_scope"), "No prohibited actions defined in scope")
+        )
     elif isinstance(prohibited, list):
         # Structured list — items are inherently prohibitions, no boundary-word check needed
         findings.append(Finding("ok", "Scope boundaries defined"))
     else:
         prohibited_text = _scope_text(prohibited)
         if not any(word in prohibited_text.lower() for word in _SCOPE_BOUNDARY_WORDS):
-            findings.append(Finding("warning", "Scope has no boundaries defined (use 'no', 'not', 'never', etc.)"))
+            findings.append(
+                Finding(
+                    "warning", "Scope has no boundaries defined (use 'no', 'not', 'never', etc.)"
+                )
+            )
         else:
             findings.append(Finding("ok", "Scope boundaries defined"))
 
     # requires_confirmation
     if not _scope_non_empty(requires_confirmation):
-        findings.append(Finding(
-            get_severity(config, "no_scope"),
-            "No confirmation-required actions defined in scope",
-        ))
+        findings.append(
+            Finding(
+                get_severity(config, "no_scope"),
+                "No confirmation-required actions defined in scope",
+            )
+        )
     else:
         findings.append(Finding("ok", "Confirmation requirements defined"))
 
@@ -190,6 +202,7 @@ def run_preflight(
         config = load_config(candidate) if candidate.exists() else {}
 
     from agentguard.config.loader import DEFAULTS, _deep_merge
+
     config = _deep_merge(DEFAULTS, config)
 
     findings: list[Finding] = []
@@ -206,15 +219,19 @@ def run_preflight(
     escalation = config.get("escalation", {})
     contact = escalation.get("contact", "").strip()
     if not contact:
-        findings.append(Finding(get_severity(config, "no_escalation"), "No escalation path configured"))
+        findings.append(
+            Finding(get_severity(config, "no_escalation"), "No escalation path configured")
+        )
     else:
         findings.append(Finding("ok", "Escalation path configured"))
         if _is_invalid_contact(contact):
-            findings.append(Finding(
-                "warning",
-                "Escalation contact appears invalid — provide email (name@domain.com),"
-                " Slack handle (@name or channel), or full name",
-            ))
+            findings.append(
+                Finding(
+                    "warning",
+                    "Escalation contact appears invalid — provide email (name@domain.com),"
+                    " Slack handle (@name or channel), or full name",
+                )
+            )
 
     if not config.get("killswitch", "").strip():
         findings.append(Finding(get_severity(config, "no_killswitch"), "No killswitch defined"))
@@ -236,10 +253,12 @@ def run_preflight(
         findings.append(Finding("ok", "AGENTS.md present"))
         instruction_text = _read_text(agents_md)
     else:
-        findings.append(Finding(
-            get_severity(config, "no_instruction_file"),
-            "No CLAUDE.md or AGENTS.md found — one is required",
-        ))
+        findings.append(
+            Finding(
+                get_severity(config, "no_instruction_file"),
+                "No CLAUDE.md or AGENTS.md found — one is required",
+            )
+        )
         instruction_text = ""
 
     # ── SKILL.md check ────────────────────────────────────────────────────────
@@ -247,14 +266,14 @@ def run_preflight(
     skill_md = base / "SKILL.md"
     py_content = _collect_py_content(base)
 
-    has_workflow_patterns = bool(
-        re.search(r"(workflow|pipeline|chain|orchestrat)", py_content)
-    )
+    has_workflow_patterns = bool(re.search(r"(workflow|pipeline|chain|orchestrat)", py_content))
     if has_workflow_patterns and not skill_md.exists():
-        findings.append(Finding(
-            get_severity(config, "no_skill_md"),
-            "Project appears to use specialized workflows — consider documenting them in SKILL.md",
-        ))
+        findings.append(
+            Finding(
+                get_severity(config, "no_skill_md"),
+                "Project appears to use specialized workflows — consider documenting them in SKILL.md",
+            )
+        )
 
     # ── Prompt quality checks (from instruction file) ────────────────────────
 
@@ -262,39 +281,51 @@ def run_preflight(
         if _scan_keywords(instruction_text, LOOP_KEYWORDS):
             findings.append(Finding("ok", "Loop-detection directive found"))
         else:
-            findings.append(Finding(
-                get_severity(config, "no_loop_detection"),
-                "No loop detection directive in CLAUDE.md/AGENTS.md",
-            ))
+            findings.append(
+                Finding(
+                    get_severity(config, "no_loop_detection"),
+                    "No loop detection directive in CLAUDE.md/AGENTS.md",
+                )
+            )
 
         if _scan_keywords(instruction_text, ROOT_CAUSE_KEYWORDS):
             findings.append(Finding("ok", "Root-cause directive found"))
         else:
-            findings.append(Finding(
-                get_severity(config, "no_root_cause_rule"),
-                "No root-cause analysis rule in CLAUDE.md/AGENTS.md",
-            ))
+            findings.append(
+                Finding(
+                    get_severity(config, "no_root_cause_rule"),
+                    "No root-cause analysis rule in CLAUDE.md/AGENTS.md",
+                )
+            )
 
         if _scan_keywords(instruction_text, API_RESEARCH_KEYWORDS):
             findings.append(Finding("ok", "External API research rule found"))
         else:
-            findings.append(Finding(
-                get_severity(config, "no_api_research_rule"),
-                "No external API research rule in CLAUDE.md/AGENTS.md",
-            ))
+            findings.append(
+                Finding(
+                    get_severity(config, "no_api_research_rule"),
+                    "No external API research rule in CLAUDE.md/AGENTS.md",
+                )
+            )
     else:
-        findings.append(Finding(
-            get_severity(config, "no_loop_detection"),
-            "No loop detection directive (fix: create CLAUDE.md first)",
-        ))
-        findings.append(Finding(
-            get_severity(config, "no_root_cause_rule"),
-            "No root-cause analysis rule (fix: create CLAUDE.md first)",
-        ))
-        findings.append(Finding(
-            get_severity(config, "no_api_research_rule"),
-            "No external API research rule (fix: create CLAUDE.md first)",
-        ))
+        findings.append(
+            Finding(
+                get_severity(config, "no_loop_detection"),
+                "No loop detection directive (fix: create CLAUDE.md first)",
+            )
+        )
+        findings.append(
+            Finding(
+                get_severity(config, "no_root_cause_rule"),
+                "No root-cause analysis rule (fix: create CLAUDE.md first)",
+            )
+        )
+        findings.append(
+            Finding(
+                get_severity(config, "no_api_research_rule"),
+                "No external API research rule (fix: create CLAUDE.md first)",
+            )
+        )
 
     # ── Harness checks (scan Python source) ──────────────────────────────────
 
@@ -302,18 +333,22 @@ def run_preflight(
         if _scan_patterns(py_content, ATTEMPT_COUNTER_PATTERNS):
             findings.append(Finding("ok", "Attempt counter found in harness"))
         else:
-            findings.append(Finding(
-                get_severity(config, "no_attempt_counter"),
-                "No attempt counter in harness (attempt_count / retry_count / max_attempts)",
-            ))
+            findings.append(
+                Finding(
+                    get_severity(config, "no_attempt_counter"),
+                    "No attempt counter in harness (attempt_count / retry_count / max_attempts)",
+                )
+            )
 
         if _scan_patterns(py_content, ACTION_LOG_PATTERNS):
             findings.append(Finding("ok", "Action log found in harness"))
         else:
-            findings.append(Finding(
-                get_severity(config, "no_action_log"),
-                "No action log in harness (action_log / log_action / append.*log)",
-            ))
+            findings.append(
+                Finding(
+                    get_severity(config, "no_action_log"),
+                    "No action log in harness (action_log / log_action / append.*log)",
+                )
+            )
 
         if _scan_patterns(py_content, ERROR_PATTERN_PATTERNS):
             findings.append(Finding("ok", "Error pattern detection found in harness"))
@@ -323,19 +358,23 @@ def run_preflight(
     session_log = base / ".agentguard" / "session.log"
     agentguard_log = base / "agentguard-enforcement.log"
     if not (session_log.exists() or agentguard_log.exists()):
-        findings.append(Finding(
-            "info",
-            "No session log yet — start a Claude Code session to generate one",
-        ))
+        findings.append(
+            Finding(
+                "info",
+                "No session log yet — start a Claude Code session to generate one",
+            )
+        )
 
     # ── Security documentation check ────────────────────────────────────────
 
     security_files = ["security.md", "SECURITY.md", ".security.md"]
     if not any((base / f).exists() for f in security_files):
-        findings.append(Finding(
-            "info",
-            "No security.md found — consider documenting security policies",
-        ))
+        findings.append(
+            Finding(
+                "info",
+                "No security.md found — consider documenting security policies",
+            )
+        )
 
     return findings
 

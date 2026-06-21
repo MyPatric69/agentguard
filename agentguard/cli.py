@@ -42,7 +42,7 @@ def _with_spinner(spinner_text: str, fn, *args, **kwargs):
 
 
 def _strip_quotes(value: str) -> str:
-    return value.strip().strip('"\'')
+    return value.strip().strip("\"'")
 
 
 def _write_hook_config(project_path: Path) -> str:
@@ -157,7 +157,9 @@ _GUIDED_LINE_WIDTH = 55
 def _wrap_guided_line(prefix: str, text: str) -> Text:
     """Wrap a labeled panel line to fit within the guided panel (total width 55)."""
     avail = max(_GUIDED_LINE_WIDTH - len(prefix), 10)
-    parts = textwrap.wrap(text or "(empty)", width=avail, break_long_words=True, break_on_hyphens=False)
+    parts = textwrap.wrap(
+        text or "(empty)", width=avail, break_long_words=True, break_on_hyphens=False
+    )
     indent = " " * len(prefix)
     return Text(prefix + ("\n" + indent).join(parts) if parts else prefix + "(empty)")
 
@@ -211,7 +213,6 @@ def _field_lines(label: str, items: object) -> list[Text]:
 
 def _show_concretized(step: dict, ai_result: dict) -> None:
     from rich.panel import Panel
-    from rich.text import Text
 
     if ai_result.get("_fallback"):
         _console.print("  ⚠️  Could not concretize — saved as-is.", style="yellow")
@@ -252,12 +253,19 @@ def _show_concretized(step: dict, ai_result: dict) -> None:
             lines.append(amb_line)
 
     content = Text("\n").join(lines)
-    _console.print(Panel(content, title="[bold]Concretized Rule[/bold]", border_style="cyan", expand=False, width=64))
+    _console.print(
+        Panel(
+            content,
+            title="[bold]Concretized Rule[/bold]",
+            border_style="cyan",
+            expand=False,
+            width=64,
+        )
+    )
 
 
 def _show_validation_errors(errors: list) -> None:
     from rich.panel import Panel
-    from rich.text import Text
 
     lines = [Text("")]
     for issue in errors:
@@ -277,7 +285,6 @@ def _show_validation_errors(errors: list) -> None:
 
 def _show_validation_warnings(warnings: list) -> None:
     from rich.panel import Panel
-    from rich.text import Text
 
     lines = [Text("")]
     for issue in warnings:
@@ -297,7 +304,6 @@ def _show_validation_warnings(warnings: list) -> None:
 
 def _show_ambiguity_panel(ambiguities: list) -> str:
     from rich.panel import Panel
-    from rich.text import Text
 
     lines = [
         Text(""),
@@ -358,11 +364,14 @@ def _run_guided_step(step: dict, results: dict) -> None:
         if step.get("splits_into"):
             ai_result = _with_spinner("Concretizing with AI...", concretize_mission, current_input)
         else:
-            ai_result = _with_spinner("Concretizing with AI...", concretize_field, step["field"], current_input)
+            ai_result = _with_spinner(
+                "Concretizing with AI...", concretize_field, step["field"], current_input
+            )
 
         _validation_errors: list = []
         if step.get("splits_into") and not ai_result.get("_fallback"):
             from agentguard.guided.validator import validate_concretized
+
             _issues = validate_concretized(ai_result)
             _validation_errors = [i for i in _issues if i.severity == "error"]
             _validation_warnings = [i for i in _issues if i.severity == "warning"]
@@ -378,7 +387,7 @@ def _run_guided_step(step: dict, results: dict) -> None:
         if _validation_errors:
             _show_validation_errors(_validation_errors)
 
-        for a in (ai_result.get("ambiguities") or []):
+        for a in ai_result.get("ambiguities") or []:
             a_str = str(a)
             if a_str and a_str not in accumulated_ambiguities:
                 accumulated_ambiguities.append(a_str)
@@ -432,7 +441,6 @@ def _run_guided_step(step: dict, results: dict) -> None:
 
 def _show_guided_review(results: dict) -> str:
     from rich.panel import Panel
-    from rich.text import Text
 
     def _short(value: object, n: int = 50) -> str:
         text = _items_summary(value) if isinstance(value, list) else str(value or "(not set)")
@@ -458,7 +466,8 @@ def _show_guided_review(results: dict) -> str:
     _path_policy = results.get("_path_policy")
     if _path_policy:
         _n_dirs = sum(
-            1 for e in _path_policy.get("authorized_paths", [])
+            1
+            for e in _path_policy.get("authorized_paths", [])
             if e.get("pattern", "").endswith("/**")
         )
         _default = _path_policy.get("default_for_unmatched", "ask")
@@ -467,7 +476,9 @@ def _show_guided_review(results: dict) -> str:
     if _ca:
         _n_thresh = len(_ca.get("thresholds", []))
         _interval = _ca.get("repeat_interval_usd", 2.0)
-        lines.append(Text(f"  Cost:        {_n_thresh} thresholds, repeat every ${float(_interval):.2f}"))
+        lines.append(
+            Text(f"  Cost:        {_n_thresh} thresholds, repeat every ${float(_interval):.2f}")
+        )
     lines += [
         Text(""),
         Text("  [1] Save — generate governance.yaml + hook config"),
@@ -515,25 +526,6 @@ def _show_guided_review(results: dict) -> str:
     return _show_guided_review(results)
 
 
-def _yaml_item_block(items: list, today: str) -> str:
-    """Render a list of structured scope items as YAML block lines."""
-    if not items:
-        return "    []\n"
-    lines: list[str] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        action = str(item.get("action", "")).replace('"', '\\"')
-        reason = str(item.get("reason", "")).replace('"', '\\"')
-        added = item.get("added", today)
-        lines.append(f'    - action: "{action}"')
-        lines.append(f'      reason: "{reason}"')
-        if "severity" in item:
-            lines.append(f'      severity: "{item["severity"]}"')
-        lines.append(f'      added: "{added}"')
-    return "\n".join(lines) + "\n"
-
-
 def _yaml_ambiguity_block(ambiguities: list, today: str) -> str:
     lines: list[str] = []
     for a in ambiguities:
@@ -553,14 +545,13 @@ def _yaml_pins_block(pins: list[dict]) -> str:
         lines.append(f'    output_hash: "{p.get("output_hash", "")}"')
         lines.append(f'    model: "{p.get("model", "")}"')
         lines.append(f'    provider: "{p.get("provider", "")}"')
-        lines.append(f'    temperature: {p.get("temperature", 0)}')
+        lines.append(f"    temperature: {p.get('temperature', 0)}")
         lines.append(f'    date: "{p.get("date", "")}"')
     return "\n".join(lines) + "\n"
 
 
 def _print_next_steps() -> None:
     from rich.panel import Panel
-    from rich.text import Text
 
     lines = [
         Text(""),
@@ -615,8 +606,8 @@ def _yaml_path_policy_block(policy: dict) -> str:
 def _save_guided(results: dict) -> None:
     from datetime import date
 
-    from agentguard import __version__
     from agentguard.ai_review import _DEFAULT_MODELS, _get_env
+    from agentguard.review.reviewer import _yaml_item_block
 
     mission_model = results.get("_mission_model")
     mission_provider = results.get("_mission_provider")
@@ -631,7 +622,11 @@ def _save_guided(results: dict) -> None:
     def _with_date(items: object) -> list:
         if not isinstance(items, list):
             return []
-        return [{**item, "added": today} if "added" not in item else item for item in items if isinstance(item, dict)]
+        return [
+            {**item, "added": today} if "added" not in item else item
+            for item in items
+            if isinstance(item, dict)
+        ]
 
     authorized_items = _with_date(results.get("scope.authorized", []))
     prohibited_items = _with_date(results.get("scope.prohibited", []))
@@ -641,12 +636,14 @@ def _save_guided(results: dict) -> None:
     if isinstance(hard_limits, list):
         prohibited_items = prohibited_items + _with_date(hard_limits)
     elif hard_limits:
-        prohibited_items.append({
-            "action": str(hard_limits),
-            "reason": "Hard limit — manually specified",
-            "severity": "HARD_LIMIT",
-            "added": today,
-        })
+        prohibited_items.append(
+            {
+                "action": str(hard_limits),
+                "reason": "Hard limit — manually specified",
+                "severity": "HARD_LIMIT",
+                "added": today,
+            }
+        )
 
     accumulated_ambiguities = results.get("_ambiguities", [])
     amb_section = (
@@ -715,7 +712,9 @@ def _save_guided(results: dict) -> None:
     _console.print(f"✅ {_write_hook_config(Path('.'))}", style="green")
 
     templates_dir = Path(__file__).parent / "templates"
-    _, msg = _update_claude_md(Path("CLAUDE.md"), (templates_dir / "claude_md_block.md").read_text())
+    _, msg = _update_claude_md(
+        Path("CLAUDE.md"), (templates_dir / "claude_md_block.md").read_text()
+    )
     _console.print(f"✅ {msg}", style="green")
 
     _print_next_steps()
@@ -732,7 +731,9 @@ def _run_cost_awareness_step(results: dict) -> None:
 
     _console.print('  e.g. "0.50, 2.00, 5.00" → warn, alert, critical', style="bright_yellow")
     while True:
-        raw = _strip_quotes(click.prompt("  Thresholds (comma-separated USD)", default="0.50, 2.00, 5.00"))
+        raw = _strip_quotes(
+            click.prompt("  Thresholds (comma-separated USD)", default="0.50, 2.00, 5.00")
+        )
         try:
             values = [float(v.strip()) for v in raw.split(",") if v.strip()]
         except ValueError:
@@ -774,7 +775,6 @@ def _run_cost_awareness_step(results: dict) -> None:
 
 def _run_guided_init() -> None:
     from rich.panel import Panel
-    from rich.text import Text
 
     from agentguard.guided.concretizer import _ai_available, _generate_default_path_policy
 
@@ -844,26 +844,52 @@ def _run_guided_init() -> None:
 
 def _verify_pin_integrity(gov_path: Path) -> list[dict]:
     """Check concretization_pins in governance.yaml for structural completeness."""
-    import yaml
+    from agentguard.review.reviewer import load_governance
 
-    text = gov_path.read_text()
-    data = yaml.safe_load(text)
+    data = load_governance(gov_path)
     if not isinstance(data, dict):
         return [{"field": "governance.yaml", "status": "error", "detail": "Could not parse YAML"}]
 
     pins = data.get("concretization_pins")
     if not pins:
-        return [{"field": "concretization_pins", "status": "missing", "detail": "No pins found in governance.yaml"}]
+        return [
+            {
+                "field": "concretization_pins",
+                "status": "missing",
+                "detail": "No pins found in governance.yaml",
+            }
+        ]
 
     results = []
-    required_keys = {"field", "input_hash", "prompt_hash", "output_hash", "model", "provider", "temperature", "date"}
+    required_keys = {
+        "field",
+        "input_hash",
+        "prompt_hash",
+        "output_hash",
+        "model",
+        "provider",
+        "temperature",
+        "date",
+    }
     for pin in pins:
         field = pin.get("field", "<unknown>")
         missing = required_keys - set(pin.keys())
         if missing:
-            results.append({"field": field, "status": "incomplete", "detail": f"Missing keys: {sorted(missing)}"})
+            results.append(
+                {
+                    "field": field,
+                    "status": "incomplete",
+                    "detail": f"Missing keys: {sorted(missing)}",
+                }
+            )
         elif pin.get("temperature") != 0:
-            results.append({"field": field, "status": "drift", "detail": f"temperature={pin['temperature']} (expected 0)"})
+            results.append(
+                {
+                    "field": field,
+                    "status": "drift",
+                    "detail": f"temperature={pin['temperature']} (expected 0)",
+                }
+            )
         else:
             results.append({"field": field, "status": "ok", "detail": ""})
     return results
@@ -914,7 +940,11 @@ def check(path: str, config_path: str | None, fmt: str, ai_review: bool) -> None
             cfg = load_config(resolved_config) if resolved_config else _deep_merge(DEFAULTS, {})
             raw_scope = cfg.get("scope", {})
             if isinstance(raw_scope, str):
-                scope: dict = {"authorized": raw_scope, "prohibited": "", "requires_confirmation": ""}
+                scope: dict = {
+                    "authorized": raw_scope,
+                    "prohibited": "",
+                    "requires_confirmation": "",
+                }
             else:
                 scope = raw_scope
 
@@ -933,12 +963,19 @@ def check(path: str, config_path: str | None, fmt: str, ai_review: bool) -> None
 
 @main.command()
 @click.option(
-    "--log", "log_path", default=None, show_default=True,
+    "--log",
+    "log_path",
+    default=None,
+    show_default=True,
     help="Session log to watch. Default: .agentguard/session.log",
 )
 @click.option("--interval", default=10.0, show_default=True, help="Poll interval in seconds.")
-@click.option("--loop-threshold", default=6, show_default=True,
-              help="Number of repeated tool calls before loop warning.")
+@click.option(
+    "--loop-threshold",
+    default=6,
+    show_default=True,
+    help="Number of repeated tool calls before loop warning.",
+)
 def watch(log_path: str | None, interval: float, loop_threshold: int) -> None:
     """Start runtime observer.
 
@@ -969,7 +1006,9 @@ def report(path: str, output_path: str) -> None:
 
 @main.command("init")
 @click.option("--interactive", is_flag=True, default=False, help="Guided Q&A setup.")
-@click.option("--template-only", is_flag=True, default=False, help="Copy template governance.yaml only.")
+@click.option(
+    "--template-only", is_flag=True, default=False, help="Copy template governance.yaml only."
+)
 @click.option(
     "--guided",
     is_flag=True,
@@ -997,15 +1036,21 @@ def init_cmd(interactive: bool, template_only: bool, guided: bool) -> None:
 
     click.echo("AgentGuard — Interactive Setup\n")
     _console.print("Agent owner (name or role):")
-    _console.print('  e.g. "Jane Smith", "DevOps Team Lead", "AI Platform Team"', style="bright_yellow")
+    _console.print(
+        '  e.g. "Jane Smith", "DevOps Team Lead", "AI Platform Team"', style="bright_yellow"
+    )
     owner = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     click.echo("\nAgent scope — answer these three questions:")
     _console.print("  What tasks is this agent authorized to perform?")
-    _console.print('  e.g. "Read and modify Python files in ./src, run pytest suite"', style="bright_yellow")
+    _console.print(
+        '  e.g. "Read and modify Python files in ./src, run pytest suite"', style="bright_yellow"
+    )
     scope_authorized = _strip_quotes(click.prompt("> ", prompt_suffix=""))
     _console.print("  What is explicitly NOT allowed?")
-    _console.print('  e.g. "No database writes, no deletion outside ./tmp, no git push"', style="bright_yellow")
+    _console.print(
+        '  e.g. "No database writes, no deletion outside ./tmp, no git push"', style="bright_yellow"
+    )
     scope_prohibited = _strip_quotes(click.prompt("> ", prompt_suffix=""))
     _console.print("  What requires human confirmation before execution?")
     _console.print(
@@ -1014,7 +1059,9 @@ def init_cmd(interactive: bool, template_only: bool, guided: bool) -> None:
     scope_confirmation = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     _console.print("\nEscalation contact (email, Slack handle, or full name):")
-    _console.print('  e.g. "jane@example.com", "@jane-smith (Slack)", "Jane Smith"', style="bright_yellow")
+    _console.print(
+        '  e.g. "jane@example.com", "@jane-smith (Slack)", "Jane Smith"', style="bright_yellow"
+    )
     escalation_contact = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
     click.echo("\nEscalation method:")
@@ -1027,7 +1074,8 @@ def init_cmd(interactive: bool, template_only: bool, guided: bool) -> None:
 
     _console.print("\nKillswitch (how to stop this agent):")
     _console.print(
-        '  e.g. "Ctrl+C", "kill $(pgrep -f agent.py)", "POST /api/agent/stop"', style="bright_yellow"
+        '  e.g. "Ctrl+C", "kill $(pgrep -f agent.py)", "POST /api/agent/stop"',
+        style="bright_yellow",
     )
     killswitch = _strip_quotes(click.prompt("> ", prompt_suffix=""))
 
@@ -1079,8 +1127,19 @@ def enforce_cmd() -> None:
 
 
 @main.command("verify")
-@click.option("--config", "config_path", default="governance.yaml", show_default=True, help="Path to governance.yaml.")
-@click.option("--repair", is_flag=True, default=False, help="Generate baseline pins from existing governance.yaml (no AI required).")
+@click.option(
+    "--config",
+    "config_path",
+    default="governance.yaml",
+    show_default=True,
+    help="Path to governance.yaml.",
+)
+@click.option(
+    "--repair",
+    is_flag=True,
+    default=False,
+    help="Generate baseline pins from existing governance.yaml (no AI required).",
+)
 def verify_cmd(config_path: str, repair: bool) -> None:
     """Verify concretization pin integrity in governance.yaml."""
     import yaml
@@ -1092,8 +1151,9 @@ def verify_cmd(config_path: str, repair: bool) -> None:
 
     if repair:
         from agentguard.guided.pinning import repair_pins
-        with open(gov_path) as f:
-            governance = yaml.safe_load(f)
+        from agentguard.review.reviewer import load_governance
+
+        governance = load_governance(gov_path)
         new_pins = repair_pins(governance, "", "", "")
         if not new_pins:
             _console.print("✅ All fields already pinned — nothing to repair", style="green")
@@ -1138,7 +1198,10 @@ def verify_cmd(config_path: str, repair: bool) -> None:
         _console.print("\n✅ All pins verified — governance is reproducible", style="green")
         sys.exit(0)
     else:
-        _console.print("\n⚠  Pin issues detected — re-run agentguard init --guided to regenerate", style="yellow")
+        _console.print(
+            "\n⚠  Pin issues detected — re-run agentguard init --guided to regenerate",
+            style="yellow",
+        )
         sys.exit(1)
 
 
@@ -1175,7 +1238,9 @@ def _review_interactive(governance: dict, gov_path: Path, guided: bool) -> None:
             click.echo("  [2] Prohibited scope")
             click.echo("  [3] Requires confirmation")
             field_choice = click.prompt("  Choose [1-3]", default="1")
-            fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(field_choice, "authorized")
+            fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(
+                field_choice, "authorized"
+            )
             items = scope.get(fname, []) or []
             updated, changed = review_field(items, fname, guided=guided)
             if changed:
@@ -1187,11 +1252,15 @@ def _review_interactive(governance: dict, gov_path: Path, guided: bool) -> None:
             click.echo("  [2] Prohibited scope")
             click.echo("  [3] Requires confirmation")
             field_choice = click.prompt("  Choose [1-3]", default="1")
-            fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(field_choice, "authorized")
+            fname = {"1": "authorized", "2": "prohibited", "3": "requires_confirmation"}.get(
+                field_choice, "authorized"
+            )
             items = list(scope.get(fname, []) or [])
             click.echo(f"  Enter new rule for {fname}:")
             action_text = _strip_quotes(click.prompt("> ", prompt_suffix=""))
-            reason_text = _strip_quotes(click.prompt("  Reason: ", prompt_suffix="")) or "Added during review"
+            reason_text = (
+                _strip_quotes(click.prompt("  Reason: ", prompt_suffix="")) or "Added during review"
+            )
             new_item = {"action": action_text, "reason": reason_text, "added": today}
             scope[fname] = items + [new_item]
             changed_fields.append(f"scope.{fname}")
@@ -1203,7 +1272,8 @@ def _review_interactive(governance: dict, gov_path: Path, guided: bool) -> None:
             else:
                 click.echo("\n  Open ambiguities:")
                 open_indices = [
-                    i for i, a in enumerate(ambiguities)
+                    i
+                    for i, a in enumerate(ambiguities)
                     if isinstance(a, dict) and a.get("status") == "open"
                 ]
                 for i in open_indices:
@@ -1221,20 +1291,27 @@ def _review_interactive(governance: dict, gov_path: Path, guided: bool) -> None:
                         try:
                             idx = int(idx_str) - 1
                             if 0 <= idx < len(ambiguities):
-                                governance["unresolved_ambiguities"] = mark_ambiguity_resolved(ambiguities, idx)
+                                governance["unresolved_ambiguities"] = mark_ambiguity_resolved(
+                                    ambiguities, idx
+                                )
                                 changed_fields.append("unresolved_ambiguities")
                         except ValueError:
                             _console.print("  Invalid input — no changes made.", style="yellow")
 
         elif choice == "5":
             from rich.syntax import Syntax
+
             content = gov_path.read_text() if gov_path.exists() else "# governance.yaml not found"
-            _console.print(Syntax(content, "yaml", theme="monokai", line_numbers=True, word_wrap=True))
+            _console.print(
+                Syntax(content, "yaml", theme="monokai", line_numbers=True, word_wrap=True)
+            )
             return
 
         if changed_fields:
             save_governance(governance, gov_path, changed_fields)
-            _console.print(f"✅ governance.yaml updated — {', '.join(changed_fields)}", style="green")
+            _console.print(
+                f"✅ governance.yaml updated — {', '.join(changed_fields)}", style="green"
+            )
         else:
             _console.print("No changes made.", style="dim")
 
@@ -1302,8 +1379,19 @@ def review_cmd(path: str, guided: bool, field_filter: str | None) -> None:
 @main.command("web")
 @click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind to.")
 @click.option("--port", default=8767, show_default=True, help="Port to listen on.")
-@click.option("--no-browser", "no_browser", is_flag=True, default=False, help="Do not open browser automatically.")
-@click.option("--path", multiple=True, default=["."], help="Project path(s) to monitor. Use multiple times for multi-project.")
+@click.option(
+    "--no-browser",
+    "no_browser",
+    is_flag=True,
+    default=False,
+    help="Do not open browser automatically.",
+)
+@click.option(
+    "--path",
+    multiple=True,
+    default=["."],
+    help="Project path(s) to monitor. Use multiple times for multi-project.",
+)
 def web_cmd(host: str, port: int, no_browser: bool, path: tuple) -> None:
     """Start AgentGuard web interface.
 
@@ -1321,9 +1409,7 @@ def web_cmd(host: str, port: int, no_browser: bool, path: tuple) -> None:
         )
         sys.exit(1)
 
-    _console.print(
-        f"[green]AgentGuard Web[/green] starting on [bold]http://{host}:{port}[/bold]"
-    )
+    _console.print(f"[green]AgentGuard Web[/green] starting on [bold]http://{host}:{port}[/bold]")
     _console.print("[dim]Press Ctrl+C to stop[/dim]")
     start(host=host, port=port, open_browser=not no_browser, project_paths=list(path))
 
@@ -1348,8 +1434,7 @@ def propose_cmd(path: str, dry_run: bool) -> None:
 
     if not dry_run and not _shutil.which("gh"):
         _console.print(
-            "[red]gh CLI required for agentguard propose.[/red]\n"
-            "Install: https://cli.github.com",
+            "[red]gh CLI required for agentguard propose.[/red]\nInstall: https://cli.github.com",
             highlight=False,
         )
         sys.exit(1)
@@ -1368,6 +1453,7 @@ def propose_cmd(path: str, dry_run: bool) -> None:
 
     config_path = find_config(path)
     from agentguard.config.loader import load_config as _load_config
+
     config = _load_config(config_path) if config_path else {}
     reviewer = config.get("escalation", {}).get("contact", "")
 
@@ -1380,8 +1466,7 @@ def propose_cmd(path: str, dry_run: bool) -> None:
 
         if proposal.get("tool_input") is None:
             _console.print(
-                f"  ⚠  proposal {tool_use_id} has no tool_input"
-                " — cannot create PR, skipping",
+                f"  ⚠  proposal {tool_use_id} has no tool_input — cannot create PR, skipping",
                 style="yellow",
             )
             skipped += 1

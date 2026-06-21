@@ -84,8 +84,7 @@ def watch(
         reset = "\033[0m"
         reason_str = f" → {reason}" if reason else ""
         print(
-            f"{color}{symbol}{reset} {timestamp}  "
-            f"\033[36m{tool:<20}{reset} {summary}{reason_str}"
+            f"{color}{symbol}{reset} {timestamp}  \033[36m{tool:<20}{reset} {summary}{reason_str}"
         )
 
         tokens = entry.get("tokens", 0)
@@ -97,17 +96,26 @@ def watch(
         counts = Counter(window)
         for name, count in counts.items():
             if count >= loop_threshold * 2:
-                _emit("LOOP_WARNING", f"Tool '{name}' called {count}x in last 10 calls — possible loop")
+                _emit(
+                    "LOOP_WARNING",
+                    f"Tool '{name}' called {count}x in last 10 calls — possible loop",
+                )
 
         if total_tokens >= token_burn_threshold:
-            _emit("BURN_WARNING", f"Token usage reached {total_tokens} (threshold: {token_burn_threshold})")
+            _emit(
+                "BURN_WARNING",
+                f"Token usage reached {total_tokens} (threshold: {token_burn_threshold})",
+            )
             total_tokens = 0
 
         if len(tool_calls) - last_progress_check >= 10:
             last_progress_check = len(tool_calls)
             unique_recent = len(set(tool_calls[-10:]))
             if unique_recent <= 2:
-                _emit("STALL_WARNING", f"Low tool diversity in last 10 calls ({unique_recent} unique) — possible stall")
+                _emit(
+                    "STALL_WARNING",
+                    f"Low tool diversity in last 10 calls ({unique_recent} unique) — possible stall",
+                )
 
 
 def detect_loop(tool_call_history: list[str], threshold: int = 2) -> bool:

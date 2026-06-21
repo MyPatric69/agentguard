@@ -38,6 +38,7 @@ def test_severity_icons_defined():
 
 def test_render_preflight_no_exception():
     from agentguard.output.renderer import render_preflight
+
     findings = [
         Finding("critical", "No owner defined"),
         Finding("warning", "No loop detection"),
@@ -49,6 +50,7 @@ def test_render_preflight_no_exception():
 
 def test_render_watch_event_no_exception():
     from agentguard.output.renderer import render_watch_event
+
     render_watch_event("LOOP_WARNING", "tool_x called 4x in last 10 calls")
     render_watch_event("STALL_WARNING", "low diversity")
     render_watch_event("BURN_WARNING", "token threshold reached")

@@ -7,7 +7,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-import yaml
+from agentguard.review.reviewer import load_governance
 
 
 def _cost_label(total_usd: float | None, cost_awareness: dict | None) -> str:
@@ -132,12 +132,11 @@ def generate_report_data(project_path: str | Path) -> dict:
 
     governance_path = path / "governance.yaml"
     cost_awareness = None
-    if governance_path.exists():
-        try:
-            gov = yaml.safe_load(governance_path.read_text())
-            cost_awareness = gov.get("cost_awareness") if gov else None
-        except Exception:
-            pass
+    try:
+        gov = load_governance(governance_path)
+        cost_awareness = gov.get("cost_awareness")
+    except Exception:
+        pass
 
     loop_count = watch_counts.get("LOOP_WARNING", 0)
     stall_count = watch_counts.get("STALL_WARNING", 0)

@@ -10,6 +10,7 @@ from agentguard.ai_review import _get_env, review_scope
 
 # ── Provider detection ────────────────────────────────────────────────────────
 
+
 def test_provider_detection_anthropic(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
@@ -54,6 +55,7 @@ def test_provider_detection_openai_compatible_with_base_url(monkeypatch):
 
 # ── No env vars — graceful skip ───────────────────────────────────────────────
 
+
 def test_no_env_vars_returns_none(monkeypatch, capsys):
     monkeypatch.delenv("AGENTGUARD_AI_PROVIDER", raising=False)
     monkeypatch.delenv("AGENTGUARD_AI_API_KEY", raising=False)
@@ -88,6 +90,7 @@ def test_no_env_does_not_raise(monkeypatch):
 
 # ── API failure — warning printed, returns None ───────────────────────────────
 
+
 def test_api_failure_returns_none(monkeypatch, capsys):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
@@ -111,6 +114,7 @@ def test_api_failure_does_not_raise(monkeypatch):
 
 
 # ── Markdown fence stripping ──────────────────────────────────────────────────
+
 
 def test_strip_fences_json_fenced_response(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
@@ -138,6 +142,7 @@ def test_strip_fences_plain_json_unchanged(monkeypatch):
 
 # ── Invalid JSON — warning printed, returns None ──────────────────────────────
 
+
 def test_invalid_json_returns_none(monkeypatch, capsys):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "sk-test")
@@ -160,6 +165,7 @@ def test_invalid_json_shows_raw_response(monkeypatch, capsys):
 
 
 # ── Score rendering — all four verdict levels ─────────────────────────────────
+
 
 @pytest.mark.parametrize(
     "verdict,score",
@@ -203,6 +209,7 @@ def test_render_ai_review_empty_issues_and_suggestion():
 
 # ── .env loading — env vars are read from environment ─────────────────────────
 
+
 def test_env_vars_loaded_from_environment(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_AI_PROVIDER", "anysphere")
     monkeypatch.setenv("AGENTGUARD_AI_API_KEY", "cursor-key")
@@ -230,6 +237,7 @@ def test_valid_json_response_returns_result(monkeypatch):
 
 
 # ── dotenv loading ────────────────────────────────────────────────────────────
+
 
 def test_load_dotenv_called_with_usecwd_true(tmp_path):
     from pathlib import Path

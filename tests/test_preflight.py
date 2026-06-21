@@ -47,6 +47,7 @@ def _find(findings, severity, fragment):
 
 # ── Level 0 CRITICAL checks ──────────────────────────────────────────────────
 
+
 def test_no_owner_triggers_critical(tmp_path):
     proj = _make_project(tmp_path)
     findings = run_preflight(proj)
@@ -79,6 +80,7 @@ def test_no_instruction_file_triggers_critical(tmp_path):
 
 # ── OK when all conditions met ────────────────────────────────────────────────
 
+
 def test_full_governance_passes(tmp_path):
     proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
     findings = run_preflight(proj)
@@ -102,6 +104,7 @@ def test_agents_md_accepted_as_instruction_file(tmp_path):
 
 
 # ── Scope quality validation ──────────────────────────────────────────────────
+
 
 def test_scope_authorized_short_shows_ai_review_hint(tmp_path):
     gov = (
@@ -146,7 +149,9 @@ def test_scope_all_three_fields_empty_trigger_critical(tmp_path):
     )
     proj = _make_project(tmp_path, governance_yaml=gov, claude_md=_FULL_CLAUDE)
     findings = run_preflight(proj)
-    scope_criticals = [f for f in findings if f.severity == "critical" and "scope" in f.message.lower()]
+    scope_criticals = [
+        f for f in findings if f.severity == "critical" and "scope" in f.message.lower()
+    ]
     assert len(scope_criticals) == 3
 
 
@@ -167,14 +172,19 @@ def test_scope_missing_prohibited_triggers_critical(tmp_path):
 
 # ── WARNING checks ────────────────────────────────────────────────────────────
 
+
 def test_no_loop_detection_triggers_warning(tmp_path):
-    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md="# No relevant directives in this file\n")
+    proj = _make_project(
+        tmp_path, governance_yaml=_VALID_GOV, claude_md="# No relevant directives in this file\n"
+    )
     findings = run_preflight(proj)
     assert _find(findings, "warning", "loop")
 
 
 def test_no_root_cause_triggers_warning(tmp_path):
-    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md="# loop detection present\n")
+    proj = _make_project(
+        tmp_path, governance_yaml=_VALID_GOV, claude_md="# loop detection present\n"
+    )
     findings = run_preflight(proj)
     assert _find(findings, "warning", "root")
 
@@ -203,6 +213,7 @@ def test_no_action_log_triggers_warning(tmp_path):
 
 # ── Hint text for missing instruction file ────────────────────────────────────
 
+
 def test_hint_text_says_create_claude_md_when_no_instruction_file(tmp_path):
     proj = _make_project(tmp_path, governance_yaml=_VALID_GOV)
     findings = run_preflight(proj)
@@ -211,6 +222,7 @@ def test_hint_text_says_create_claude_md_when_no_instruction_file(tmp_path):
 
 
 # ── Severity override via config ──────────────────────────────────────────────
+
 
 def test_severity_override_demotes_owner_to_warning(tmp_path):
     gov = (
@@ -231,49 +243,61 @@ def test_severity_override_demotes_owner_to_warning(tmp_path):
 
 # ── has_criticals helper ──────────────────────────────────────────────────────
 
+
 def test_has_criticals_true():
     from agentguard.output.renderer import Finding
+
     findings = [Finding("critical", "something"), Finding("ok", "other")]
     assert has_criticals(findings) is True
 
 
 def test_has_criticals_false():
     from agentguard.output.renderer import Finding
+
     findings = [Finding("warning", "something"), Finding("ok", "other")]
     assert has_criticals(findings) is False
 
 
 # ── Escalation contact validation ─────────────────────────────────────────────
 
+
 def _gov_with_contact(contact: str) -> str:
     return (
         "owner: Alice\n"
         + _VALID_SCOPE
-        + f"escalation:\n  contact: \"{contact}\"\n"
+        + f'escalation:\n  contact: "{contact}"\n'
         + "killswitch: Ctrl+C\n"
     )
 
 
 def test_escalation_contact_email_ok(tmp_path):
-    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("alice@example.com"), claude_md=_FULL_CLAUDE)
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("alice@example.com"), claude_md=_FULL_CLAUDE
+    )
     findings = run_preflight(proj)
     assert not _find(findings, "warning", "escalation contact appears invalid")
 
 
 def test_escalation_contact_slack_handle_ok(tmp_path):
-    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("@alice-smith"), claude_md=_FULL_CLAUDE)
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("@alice-smith"), claude_md=_FULL_CLAUDE
+    )
     findings = run_preflight(proj)
     assert not _find(findings, "warning", "escalation contact appears invalid")
 
 
 def test_escalation_contact_full_name_ok(tmp_path):
-    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("Jane Smith"), claude_md=_FULL_CLAUDE)
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("Jane Smith"), claude_md=_FULL_CLAUDE
+    )
     findings = run_preflight(proj)
     assert not _find(findings, "warning", "escalation contact appears invalid")
 
 
 def test_escalation_contact_single_word_email_triggers_warning(tmp_path):
-    proj = _make_project(tmp_path, governance_yaml=_gov_with_contact("email"), claude_md=_FULL_CLAUDE)
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("email"), claude_md=_FULL_CLAUDE
+    )
     findings = run_preflight(proj)
     assert _find(findings, "warning", "escalation contact appears invalid")
 
@@ -367,6 +391,7 @@ killswitch: "Ctrl+C"
 
 # ── Security documentation check ─────────────────────────────────────────────
 
+
 def test_security_md_absent_triggers_info(tmp_path):
     proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
     findings = run_preflight(proj)
@@ -388,6 +413,7 @@ def test_security_md_lowercase_accepted(tmp_path):
 
 
 # ── Session log check ─────────────────────────────────────────────────────────
+
 
 def test_no_session_log_triggers_info(tmp_path):
     proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_FULL_CLAUDE)
@@ -413,6 +439,7 @@ def test_enforcement_log_present_no_session_log_info(tmp_path):
 
 # ── check_path_policy unit tests ─────────────────────────────────────────────
 
+
 def test_check_path_policy_absent_returns_info():
     from agentguard.checks.preflight import check_path_policy
 
@@ -437,7 +464,9 @@ def test_check_path_policy_absent_does_not_affect_score(tmp_path):
     )
     (tmp_path / "without").mkdir()
     (tmp_path / "with").mkdir()
-    proj_without = _make_project(tmp_path / "without", governance_yaml=gov_without, claude_md=_FULL_CLAUDE)
+    proj_without = _make_project(
+        tmp_path / "without", governance_yaml=gov_without, claude_md=_FULL_CLAUDE
+    )
     proj_with = _make_project(tmp_path / "with", governance_yaml=gov_with, claude_md=_FULL_CLAUDE)
 
     findings_without = run_preflight(proj_without)
@@ -514,6 +543,7 @@ def test_check_path_policy_missing_pattern_returns_critical():
 
 
 # ── path_policy integration via CLI check command ─────────────────────────────
+
 
 def test_cli_check_output_includes_path_policy_info_when_absent(tmp_path):
     from click.testing import CliRunner

@@ -6,6 +6,7 @@ from agentguard.guided.pinning import hash_content, pin_concretization, verify_p
 
 # ── 1. hash_content returns 16-char hex string ───────────────────────────────
 
+
 def test_hash_content_returns_16_char_hex():
     result = hash_content("hello world")
     assert len(result) == 16
@@ -14,11 +15,13 @@ def test_hash_content_returns_16_char_hex():
 
 # ── 2. hash_content is deterministic ─────────────────────────────────────────
 
+
 def test_hash_content_is_deterministic():
     assert hash_content("test input") == hash_content("test input")
 
 
 # ── 3. hash_content differs for different inputs ──────────────────────────────
+
 
 def test_hash_content_differs_for_different_inputs():
     assert hash_content("abc") != hash_content("xyz")
@@ -26,13 +29,24 @@ def test_hash_content_differs_for_different_inputs():
 
 # ── 4. pin_concretization returns expected keys ───────────────────────────────
 
+
 def test_pin_concretization_returns_expected_keys():
     output = {"authorized": [], "prohibited": [], "requires_confirmation": []}
     pin = pin_concretization("mission", "my input", "my prompt", "gpt-4o", "openai", output)
-    assert set(pin.keys()) == {"field", "input_hash", "prompt_hash", "output_hash", "model", "provider", "temperature", "date"}
+    assert set(pin.keys()) == {
+        "field",
+        "input_hash",
+        "prompt_hash",
+        "output_hash",
+        "model",
+        "provider",
+        "temperature",
+        "date",
+    }
 
 
 # ── 5. pin_concretization stores temperature=0 ───────────────────────────────
+
 
 def test_pin_concretization_temperature_is_zero():
     output = {"concretized": "some rule"}
@@ -41,6 +55,7 @@ def test_pin_concretization_temperature_is_zero():
 
 
 # ── 6. verify_pin returns valid=True for correct hashes ──────────────────────
+
 
 def test_verify_pin_valid_for_matching_hashes():
     prompt = "my governance prompt"
@@ -53,6 +68,7 @@ def test_verify_pin_valid_for_matching_hashes():
 
 # ── 7. verify_pin detects prompt drift ───────────────────────────────────────
 
+
 def test_verify_pin_detects_prompt_drift():
     prompt = "original prompt"
     output = {"authorized": []}
@@ -63,6 +79,7 @@ def test_verify_pin_detects_prompt_drift():
 
 
 # ── 8. verify_pin detects output drift ───────────────────────────────────────
+
 
 def test_verify_pin_detects_output_drift():
     prompt = "original prompt"
@@ -75,6 +92,7 @@ def test_verify_pin_detects_output_drift():
 
 
 # ── 9. verify_pin detects temperature drift ──────────────────────────────────
+
 
 def test_verify_pin_detects_temperature_drift():
     output = {"concretized": "rule"}

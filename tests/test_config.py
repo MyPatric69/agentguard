@@ -81,6 +81,7 @@ def test_get_severity_unknown_key_returns_warning():
 
 # ── Escalation method tests ───────────────────────────────────────────────────
 
+
 def test_escalation_method_defaults_to_log():
     config = dict(DEFAULTS)
     assert config["escalation"]["method"] == "log"
@@ -101,6 +102,7 @@ def test_escalation_method_file(tmp_path):
 
 
 # ── New structured scope format ───────────────────────────────────────────────
+
 
 def test_load_config_list_scope_format(tmp_path):
     gov = tmp_path / "governance.yaml"
@@ -143,6 +145,7 @@ def test_load_config_legacy_string_scope_preserved(tmp_path):
 
 
 # ── path_policy loading ───────────────────────────────────────────────────────
+
 
 def test_load_path_policy_full_section(tmp_path):
     gov = tmp_path / "governance.yaml"
@@ -187,10 +190,7 @@ def test_load_path_policy_absent_returns_backward_compat_defaults(tmp_path):
 def test_load_path_policy_default_for_unmatched_omitted_defaults_to_ask(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(
-        "path_policy:\n"
-        "  denied_paths:\n"
-        "    - pattern: 'secrets/**'\n"
-        "      reason: 'sensitive'\n"
+        "path_policy:\n  denied_paths:\n    - pattern: 'secrets/**'\n      reason: 'sensitive'\n"
     )
     raw = load_config(gov)
     policy = load_path_policy(raw)
@@ -199,10 +199,7 @@ def test_load_path_policy_default_for_unmatched_omitted_defaults_to_ask(tmp_path
 
 def test_load_path_policy_invalid_default_for_unmatched_raises(tmp_path):
     gov = tmp_path / "governance.yaml"
-    gov.write_text(
-        "path_policy:\n"
-        "  default_for_unmatched: maybe\n"
-    )
+    gov.write_text("path_policy:\n  default_for_unmatched: maybe\n")
     raw = load_config(gov)
     with pytest.raises(GovernanceConfigError, match="default_for_unmatched"):
         load_path_policy(raw)
@@ -210,11 +207,7 @@ def test_load_path_policy_invalid_default_for_unmatched_raises(tmp_path):
 
 def test_load_path_policy_missing_pattern_raises(tmp_path):
     gov = tmp_path / "governance.yaml"
-    gov.write_text(
-        "path_policy:\n"
-        "  denied_paths:\n"
-        "    - reason: 'forgot the pattern'\n"
-    )
+    gov.write_text("path_policy:\n  denied_paths:\n    - reason: 'forgot the pattern'\n")
     raw = load_config(gov)
     with pytest.raises(GovernanceConfigError, match="pattern"):
         load_path_policy(raw)

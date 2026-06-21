@@ -41,7 +41,9 @@ def test_get_tool_call_basic(tmp_path):
         "\n".join(
             [
                 _other_line("user"),
-                _assistant_line("Bash", "tuid-A", {"command": "pytest", "description": "run tests"}),
+                _assistant_line(
+                    "Bash", "tuid-A", {"command": "pytest", "description": "run tests"}
+                ),
                 _assistant_line("Read", "tuid-B", {"file_path": "/foo/bar.py"}),
                 _other_line("user"),
             ]
@@ -61,9 +63,7 @@ def test_get_tool_call_basic(tmp_path):
 
 def test_get_tool_call_not_found(tmp_path):
     transcript = tmp_path / "session.jsonl"
-    transcript.write_text(
-        _assistant_line("Bash", "tuid-X", {"command": "ls"}) + "\n"
-    )
+    transcript.write_text(_assistant_line("Bash", "tuid-X", {"command": "ls"}) + "\n")
 
     assert get_tool_call(str(transcript), "tuid-missing") is None
 
@@ -103,7 +103,12 @@ def test_get_tool_call_malformed_line_skipped(tmp_path):
 def test_get_tool_call_edit_tool(tmp_path):
     old = "def foo():\n    pass\n"
     new = "def foo():\n    return 42\n"
-    tool_input = {"file_path": "src/main.py", "old_string": old, "new_string": new, "replace_all": False}
+    tool_input = {
+        "file_path": "src/main.py",
+        "old_string": old,
+        "new_string": new,
+        "replace_all": False,
+    }
 
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(_assistant_line("Edit", "tuid-edit", tool_input) + "\n")

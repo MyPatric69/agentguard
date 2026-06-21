@@ -1,4 +1,5 @@
 """Tests for project-structure context helpers in concretizer."""
+
 from __future__ import annotations
 
 from agentguard.guided.concretizer import (
@@ -9,6 +10,7 @@ from agentguard.guided.concretizer import (
 )
 
 # ── 1. _project_tree: excluded dirs are dropped ──────────────────────────────
+
 
 def test_project_tree_excludes_noise_dirs(tmp_path):
     (tmp_path / "agentguard").mkdir()
@@ -60,6 +62,7 @@ def test_project_tree_includes_files_at_depth_2(tmp_path):
 
 # ── 2. _claude_md_architecture parsing ───────────────────────────────────────
 
+
 def test_claude_md_architecture_extracts_section(tmp_path):
     (tmp_path / "CLAUDE.md").write_text(
         "# Project\n\n"
@@ -86,6 +89,7 @@ def test_claude_md_architecture_returns_none_when_section_absent(tmp_path):
 
 
 # ── 3. Prompt assembly: real paths injected, ./src not present ────────────────
+
 
 def test_mission_prompt_contains_project_structure(tmp_path):
     (tmp_path / "agentguard").mkdir()

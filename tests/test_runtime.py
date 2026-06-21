@@ -1,6 +1,5 @@
 """Tests for checks/runtime.py."""
 
-
 from agentguard.checks.runtime import detect_loop
 
 

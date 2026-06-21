@@ -64,7 +64,9 @@ def _get_env() -> tuple[str | None, str | None, str | None, str | None]:
     return provider, api_key, base_url, model
 
 
-def review_scope(authorized: str, prohibited: str, requires_confirmation: str) -> dict[str, Any] | None:
+def review_scope(
+    authorized: str, prohibited: str, requires_confirmation: str
+) -> dict[str, Any] | None:
     """Run AI scope quality review. Returns result dict or None on failure/skip."""
     provider, api_key, base_url, model_override = _get_env()
 
@@ -107,8 +109,8 @@ def review_scope(authorized: str, prohibited: str, requires_confirmation: str) -
 
 def _strip_fences(text: str) -> str:
     """Remove markdown code fences a model may wrap JSON in despite instructions."""
-    text = re.sub(r'^```(?:json)?\s*', '', text.strip())
-    text = re.sub(r'\s*```$', '', text)
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text)
     return text.strip()
 
 
@@ -122,9 +124,13 @@ def _call_provider(
     temperature: float | None = None,
 ) -> str:
     if provider == "anthropic":
-        return _call_anthropic(api_key, model, prompt, max_tokens=max_tokens, temperature=temperature)
+        return _call_anthropic(
+            api_key, model, prompt, max_tokens=max_tokens, temperature=temperature
+        )
     if provider in ("openai", "anysphere", "openai-compatible"):
-        return _call_openai_compat(api_key, base_url, model, prompt, max_tokens=max_tokens, temperature=temperature)
+        return _call_openai_compat(
+            api_key, base_url, model, prompt, max_tokens=max_tokens, temperature=temperature
+        )
     raise ValueError(f"Unknown provider: {provider}")
 
 

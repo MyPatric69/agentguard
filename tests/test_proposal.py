@@ -45,9 +45,7 @@ def _git_side_effect(args, cwd, check=True):
 def test_get_pending_returns_only_pending(tmp_path):
     proposals_dir = tmp_path / ".agentguard" / "proposals"
     proposals_dir.mkdir(parents=True)
-    (proposals_dir / "a.json").write_text(
-        json.dumps({"status": "pending", "tool_use_id": "aaa"})
-    )
+    (proposals_dir / "a.json").write_text(json.dumps({"status": "pending", "tool_use_id": "aaa"}))
     (proposals_dir / "b.json").write_text(
         json.dumps({"status": "pr_created", "tool_use_id": "bbb"})
     )
@@ -200,6 +198,7 @@ def test_create_pr_idempotency_deletes_existing_branch(
     mock_exists, mock_git, mock_sub, mock_label, mock_apply, tmp_path
 ):
     """If branch already exists, it is deleted before recreation."""
+
     def _git_with_branch(args, cwd, check=True):
         if args[0] == "rev-parse":
             return "abc1234\n"
@@ -218,9 +217,7 @@ def test_create_pr_idempotency_deletes_existing_branch(
     create_pr_for_proposal(proposal, "reviewer@example.com", str(tmp_path))
 
     git_arg_lists = [c.args[0] for c in mock_git.call_args_list]
-    delete_branch = next(
-        (a for a in git_arg_lists if a[0] == "branch" and "-D" in a), None
-    )
+    delete_branch = next((a for a in git_arg_lists if a[0] == "branch" and "-D" in a), None)
     assert delete_branch is not None
     assert "agentguard/proposal/toolusea" in " ".join(delete_branch)
 
@@ -348,9 +345,7 @@ def test_create_pr_status_unchanged_on_null_tool_input(tmp_path):
 
 
 def test_apply_write(tmp_path):
-    _apply_file_change(
-        "Write", "src/foo.py", {"content": "print('hello')"}, tmp_path
-    )
+    _apply_file_change("Write", "src/foo.py", {"content": "print('hello')"}, tmp_path)
     assert (tmp_path / "src" / "foo.py").read_text() == "print('hello')"
 
 
@@ -368,9 +363,7 @@ def test_apply_edit_old_string_not_found(tmp_path):
     target = tmp_path / "foo.py"
     target.write_text("nothing here\n")
     with pytest.raises(ValueError, match="old_string not found"):
-        _apply_file_change(
-            "Edit", "foo.py", {"old_string": "missing", "new_string": "x"}, tmp_path
-        )
+        _apply_file_change("Edit", "foo.py", {"old_string": "missing", "new_string": "x"}, tmp_path)
 
 
 def test_apply_multiedit(tmp_path):
@@ -379,8 +372,12 @@ def test_apply_multiedit(tmp_path):
     _apply_file_change(
         "MultiEdit",
         "foo.py",
-        {"edits": [{"old_string": "a = 1", "new_string": "a = 10"},
-                   {"old_string": "b = 2", "new_string": "b = 20"}]},
+        {
+            "edits": [
+                {"old_string": "a = 1", "new_string": "a = 10"},
+                {"old_string": "b = 2", "new_string": "b = 20"},
+            ]
+        },
         tmp_path,
     )
     assert target.read_text() == "a = 10\nb = 20\n"
@@ -440,9 +437,7 @@ def test_propose_dry_run_lists_proposals(tmp_path):
 
     runner = CliRunner()
     with patch("agentguard.proposal._run_git") as mock_git:
-        result = runner.invoke(
-            main, ["propose", "--path", str(tmp_path), "--dry-run"]
-        )
+        result = runner.invoke(main, ["propose", "--path", str(tmp_path), "--dry-run"])
         mock_git.assert_not_called()
 
     assert "Write" in result.output

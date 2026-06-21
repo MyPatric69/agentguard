@@ -40,7 +40,7 @@ def _wrap_message(text: str) -> str:
 
 
 class Finding(NamedTuple):
-    severity: str   # critical | warning | info | ok
+    severity: str  # critical | warning | info | ok
     message: str
 
 
@@ -75,7 +75,7 @@ def render_preflight(project_path: str, findings: list[Finding]) -> None:
         lines.append(Text("  gaps are resolved or explicitly overridden.", style="red"))
         lines.append(Text(""))
         lines.append(Text("  agentguard init --interactive", style="bold"))
-        lines.append(Text("  agentguard override --reason \"...\"", style="bold"))
+        lines.append(Text('  agentguard override --reason "..."', style="bold"))
     elif warnings:
         result_line = Text()
         result_line.append(
@@ -88,10 +88,7 @@ def render_preflight(project_path: str, findings: list[Finding]) -> None:
 
     content = Text("\n").join(lines)
 
-    header = (
-        f"  Project:  {project_path}\n"
-        f"  Checked:  {now}\n"
-    )
+    header = f"  Project:  {project_path}\n  Checked:  {now}\n"
 
     full = Text(header) + Text("\n") + content
 
@@ -108,6 +105,7 @@ def render_preflight(project_path: str, findings: list[Finding]) -> None:
 def render_json(findings: list[Finding]) -> str:
     """Return findings as a JSON string."""
     import json
+
     return json.dumps(
         [{"severity": f.severity, "message": f.message} for f in findings],
         indent=2,

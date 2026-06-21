@@ -34,16 +34,12 @@ def create_pr_for_proposal(proposal: dict, reviewer: str, cwd: str) -> str:
     tool_input = proposal.get("tool_input")
 
     if tool_input is None:
-        raise ValueError(
-            f"proposal {tool_use_id} has no tool_input — cannot create PR, skipping"
-        )
+        raise ValueError(f"proposal {tool_use_id} has no tool_input — cannot create PR, skipping")
 
     branch_name = f"agentguard/proposal/{tool_use_id[:8]}"
     main_sha = _run_git(["rev-parse", "main"], cwd=cwd).strip()
 
-    worktree_dir = os.path.join(
-        tempfile.gettempdir(), f"agentguard-proposal-{tool_use_id[:8]}"
-    )
+    worktree_dir = os.path.join(tempfile.gettempdir(), f"agentguard-proposal-{tool_use_id[:8]}")
 
     if os.path.exists(worktree_dir):
         _run_git(["worktree", "remove", "--force", worktree_dir], cwd=cwd, check=False)
@@ -79,10 +75,15 @@ def create_pr_for_proposal(proposal: dict, reviewer: str, cwd: str) -> str:
         pr_title = f"AgentGuard Proposal: {tool_name} on {file_path or 'session'}"
         pr_body = _format_pr_body(proposal)
         gh_cmd = [
-            "gh", "pr", "create",
-            "--title", pr_title,
-            "--body", pr_body,
-            "--label", "agentguard-proposal",
+            "gh",
+            "pr",
+            "create",
+            "--title",
+            pr_title,
+            "--body",
+            pr_body,
+            "--label",
+            "agentguard-proposal",
         ]
         if reviewer:
             gh_cmd.extend(["--reviewer", reviewer])
@@ -98,17 +99,13 @@ def create_pr_for_proposal(proposal: dict, reviewer: str, cwd: str) -> str:
 
         proposal["status"] = "pr_created"
         proposal["pr_url"] = pr_url
-        proposal_path = (
-            Path(cwd) / ".agentguard" / "proposals" / f"{tool_use_id}.json"
-        )
+        proposal_path = Path(cwd) / ".agentguard" / "proposals" / f"{tool_use_id}.json"
         proposal_path.write_text(json.dumps(proposal, indent=2))
 
         return pr_url
 
     finally:
-        _run_git(
-            ["worktree", "remove", "--force", worktree_dir], cwd=cwd, check=False
-        )
+        _run_git(["worktree", "remove", "--force", worktree_dir], cwd=cwd, check=False)
 
 
 def format_proposal_summary(proposal: dict) -> str:
@@ -121,22 +118,16 @@ def format_proposal_summary(proposal: dict) -> str:
 
 
 def _run_git(args: list[str], cwd: str, check: bool = True) -> str:
-    result = subprocess.run(
-        ["git"] + args, cwd=cwd, capture_output=True, text=True
-    )
+    result = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
     if check and result.returncode != 0:
-        raise RuntimeError(
-            f"git {' '.join(args)} failed:\n{result.stderr.strip()}"
-        )
+        raise RuntimeError(f"git {' '.join(args)} failed:\n{result.stderr.strip()}")
     return result.stdout
 
 
 def _run_subprocess(cmd: list[str], cwd: str) -> str:
     result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed: {' '.join(cmd)}\n{result.stderr.strip()}"
-        )
+        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{result.stderr.strip()}")
     return result.stdout
 
 
@@ -144,9 +135,14 @@ def _ensure_gh_label(cwd: str) -> None:
     """Create 'agentguard-proposal' label if it doesn't exist; ignore errors."""
     subprocess.run(
         [
-            "gh", "label", "create", "agentguard-proposal",
-            "--color", "0075ca",
-            "--description", "AgentGuard pending proposal",
+            "gh",
+            "label",
+            "create",
+            "agentguard-proposal",
+            "--color",
+            "0075ca",
+            "--description",
+            "AgentGuard pending proposal",
         ],
         cwd=cwd,
         capture_output=True,
@@ -154,9 +150,7 @@ def _ensure_gh_label(cwd: str) -> None:
     )
 
 
-def _apply_file_change(
-    tool_name: str, file_path: str, tool_input: dict, worktree: Path
-) -> None:
+def _apply_file_change(tool_name: str, file_path: str, tool_input: dict, worktree: Path) -> None:
     target = worktree / file_path
     target.parent.mkdir(parents=True, exist_ok=True)
 
@@ -167,9 +161,7 @@ def _apply_file_change(
         new_string = tool_input.get("new_string", "")
         text = target.read_text() if target.exists() else ""
         if old_string and old_string not in text:
-            raise ValueError(
-                f"old_string not found in {file_path} on main — cannot apply Edit"
-            )
+            raise ValueError(f"old_string not found in {file_path} on main — cannot apply Edit")
         target.write_text(text.replace(old_string, new_string, 1))
     elif tool_name == "MultiEdit":
         text = target.read_text() if target.exists() else ""

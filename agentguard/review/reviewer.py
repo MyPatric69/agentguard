@@ -37,7 +37,9 @@ def _count_rules(items: object) -> int:
 def _count_hard_limits(prohibited: object) -> int:
     if not isinstance(prohibited, list):
         return 0
-    return sum(1 for item in prohibited if isinstance(item, dict) and item.get("severity") == "HARD_LIMIT")
+    return sum(
+        1 for item in prohibited if isinstance(item, dict) and item.get("severity") == "HARD_LIMIT"
+    )
 
 
 def _count_open_ambiguities(governance: dict) -> int:
@@ -62,9 +64,7 @@ def show_governance_summary(governance: dict, project_path: str = ".") -> None:
 
     history = governance.get("governance_history", [])
     last_updated = (
-        history[-1].get("date", "unknown")
-        if isinstance(history, list) and history
-        else "unknown"
+        history[-1].get("date", "unknown") if isinstance(history, list) and history else "unknown"
     )
 
     proh_label = f"{n_proh} rules ({n_hl} HARD_LIMIT)" if n_hl else f"{n_proh} rules"
@@ -96,18 +96,14 @@ def show_governance_summary(governance: dict, project_path: str = ".") -> None:
     )
 
 
-def _run_add_rule(
-    items: list, field_name: str, guided: bool, today: str
-) -> tuple[list, bool]:
+def _run_add_rule(items: list, field_name: str, guided: bool, today: str) -> tuple[list, bool]:
     """Prompt for a new rule, optionally concretize with AI, append to items."""
     click.echo("  Enter new rule (action):")
     action_text = click.prompt("> ", prompt_suffix="").strip().strip("\"'")
     if not action_text:
         return items, False
     click.echo("  Reason (why is this allowed?):")
-    reason_text = (
-        click.prompt("> ", prompt_suffix="").strip().strip("\"'") or "Added during review"
-    )
+    reason_text = click.prompt("> ", prompt_suffix="").strip().strip("\"'") or "Added during review"
 
     new_item: dict[str, Any] = {"action": action_text, "reason": reason_text, "added": today}
 
@@ -187,8 +183,12 @@ def review_field(
             idx = int(idx_str) - 1
             if 0 <= idx < len(items):
                 removed = items[idx]
-                action = removed.get("action", str(removed)) if isinstance(removed, dict) else str(removed)
-                updated = items[:idx] + items[idx + 1:]
+                action = (
+                    removed.get("action", str(removed))
+                    if isinstance(removed, dict)
+                    else str(removed)
+                )
+                updated = items[:idx] + items[idx + 1 :]
                 _console.print(f"  Removed: {action}", style="dim")
                 return updated, True
         except ValueError:
@@ -205,8 +205,12 @@ def review_field(
             idx = int(idx_str) - 1
             if 0 <= idx < len(items):
                 removed = items[idx]
-                action = removed.get("action", str(removed)) if isinstance(removed, dict) else str(removed)
-                items = items[:idx] + items[idx + 1:]
+                action = (
+                    removed.get("action", str(removed))
+                    if isinstance(removed, dict)
+                    else str(removed)
+                )
+                items = items[:idx] + items[idx + 1 :]
                 _console.print(f"  Removed: {action}", style="dim")
                 return _run_add_rule(items, field_name, guided, today)
         except ValueError:
@@ -280,7 +284,7 @@ def _yaml_history_block(history: list) -> str:
         cf = entry.get("changed_fields")
         if isinstance(cf, list):
             cf_str = "[" + ", ".join(f'"{f}"' for f in cf) + "]"
-            lines.append(f'    changed_fields: {cf_str}')
+            lines.append(f"    changed_fields: {cf_str}")
     return "\n".join(lines) + "\n"
 
 
@@ -293,9 +297,7 @@ def save_governance(governance: dict, path: Path, changed_fields: list[str]) -> 
         if not isinstance(raw, list):
             return []
         return [
-            {**item, "added": today}
-            if isinstance(item, dict) and "added" not in item
-            else item
+            {**item, "added": today} if isinstance(item, dict) and "added" not in item else item
             for item in raw
         ]
 
@@ -312,7 +314,11 @@ def save_governance(governance: dict, path: Path, changed_fields: list[str]) -> 
     )
 
     history = list(governance.get("governance_history", []) or [])
-    action_desc = f"Updated: {', '.join(changed_fields)}" if changed_fields else "Reviewed via agentguard review"
+    action_desc = (
+        f"Updated: {', '.join(changed_fields)}"
+        if changed_fields
+        else "Reviewed via agentguard review"
+    )
     history_entry: dict[str, Any] = {
         "date": today,
         "action": action_desc,

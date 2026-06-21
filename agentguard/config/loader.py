@@ -39,6 +39,7 @@ class PathPolicy:
     authorized_paths: list[PathPolicyEntry] = field(default_factory=list)
     default_for_unmatched: str = "allow"
 
+
 DEFAULTS: dict[str, Any] = {
     "owner": "",
     "scope": {
@@ -118,9 +119,7 @@ def get_severity(config: dict, rule: str) -> str:
     return config.get("severity", {}).get(rule, "warning").lower()
 
 
-def _parse_path_entries(
-    entries: list, section: str, require_reason: bool
-) -> list[PathPolicyEntry]:
+def _parse_path_entries(entries: list, section: str, require_reason: bool) -> list[PathPolicyEntry]:
     result = []
     for i, entry in enumerate(entries or []):
         if not isinstance(entry, dict):
@@ -134,9 +133,7 @@ def _parse_path_entries(
             )
         reason = str(entry.get("reason", "") or "")
         if require_reason and not reason:
-            raise GovernanceConfigError(
-                f"path_policy.{section}[{i}] missing required 'reason'"
-            )
+            raise GovernanceConfigError(f"path_policy.{section}[{i}] missing required 'reason'")
         result.append(PathPolicyEntry(pattern=pattern, reason=reason))
     return result
 
@@ -161,9 +158,7 @@ def _convert_old_cost_awareness(raw: dict) -> dict:
                     f" alert_at_usd ({alert_at})"
                 )
         except (TypeError, ValueError) as exc:
-            raise GovernanceConfigError(
-                f"cost_awareness: invalid threshold value — {exc}"
-            ) from exc
+            raise GovernanceConfigError(f"cost_awareness: invalid threshold value — {exc}") from exc
     thresholds = []
     if warn_at is not None:
         thresholds.append({"at_usd": float(warn_at), "level": "warn"})
@@ -196,14 +191,10 @@ def load_cost_awareness(governance: dict) -> dict | None:
     parsed: list[dict] = []
     for i, t in enumerate(thresholds_raw):
         if not isinstance(t, dict):
-            raise GovernanceConfigError(
-                f"cost_awareness.thresholds[{i}] must be a mapping"
-            )
+            raise GovernanceConfigError(f"cost_awareness.thresholds[{i}] must be a mapping")
         at_usd_raw = t.get("at_usd")
         if at_usd_raw is None:
-            raise GovernanceConfigError(
-                f"cost_awareness.thresholds[{i}] missing required 'at_usd'"
-            )
+            raise GovernanceConfigError(f"cost_awareness.thresholds[{i}] missing required 'at_usd'")
         try:
             at_usd = float(at_usd_raw)
         except (TypeError, ValueError) as exc:
@@ -233,13 +224,9 @@ def load_cost_awareness(governance: dict) -> dict | None:
     try:
         repeat_interval = float(repeat_interval_raw)
     except (TypeError, ValueError) as exc:
-        raise GovernanceConfigError(
-            f"cost_awareness.repeat_interval_usd invalid: {exc}"
-        ) from exc
+        raise GovernanceConfigError(f"cost_awareness.repeat_interval_usd invalid: {exc}") from exc
     if repeat_last and repeat_interval <= 0:
-        raise GovernanceConfigError(
-            "cost_awareness.repeat_interval_usd must be > 0"
-        )
+        raise GovernanceConfigError("cost_awareness.repeat_interval_usd must be > 0")
 
     return {
         "thresholds": parsed,

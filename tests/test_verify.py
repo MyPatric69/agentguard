@@ -79,6 +79,7 @@ concretization_pins:
 
 # ── 1. verify exits 0 when all pins are valid ─────────────────────────────────
 
+
 def test_verify_exits_0_with_valid_pins(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(_PINS_YAML)
@@ -89,6 +90,7 @@ def test_verify_exits_0_with_valid_pins(tmp_path):
 
 
 # ── 2. verify exits 1 when no pins found ─────────────────────────────────────
+
 
 def test_verify_exits_1_when_no_pins(tmp_path):
     gov = tmp_path / "governance.yaml"
@@ -101,6 +103,7 @@ def test_verify_exits_1_when_no_pins(tmp_path):
 
 # ── 3. verify exits 1 when temperature is not 0 ──────────────────────────────
 
+
 def test_verify_exits_1_when_temperature_not_zero(tmp_path):
     gov = tmp_path / "governance.yaml"
     gov.write_text(_BAD_TEMP_YAML)
@@ -111,6 +114,7 @@ def test_verify_exits_1_when_temperature_not_zero(tmp_path):
 
 
 # ── 4. verify exits 2 when file not found ────────────────────────────────────
+
 
 def test_verify_exits_2_when_file_not_found(tmp_path):
     runner = CliRunner()
@@ -180,6 +184,7 @@ def test_repair_generates_pins_when_missing(tmp_path):
     assert result.exit_code == 0
     assert "Repaired" in result.output
     import yaml
+
     data = yaml.safe_load(gov.read_text())
     assert len(data.get("concretization_pins", [])) >= 1
 
@@ -199,6 +204,7 @@ def test_repair_pin_has_repaired_flag(tmp_path):
     runner = CliRunner()
     runner.invoke(main, ["verify", "--config", str(gov), "--repair"])
     import yaml
+
     data = yaml.safe_load(gov.read_text())
     pins = data.get("concretization_pins", [])
     assert all(p.get("repaired") is True for p in pins)

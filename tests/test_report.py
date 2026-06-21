@@ -25,15 +25,30 @@ def test_no_session_log_returns_empty(tmp_path):
 
 def test_reads_session_log_counts(tmp_path):
     entries = [
-        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ls", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:01:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "pwd", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:02:00+00:00", "tool": "Edit",
-         "decision": "deny", "input_summary": "rm -rf /",
-         "reason": "prohibited", "session_id": "s1"},
+        {
+            "timestamp": "2026-06-11T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ls",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:01:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "pwd",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:02:00+00:00",
+            "tool": "Edit",
+            "decision": "deny",
+            "input_summary": "rm -rf /",
+            "reason": "prohibited",
+            "session_id": "s1",
+        },
     ]
     _write_session_log(tmp_path, entries)
     data = generate_report_data(tmp_path)
@@ -45,12 +60,22 @@ def test_reads_session_log_counts(tmp_path):
 
 def test_calculates_duration(tmp_path):
     entries = [
-        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "a", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:03:30+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "b", "reason": None,
-         "session_id": "s1"},
+        {
+            "timestamp": "2026-06-11T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "a",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:03:30+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "b",
+            "reason": None,
+            "session_id": "s1",
+        },
     ]
     _write_session_log(tmp_path, entries)
     data = generate_report_data(tmp_path)
@@ -59,12 +84,22 @@ def test_calculates_duration(tmp_path):
 
 def test_denied_entries_populated(tmp_path):
     entries = [
-        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ok", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:01:00+00:00", "tool": "Edit",
-         "decision": "deny", "input_summary": "bad",
-         "reason": "prohibited", "session_id": "s1"},
+        {
+            "timestamp": "2026-06-11T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ok",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:01:00+00:00",
+            "tool": "Edit",
+            "decision": "deny",
+            "input_summary": "bad",
+            "reason": "prohibited",
+            "session_id": "s1",
+        },
     ]
     _write_session_log(tmp_path, entries)
     data = generate_report_data(tmp_path)
@@ -75,15 +110,30 @@ def test_denied_entries_populated(tmp_path):
 
 def test_tool_counts_ordered(tmp_path):
     entries = [
-        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "a", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:01:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "b", "reason": None,
-         "session_id": "s1"},
-        {"timestamp": "2026-06-11T10:02:00+00:00", "tool": "Read",
-         "decision": "allow", "input_summary": "c", "reason": None,
-         "session_id": "s1"},
+        {
+            "timestamp": "2026-06-11T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "a",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:01:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "b",
+            "reason": None,
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-11T10:02:00+00:00",
+            "tool": "Read",
+            "decision": "allow",
+            "input_summary": "c",
+            "reason": None,
+            "session_id": "s1",
+        },
     ]
     _write_session_log(tmp_path, entries)
     data = generate_report_data(tmp_path)
@@ -95,9 +145,14 @@ def test_tool_counts_ordered(tmp_path):
 
 def test_single_entry_no_duration(tmp_path):
     entries = [
-        {"timestamp": "2026-06-11T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "x", "reason": None,
-         "session_id": "s1"},
+        {
+            "timestamp": "2026-06-11T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "x",
+            "reason": None,
+            "session_id": "s1",
+        },
     ]
     _write_session_log(tmp_path, entries)
     data = generate_report_data(tmp_path)
@@ -127,21 +182,42 @@ def test_roi_fields_asked_and_session_cost(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     entries = [
-        {"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ls", "session_id": "s1"},
-        {"timestamp": "2026-06-21T10:01:00+00:00", "tool": "Edit",
-         "decision": "ask", "input_summary": "edit file", "session_id": "s1"},
-        {"timestamp": "2026-06-21T10:02:00+00:00", "tool": "Bash",
-         "decision": "deny", "input_summary": "rm -rf", "reason": "prohibited",
-         "session_id": "s1"},
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 0.12, "input_tokens": 1000, "cache_write_5m_tokens": 0,
-         "cache_write_1h_tokens": 0, "cache_read_tokens": 500, "output_tokens": 200,
-         "pricing_source": "live"},
+        {
+            "timestamp": "2026-06-21T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ls",
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-21T10:01:00+00:00",
+            "tool": "Edit",
+            "decision": "ask",
+            "input_summary": "edit file",
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-21T10:02:00+00:00",
+            "tool": "Bash",
+            "decision": "deny",
+            "input_summary": "rm -rf",
+            "reason": "prohibited",
+            "session_id": "s1",
+        },
+        {
+            "event": "session_cost",
+            "session_id": "s1",
+            "model": "claude-sonnet-4-6",
+            "total_usd": 0.12,
+            "input_tokens": 1000,
+            "cache_write_5m_tokens": 0,
+            "cache_write_1h_tokens": 0,
+            "cache_read_tokens": 500,
+            "output_tokens": 200,
+            "pricing_source": "live",
+        },
     ]
-    (log_dir / "session.log").write_text(
-        "\n".join(json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(json.dumps(e) for e in entries) + "\n")
     data = generate_report_data(tmp_path)
     assert data["total"] == 3
     assert data["allowed"] == 1
@@ -161,15 +237,18 @@ def test_session_cost_not_counted_in_total(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     entries = [
-        {"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ls", "session_id": "s1"},
+        {
+            "timestamp": "2026-06-21T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ls",
+            "session_id": "s1",
+        },
         {"event": "session_cost", "session_id": "s1", "total_usd": 0.05},
         {"event": "session_cost_notified", "session_id": "s1", "at_usd": 0.50},
         {"event": "post_tool_use", "tool_use_id": "x", "session_id": "s1"},
     ]
-    (log_dir / "session.log").write_text(
-        "\n".join(json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(json.dumps(e) for e in entries) + "\n")
     data = generate_report_data(tmp_path)
     assert data["total"] == 1
     assert data["allowed"] == 1
@@ -183,18 +262,34 @@ def test_roi_fields_proposals(tmp_path):
     log_dir.mkdir()
     proposals_dir = log_dir / "proposals"
     proposals_dir.mkdir()
-    (proposals_dir / "abc.json").write_text(json.dumps({
-        "tool_use_id": "abc", "session_id": "s1", "tool_name": "Edit",
-        "file_path": "test.py", "governance_reason": "needs review",
-        "status": "pending", "timestamp": "2026-06-21T10:01:00+00:00",
-        "pr_url": None,
-    }))
-    (proposals_dir / "def.json").write_text(json.dumps({
-        "tool_use_id": "def", "session_id": "s1", "tool_name": "Write",
-        "file_path": "other.py", "governance_reason": "needs review",
-        "status": "pr_created", "timestamp": "2026-06-21T10:02:00+00:00",
-        "pr_url": "https://github.com/x/y/pull/1",
-    }))
+    (proposals_dir / "abc.json").write_text(
+        json.dumps(
+            {
+                "tool_use_id": "abc",
+                "session_id": "s1",
+                "tool_name": "Edit",
+                "file_path": "test.py",
+                "governance_reason": "needs review",
+                "status": "pending",
+                "timestamp": "2026-06-21T10:01:00+00:00",
+                "pr_url": None,
+            }
+        )
+    )
+    (proposals_dir / "def.json").write_text(
+        json.dumps(
+            {
+                "tool_use_id": "def",
+                "session_id": "s1",
+                "tool_name": "Write",
+                "file_path": "other.py",
+                "governance_reason": "needs review",
+                "status": "pr_created",
+                "timestamp": "2026-06-21T10:02:00+00:00",
+                "pr_url": "https://github.com/x/y/pull/1",
+            }
+        )
+    )
     data = generate_report_data(tmp_path)
     assert data["proposals"]["total"] == 2
     assert data["proposals"]["pending"] == 1
@@ -236,17 +331,30 @@ def test_generate_report_creates_file_and_sections(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     entries = [
-        {"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-         "decision": "allow", "input_summary": "ls", "session_id": "s1"},
-        {"timestamp": "2026-06-21T10:02:00+00:00", "tool": "Edit",
-         "decision": "deny", "input_summary": "bad file", "reason": "prohibited",
-         "session_id": "s1"},
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 0.05, "pricing_source": "fallback"},
+        {
+            "timestamp": "2026-06-21T10:00:00+00:00",
+            "tool": "Bash",
+            "decision": "allow",
+            "input_summary": "ls",
+            "session_id": "s1",
+        },
+        {
+            "timestamp": "2026-06-21T10:02:00+00:00",
+            "tool": "Edit",
+            "decision": "deny",
+            "input_summary": "bad file",
+            "reason": "prohibited",
+            "session_id": "s1",
+        },
+        {
+            "event": "session_cost",
+            "session_id": "s1",
+            "model": "claude-sonnet-4-6",
+            "total_usd": 0.05,
+            "pricing_source": "fallback",
+        },
     ]
-    (log_dir / "session.log").write_text(
-        "\n".join(json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(json.dumps(e) for e in entries) + "\n")
     out = tmp_path / "report.md"
     text = generate_report(tmp_path, out)
 
@@ -269,8 +377,16 @@ def test_generate_report_no_cost_shows_na(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     (log_dir / "session.log").write_text(
-        json.dumps({"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-                    "decision": "allow", "input_summary": "ls", "session_id": "s1"}) + "\n"
+        json.dumps(
+            {
+                "timestamp": "2026-06-21T10:00:00+00:00",
+                "tool": "Bash",
+                "decision": "allow",
+                "input_summary": "ls",
+                "session_id": "s1",
+            }
+        )
+        + "\n"
     )
     out = tmp_path / "report.md"
     text = generate_report(tmp_path, out)
@@ -287,14 +403,20 @@ def test_generate_report_cli_path_flag(tmp_path):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir()
     (log_dir / "session.log").write_text(
-        json.dumps({"timestamp": "2026-06-21T10:00:00+00:00", "tool": "Bash",
-                    "decision": "allow", "input_summary": "ls", "session_id": "s1"}) + "\n"
+        json.dumps(
+            {
+                "timestamp": "2026-06-21T10:00:00+00:00",
+                "tool": "Bash",
+                "decision": "allow",
+                "input_summary": "ls",
+                "session_id": "s1",
+            }
+        )
+        + "\n"
     )
     out = tmp_path / "out.md"
     runner = CliRunner()
-    result = runner.invoke(
-        main, ["report", "--path", str(tmp_path), "--output", str(out)]
-    )
+    result = runner.invoke(main, ["report", "--path", str(tmp_path), "--output", str(out)])
     assert result.exit_code == 0
     assert out.exists()
     assert "## ROI Summary" in out.read_text()
@@ -306,19 +428,28 @@ def test_generate_report_cli_path_flag(tmp_path):
 def _make_session_log(tmp_path, entries):
     log_dir = tmp_path / ".agentguard"
     log_dir.mkdir(exist_ok=True)
-    (log_dir / "session.log").write_text(
-        "\n".join(json.dumps(e) for e in entries) + "\n"
-    )
+    (log_dir / "session.log").write_text("\n".join(json.dumps(e) for e in entries) + "\n")
 
 
 def _allow(tool="Bash", ts="2026-06-21T10:00:00+00:00"):
-    return {"timestamp": ts, "tool": tool, "decision": "allow",
-            "input_summary": "ok", "session_id": "s1"}
+    return {
+        "timestamp": ts,
+        "tool": tool,
+        "decision": "allow",
+        "input_summary": "ok",
+        "session_id": "s1",
+    }
 
 
 def _deny(tool="Edit", ts="2026-06-21T10:01:00+00:00"):
-    return {"timestamp": ts, "tool": tool, "decision": "deny",
-            "input_summary": "bad", "reason": "prohibited", "session_id": "s1"}
+    return {
+        "timestamp": ts,
+        "tool": tool,
+        "decision": "deny",
+        "input_summary": "bad",
+        "reason": "prohibited",
+        "session_id": "s1",
+    }
 
 
 def test_executive_summary_productive_yes(tmp_path):
@@ -365,11 +496,19 @@ def test_executive_summary_issues_detected_burn(tmp_path):
 
 def test_executive_summary_cost_within_budget(tmp_path):
     """Cost below all thresholds → '$X.XX — within budget'."""
-    _make_session_log(tmp_path, [
-        _allow(),
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 0.25, "pricing_source": "live"},
-    ])
+    _make_session_log(
+        tmp_path,
+        [
+            _allow(),
+            {
+                "event": "session_cost",
+                "session_id": "s1",
+                "model": "claude-sonnet-4-6",
+                "total_usd": 0.25,
+                "pricing_source": "live",
+            },
+        ],
+    )
     (tmp_path / "governance.yaml").write_text(
         "owner: Test\ncost_awareness:\n  thresholds:\n"
         "    - at_usd: 0.50\n      level: warn\n"
@@ -381,11 +520,19 @@ def test_executive_summary_cost_within_budget(tmp_path):
 
 def test_executive_summary_cost_above_alert(tmp_path):
     """Cost above alert threshold → correct label with ⚠️."""
-    _make_session_log(tmp_path, [
-        _allow(),
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 1.50, "pricing_source": "live"},
-    ])
+    _make_session_log(
+        tmp_path,
+        [
+            _allow(),
+            {
+                "event": "session_cost",
+                "session_id": "s1",
+                "model": "claude-sonnet-4-6",
+                "total_usd": 1.50,
+                "pricing_source": "live",
+            },
+        ],
+    )
     (tmp_path / "governance.yaml").write_text(
         "owner: Test\ncost_awareness:\n  thresholds:\n"
         "    - at_usd: 0.50\n      level: warn\n"
@@ -397,11 +544,19 @@ def test_executive_summary_cost_above_alert(tmp_path):
 
 def test_executive_summary_no_cost_awareness(tmp_path):
     """No cost_awareness in governance.yaml → plain '$X.XX' with no threshold label."""
-    _make_session_log(tmp_path, [
-        _allow(),
-        {"event": "session_cost", "session_id": "s1", "model": "claude-sonnet-4-6",
-         "total_usd": 0.42, "pricing_source": "live"},
-    ])
+    _make_session_log(
+        tmp_path,
+        [
+            _allow(),
+            {
+                "event": "session_cost",
+                "session_id": "s1",
+                "model": "claude-sonnet-4-6",
+                "total_usd": 0.42,
+                "pricing_source": "live",
+            },
+        ],
+    )
     (tmp_path / "governance.yaml").write_text("owner: Test\n")
     data = generate_report_data(tmp_path)
     assert data["executive_summary"]["cost_label"] == "$0.4200"

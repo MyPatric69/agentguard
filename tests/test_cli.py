@@ -1,9 +1,9 @@
 """Tests for cli.py — CLAUDE.md append behavior and init helpers."""
 
-
 from agentguard.cli import _strip_quotes, _update_claude_md
 
 # ── _strip_quotes ─────────────────────────────────────────────────────────────
+
 
 def test_strip_quotes_leading_double_quote():
     assert _strip_quotes('"Read files') == "Read files"
@@ -32,7 +32,9 @@ def test_strip_quotes_mixed_quotes():
 def test_strip_quotes_preserves_internal_quotes():
     assert _strip_quotes('"No "database" writes"') == 'No "database" writes'
 
+
 # ── CLAUDE.md append behavior ─────────────────────────────────────────────────
+
 
 def test_claude_md_created_when_not_exists(tmp_path):
     dest = tmp_path / "CLAUDE.md"
@@ -106,8 +108,10 @@ def test_claude_md_appended_multiple_times_stacks_blocks(tmp_path):
 
 # ── Version management ────────────────────────────────────────────────────────
 
+
 def test_version_is_not_dev_sentinel():
     from agentguard import __version__
+
     assert __version__ != "0.0.0-dev"
 
 
