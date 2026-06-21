@@ -112,6 +112,31 @@ def _write_session_log(cwd: Path, entry: dict) -> None:
         pass
 
 
+def _get_notified_levels(session_log_path: Path, session_id: str) -> set[str]:
+    """Return set of already-notified cost levels ('warn', 'alert') for this session."""
+    levels: set[str] = set()
+    try:
+        with open(session_log_path) as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    entry = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    entry.get("event") == "session_cost_notified"
+                    and entry.get("session_id") == session_id
+                ):
+                    level = entry.get("level")
+                    if level:
+                        levels.add(level)
+    except OSError:
+        pass
+    return levels
+
+
 def log_post_tool_use(data: dict) -> None:
     cwd = Path(data.get("cwd", "."))
     entry = {
@@ -210,6 +235,7 @@ def handle_stop(data: dict, cwd_str: str) -> None:
             if cost_result is not None:
                 _write_session_log(cwd, {
                     "event": "session_cost",
+                    "session_id": session_id,
                     "model": cost_result["model"],
                     "total_usd": cost_result["total_usd"],
                     "input_tokens": cost_result["input_tokens"],
@@ -228,10 +254,23 @@ def handle_stop(data: dict, cwd_str: str) -> None:
                         alert_at = cost_cfg.get("alert_at_usd")
                         total = cost_result["total_usd"]
                         mdl = cost_result["model"]
+                        notified = _get_notified_levels(session_log_path, session_id)
                         if alert_at is not None and total >= float(alert_at):
-                            notify_cost(total, mdl, "alert", project)
+                            if "alert" not in notified:
+                                notify_cost(total, mdl, "alert", project)
+                                _write_session_log(cwd, {
+                                    "event": "session_cost_notified",
+                                    "session_id": session_id,
+                                    "level": "alert",
+                                })
                         elif warn_at is not None and total >= float(warn_at):
-                            notify_cost(total, mdl, "warn", project)
+                            if "warn" not in notified:
+                                notify_cost(total, mdl, "warn", project)
+                                _write_session_log(cwd, {
+                                    "event": "session_cost_notified",
+                                    "session_id": session_id,
+                                    "level": "warn",
+                                })
         except Exception:
             pass
 

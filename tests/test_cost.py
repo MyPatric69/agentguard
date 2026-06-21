@@ -349,6 +349,7 @@ def test_handle_stop_session_cost_entry_written_to_log(tmp_path, monkeypatch):
     cost_entries = [e for e in entries if e.get("event") == "session_cost"]
     assert len(cost_entries) == 1
     entry = cost_entries[0]
+    assert entry["session_id"] == "s1"
     assert entry["model"] == "claude-sonnet-4-6"
     assert entry["total_usd"] > 0
     assert "input_tokens" in entry
@@ -369,6 +370,117 @@ def test_handle_stop_no_transcript_no_cost_entry(tmp_path, monkeypatch):
     entries = [json.loads(line) for line in session_log.read_text().splitlines() if line.strip()]
     cost_entries = [e for e in entries if e.get("event") == "session_cost"]
     assert cost_entries == []
+
+
+# ── notification deduplication via sentinels ─────────────────────────────────
+
+
+def test_get_notified_levels_empty_when_no_sentinels(tmp_path):
+    from agentguard.enforcement.enforcer import _get_notified_levels
+    log = tmp_path / ".agentguard" / "session.log"
+    log.parent.mkdir()
+    log.write_text(json.dumps({"event": "session_cost", "session_id": "s1"}) + "\n")
+    assert _get_notified_levels(log, "s1") == set()
+
+
+def test_get_notified_levels_returns_notified_set(tmp_path):
+    from agentguard.enforcement.enforcer import _get_notified_levels
+    log = tmp_path / ".agentguard" / "session.log"
+    log.parent.mkdir()
+    log.write_text(
+        json.dumps({"event": "session_cost_notified", "session_id": "s1", "level": "warn"}) + "\n"
+        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "level": "alert"}) + "\n"
+    )
+    assert _get_notified_levels(log, "s1") == {"warn", "alert"}
+
+
+def test_get_notified_levels_ignores_other_sessions(tmp_path):
+    from agentguard.enforcement.enforcer import _get_notified_levels
+    log = tmp_path / ".agentguard" / "session.log"
+    log.parent.mkdir()
+    log.write_text(
+        json.dumps({"event": "session_cost_notified", "session_id": "s1", "level": "warn"}) + "\n"
+    )
+    assert _get_notified_levels(log, "s2") == set()
+
+
+def test_get_notified_levels_missing_file(tmp_path):
+    from agentguard.enforcement.enforcer import _get_notified_levels
+    assert _get_notified_levels(tmp_path / ".agentguard" / "nonexistent.log", "s1") == set()
+
+
+def test_handle_stop_second_stop_same_session_no_duplicate_warn(tmp_path, monkeypatch):
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Alice\ncost_awareness:\n  warn_at_usd: 0.00001\n  alert_at_usd: 500.00\n"
+    )
+    _make_session_log(tmp_path)
+    transcript = _make_transcript(tmp_path, input_tokens=10_000, output_tokens=5_000)
+    notify_calls = _patch_cost_and_notify(monkeypatch)
+
+    from agentguard.enforcement.enforcer import handle_stop
+    handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
+    handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
+
+    assert len(notify_calls) == 1
+    assert "Warning" in notify_calls[0][0]
+
+
+def test_handle_stop_second_stop_same_session_no_duplicate_alert(tmp_path, monkeypatch):
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Alice\ncost_awareness:\n  warn_at_usd: 0.00001\n  alert_at_usd: 0.00002\n"
+    )
+    _make_session_log(tmp_path)
+    transcript = _make_transcript(tmp_path, input_tokens=10_000, output_tokens=5_000)
+    notify_calls = _patch_cost_and_notify(monkeypatch)
+
+    from agentguard.enforcement.enforcer import handle_stop
+    handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
+    handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
+
+    assert len(notify_calls) == 1
+    assert "Alert" in notify_calls[0][0]
+
+
+def test_handle_stop_alert_escalation_from_warn_sentinel(tmp_path, monkeypatch):
+    """Warn already notified in a prior Stop; subsequent Stop above alert fires alert only."""
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Alice\ncost_awareness:\n  warn_at_usd: 0.00001\n  alert_at_usd: 0.00002\n"
+    )
+    log = tmp_path / ".agentguard" / "session.log"
+    log.parent.mkdir()
+    log.write_text(
+        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s1"}) + "\n"
+        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "level": "warn"}) + "\n"
+    )
+    transcript = _make_transcript(tmp_path, input_tokens=10_000, output_tokens=5_000)
+    notify_calls = _patch_cost_and_notify(monkeypatch)
+
+    from agentguard.enforcement.enforcer import handle_stop
+    handle_stop({"session_id": "s1", "transcript_path": str(transcript)}, str(tmp_path))
+
+    assert len(notify_calls) == 1
+    assert "Alert" in notify_calls[0][0]
+
+
+def test_handle_stop_different_session_does_not_share_sentinels(tmp_path, monkeypatch):
+    """Sentinels from s1 do not suppress notifications for s2."""
+    (tmp_path / "governance.yaml").write_text(
+        "owner: Alice\ncost_awareness:\n  warn_at_usd: 0.00001\n  alert_at_usd: 500.00\n"
+    )
+    log = tmp_path / ".agentguard" / "session.log"
+    log.parent.mkdir()
+    log.write_text(
+        json.dumps({"event": "post_tool_use", "tool": "Bash", "tool_use_id": "t1", "session_id": "s2"}) + "\n"
+        + json.dumps({"event": "session_cost_notified", "session_id": "s1", "level": "warn"}) + "\n"
+    )
+    transcript = _make_transcript(tmp_path, input_tokens=10_000, output_tokens=5_000)
+    notify_calls = _patch_cost_and_notify(monkeypatch)
+
+    from agentguard.enforcement.enforcer import handle_stop
+    handle_stop({"session_id": "s2", "transcript_path": str(transcript)}, str(tmp_path))
+
+    assert len(notify_calls) == 1
+    assert "Warning" in notify_calls[0][0]
 
 
 # ── load_cost_awareness ───────────────────────────────────────────────────────
