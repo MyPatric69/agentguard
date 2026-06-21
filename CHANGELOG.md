@@ -7,6 +7,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-06-21
+
+### Changed
+- Web UI: Live Watch entries now use an expandable row pattern —
+  compact single-line view by default, click to expand and see
+  full input summary and reason text. Replaces word-wrap which
+  caused very tall rows.
+
 ## [1.0.2] - 2026-06-21
 
 ### Fixed
