@@ -37,10 +37,10 @@ web/                       # React/Vite frontend (built to web/dist/)
 │       ├── CheckPanel.jsx      # Pre-flight check + score ring
 │       ├── GovernanceView.jsx  # Color-coded scope sections
 │       ├── VerifyPanel.jsx     # Pin verification cards
-│       ├── TerminalPanel.jsx   # xterm.js + WebSocket PTY
+│       ├── TerminalPanel.jsx   # xterm.js + WebSocket PTY, Cost Awareness Thresholds inline editor
 │       ├── InitPanel.jsx       # Setup governance (Run in Terminal)
 │       ├── ReviewPanel.jsx     # Review & update (Run in Terminal)
-│       └── WatchPanel.jsx      # Live Watch — real-time tool call feed
+│       └── WatchPanel.jsx      # Live Watch — real-time tool call feed, expandable rows
 └── package.json
 
 Project directory (runtime):
@@ -48,7 +48,7 @@ Project directory (runtime):
 ├── .claude/settings.json      # AgentGuard PreToolUse + PostToolUse + Stop hooks
 ├── CLAUDE.md                  # Governance context for Claude Code
 └── .agentguard/
-    ├── session.log            # Auto-generated tool call log (gitignored)
+    ├── session.log            # Auto-generated tool call log (gitignored); input_summary up to 500 chars
     └── proposals/             # Proposal records for unresolved ask-gated actions (gitignored)
 ```
 

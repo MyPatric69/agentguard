@@ -166,7 +166,7 @@ agentguard web  # → Live Watch tab
 not version-controlled.
 
 **What gets logged:**
-- Timestamp, tool name, input summary
+- Timestamp, tool name, input summary (up to 500 chars)
 - Decision: `allow` or `deny`
 - Reason if denied (governance rule violated)
 - Session ID for correlation
@@ -334,6 +334,9 @@ agentguard web  # → Live Watch tab
 ```
 
 Identical feed to the terminal — live updates via WebSocket.
+Each entry is expandable: click any row to reveal the full input
+(up to 500 characters) and the governance reason. Long unbroken
+strings (file paths, commands) wrap automatically.
 
 ### Session log location
 

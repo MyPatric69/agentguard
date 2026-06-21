@@ -62,6 +62,7 @@ Key features:
 - Header: session cost ($X.XX · model) polled every 30s via /api/session/cost
 - Live Watch tab: real-time tool call feed via /ws/watch WebSocket
   - Loads last 50 historical entries on open (dimmed, separator before live)
+  - Expandable rows: click to expand full input_summary (up to 500 chars) and reason; overflowWrap:anywhere for long unbroken strings
   - Green ✓ allow / red ✗ deny per entry
   - Pulsing live status indicator
   - Allow/deny counters
@@ -207,9 +208,8 @@ Validated facts (empirical, 2026-06-15):
   identically for both session types.
 - PreToolUse "ask" decisions do not reveal whether the user
   subsequently approved — the hook never receives that answer.
-- `session.log`'s `input_summary` is truncated to ~100 chars — not
-  sufficient for reconstructing a diff; `transcript_path` has the full,
-  untruncated tool call.
+- `session.log`'s `input_summary` is up to 500 chars (increased from 100
+  in v1.0.6); `transcript_path` has the full, untruncated tool call.
 
 Stage 1 design (local detection + recording, no network/git):
 1. Register AgentGuard as a PostToolUse hook (new — currently
@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v1.0.7: overflowWrap:anywhere for Live Watch expanded rows
+2026-06-21 — docs updated for v1.0.7

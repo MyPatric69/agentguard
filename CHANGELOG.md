@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 > This changelog starts with v0.10.1. Earlier project history is not
 > retroactively documented here — see AI_CONTEXT.md for prior context.
 
+> **v1.0.x series:** post-release UX improvements to Web UI Live Watch
+> (expandable rows, full text, cost display).
+
 ## [Unreleased]
 
 ## [1.0.7] - 2026-06-21
