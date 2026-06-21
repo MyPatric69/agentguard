@@ -366,6 +366,8 @@ async def watch_ws(websocket: WebSocket, path: str = "."):
                         pass
     except WebSocketDisconnect:
         pass
+    except asyncio.CancelledError:
+        pass
 
 
 @app.websocket("/ws/terminal")
@@ -422,6 +424,8 @@ async def terminal_ws(websocket: WebSocket, path: str = "."):
                         break
 
             await asyncio.gather(pty_to_ws(), ws_to_pty())
+        except asyncio.CancelledError:
+            pass
         finally:
             try:
                 os.kill(pid, 9)

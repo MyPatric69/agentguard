@@ -76,8 +76,7 @@ export default function WatchPanel({ projectPath }) {
       </span>
       <span style={{
         color: 'var(--text-secondary)', flex: 1,
-        overflow: 'hidden', textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
+        wordBreak: 'break-word'
       }}>
         {entry.input_summary}
       </span>
@@ -85,8 +84,7 @@ export default function WatchPanel({ projectPath }) {
         <span style={{
           color: 'var(--critical)', fontSize: '11px',
           flexShrink: 0, maxWidth: '200px',
-          overflow: 'hidden', textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
+          wordBreak: 'break-word'
         }}>
           {entry.reason}
         </span>

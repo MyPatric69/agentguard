@@ -28,7 +28,7 @@ runs before, during, and after observability tools do.
 - Build: hatchling, PyPI: agentguard-governance
 - Frontend: web/vite.config.js outDir = '../agentguard/web/dist' (builds directly into package)
 
-## Current State (v1.0.0)
+## Current State (v1.0.1)
 
 ### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -259,7 +259,7 @@ Old `warn_at_usd`/`alert_at_usd` schema auto-converted. Cache writes
 correctly split into 5m and 1h tokens and priced separately. Cost always
 logged to session.log as `event: session_cost`. `agentguard check` validates
 `cost_awareness` schema. `agentguard init --guided` includes optional cost
-awareness setup step (no AI required). 415 tests, ruff clean.
+awareness setup step (no AI required). 439 tests, ruff clean.
 
 Original C (Intent-Aware Live Observer) remains open as a separate
 future track: LLM-based drift detection via JSONL transcript analysis
@@ -281,6 +281,7 @@ governance.yaml's authorized scope?)
   governance.yaml-Regeln und schreibt diese als Proposals
   (.agentguard/proposals/) — Owner freigibt via PR. Erweiterung
   von Component A, nicht Component B.
+
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
 - pyenv migration on M5 Air (separate topic, not AgentGuard-specific)
@@ -338,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v1.0.1 release (code quality fixes)
+2026-06-21 – Auto-synced 1 commit(s) to b9870ed

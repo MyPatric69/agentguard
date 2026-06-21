@@ -7,6 +7,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-21
+
+### Fixed
+- Web UI: Live Watch entries no longer truncate long text —
+  full tool call details now visible without horizontal scrolling.
+- `agentguard web`: single Ctrl+C now exits cleanly without
+  CancelledError traceback in the terminal.
+
 ## [1.0.1] - 2026-06-21
 
 ### Changed
