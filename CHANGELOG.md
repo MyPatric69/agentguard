@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-06-21
+
+### Fixed
+- Web UI: Live Watch expanded rows now correctly wrap long text —
+  minWidth:0 added to flex containers prevents overflow that was
+  causing text to be clipped despite wordBreak:break-word.
+
 ## [1.0.4] - 2026-06-21
 
 ### Fixed
