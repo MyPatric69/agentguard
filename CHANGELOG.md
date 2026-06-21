@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-06-21
+
 ### Changed
 - Component C cost notifications refactored to multi-threshold
   escalation (Option B): configurable `thresholds` list with

@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.6  
+**Version:** 0.10.7  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -29,7 +29,7 @@ runs before, during, and after observability tools do.
 
 ## Current State (v0.10.6)
 
-### CLI Commands (14 total)
+### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
 - `agentguard check --ai-review` — + AI scope quality score 1-10
 - `agentguard init --interactive` — basic setup, no AI required
@@ -254,7 +254,11 @@ Open design questions (2026-06-15):
   terminal, avoiding large-scale duplication of reviewer.py/
   concretizer.py logic.
 
-**C) Cost-Awareness Notification** — **Implemented + refactored (multi-threshold, 2026-06-21).**
+**C) Cost-Awareness Notification** — **Complete (v0.10.7, 2026-06-21).**
+Commits: 2c15b8a (feat: Component C initial), c8060c3 (fix: browser
+User-Agent + cache token split), b2fdc73 (fix: dedup per session),
+141474b (feat: multi-threshold escalation + 1h cache pricing fix).
+
 `agentguard/checks/cost.py` calculates session cost from JSONL transcript
 (live pricing via urllib from Anthropic docs, hardcoded fallback). Desktop
 notifications fired on Stop for each crossed threshold (warn/alert/critical),
@@ -262,7 +266,8 @@ with optional repeat above last threshold every `repeat_interval_usd`.
 Old `warn_at_usd`/`alert_at_usd` schema auto-converted. Cache writes
 correctly split into 5m and 1h tokens and priced separately. Cost always
 logged to session.log as `event: session_cost`. `agentguard check` validates
-`cost_awareness` schema. 415 tests, ruff clean.
+`cost_awareness` schema. `agentguard init --guided` includes optional cost
+awareness setup step (no AI required). 415 tests, ruff clean.
 
 Original C (Intent-Aware Live Observer) remains open as a separate
 future track: LLM-based drift detection via JSONL transcript analysis
@@ -348,4 +353,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Add ROI View report extension to backlog
+2026-06-21 – v0.10.7 release (Component C complete)

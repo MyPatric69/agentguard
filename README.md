@@ -261,6 +261,9 @@ warning.
   A default `path_policy` section is also generated automatically from the project's
   directory structure (no AI involved) with `default_for_unmatched: ask`. You can
   hand-edit it afterward per the [path_policy schema section](#path_policy-optional).
+  An optional `cost_awareness` section is also configured during setup — enter
+  comma-separated USD thresholds and a repeat interval; levels are assigned
+  `warn`/`alert`/`critical` automatically. No AI required for this step.
 - `.claude/settings.json` — PreToolUse hook (merge-safe)
 - `CLAUDE.md` — AgentGuard governance block appended
 
