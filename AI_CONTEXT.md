@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 0.10.9  
+**Version:** 1.0.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -28,7 +28,7 @@ runs before, during, and after observability tools do.
 - Build: hatchling, PyPI: agentguard-governance
 - Frontend: web/vite.config.js outDir = '../agentguard/web/dist' (builds directly into package)
 
-## Current State (v0.10.9)
+## Current State (v1.0.0)
 
 ### CLI Commands (15 total)
 - `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
@@ -47,7 +47,7 @@ runs before, during, and after observability tools do.
 - `agentguard propose` — create GitHub PRs for pending proposals; `--dry-run` to preview; requires `gh` CLI
 - `agentguard web` — browser UI (requires pip install agentguard-governance[web])
 
-### Web UI (v0.10.9)
+### Web UI (v1.0.0)
 Seven tabs: Pre-Flight Check, Governance, Verify Pins, Live Watch,
 Terminal, Setup Governance, Review & Update.
 
@@ -136,7 +136,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 431/431 passing
+- 439/439 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -184,16 +184,14 @@ owner email).
 - Session Report PDF export (Web UI)
 - `agentguard verify --repair` — review timestamp accuracy for repaired pins
 
-### v1.0.0 — long-term
-Three components, recommended order (decided 2026-06-15):
+### v1.0.0 — **Complete (2026-06-21)**
+All three components shipped. v1.0.0 tagged on main.
 
-**A) Async Approval Workflow** — **Stage 1 + Stage 2 complete.**
+**A) Async Approval Workflow** — **Complete.**
 Stage 1: v0.10.5 (2026-06-16, commits 2f7977c + 5667342 + 5f2a577).
 Stage 2: `agentguard propose` (v0.10.6, 2026-06-18, commits caa9543 +
-4a98d7b + c86f3cb). Replaces the former "v0.11.0 Email Notification"
-and "governance change approval via inline editor" ideas with a general
-mechanism: ANY `ask`-gated action that is not resolved during the
-session gets a durable, reviewable proposal — surfaced as a GitHub PR.
+4a98d7b + c86f3cb). ANY `ask`-gated action unresolved during the
+session gets a durable proposal → surfaced as a GitHub PR.
 Note: `escalation.contact` in governance.yaml must be a **GitHub
 username** (not an email address) for `gh pr create --reviewer` to work.
 
@@ -243,24 +241,10 @@ to `"pr_created"` with the PR URL. New optional dependency: `gh` CLI or
 GitHub API client (itself subject to "Add new external dependencies" —
 requires_confirmation).
 
-**B) Inline Governance Editor** (Web UI) — **deprioritized.**
-Developers prefer CLI over web forms — Component B is nice-to-have,
-deprioritized. Start with Component C instead.
-
-Open design questions (2026-06-15):
-- Current state: GovernanceView.jsx is read-only (color-coded display);
-  Setup/Review panels launch CLI wizards in an embedded terminal
-  (xterm.js PTY) — functionally complete, but not "native" editing.
-- Open question: is the editor single-owner convenience (same trust
-  level as CLI, no approval needed for its own edits) or a
-  multi-user/team feature (non-owner edits would route through
-  Component A)?
-- Recommended starting point: hybrid — simple operations (delete rule,
-  edit reason text, toggle severity, add/remove path_policy patterns
-  without AI) become native forms; complex operations (Add new rule
-  with AI concretization, per `_run_add_rule`) stay in the embedded
-  terminal, avoiding large-scale duplication of reviewer.py/
-  concretizer.py logic.
+**B) Web UI Enhancements** — **Complete (v0.10.8, 2026-06-21).**
+Live Watch tab with 50-entry history + real-time feed; session cost
+header (polled every 30s); Cost Awareness Thresholds inline editor
+in Terminal tab (reads/writes `governance.yaml` via `/api/governance/update`).
 
 **C) Cost-Awareness Notification** — **Complete (v0.10.7, 2026-06-21).**
 Commits: 2c15b8a (feat: Component C initial), c8060c3 (fix: browser
@@ -297,13 +281,6 @@ governance.yaml's authorized scope?)
   governance.yaml-Regeln und schreibt diese als Proposals
   (.agentguard/proposals/) — Owner freigibt via PR. Erweiterung
   von Component A, nicht Component B.
-- **agentguard report — ROI View**: extend Layer 4 report with
-  cost-efficiency metrics for owner/PO-level justification:
-  session cost, tool-call breakdown (allow/ask/deny), blocked
-  actions, session duration, proposals created. Structured output
-  suitable for sprint reviews and KI-invest reporting.
-  Depends on Component C cost data.
-
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
 - pyenv migration on M5 Air (separate topic, not AgentGuard-specific)
@@ -344,7 +321,7 @@ governance.yaml's authorized scope?)
 - `web/src/components/GovernanceView.jsx` — scope cards
 - `web/src/components/VerifyPanel.jsx` — pin cards
 - `web/src/components/WatchPanel.jsx` — live tool call feed
-- `web/src/components/ReportPanel.jsx` — session report (stat cards, tool distribution, blocked actions)
+- `web/src/components/ReportPanel.jsx` — session report: Executive Summary card, ROI Summary table, stat cards, tool distribution, proposals, blocked actions
 - `web/src/components/TerminalPanel.jsx` — xterm.js PTY
 - `web/src/components/InitPanel.jsx` — setup panel
 - `web/src/components/ReviewPanel.jsx` — review panel
@@ -361,4 +338,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – v0.10.9 release
+2026-06-21 – v1.0.0 release

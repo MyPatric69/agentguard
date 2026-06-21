@@ -7,6 +7,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-21
+
+This release marks v1.0.0 — all three v1.0.0 components complete:
+- Component A: Async Approval Workflow (`agentguard propose`)
+- Component B: Web UI Enhancements (live watch, cost header,
+  cost awareness editor)
+- Component C: Cost-Awareness Notification
+Plus: ROI View in `agentguard report` with Executive Summary
+for non-technical stakeholders.
+
 ### Added
 - `agentguard report` now includes an **Executive Summary** section for
   non-technical stakeholders (Owner/GF/PO): session productivity status
@@ -20,17 +30,6 @@ All notable changes to this project will be documented in this file.
 - `generate_report_data()` returns `executive_summary` dict and
   `cost_awareness` (read from `governance.yaml`) — available to both CLI
   and `/api/report`.
-
-## [0.10.9] - 2026-06-21
-
-### Changed
-- `agentguard report` now takes `--path .` (project directory) instead of
-  `--session agentguard.log`. Reads from `.agentguard/session.log` via the
-  existing `generate_report_data()` call — no separate log argument needed.
-- `generate_report()` rebuilt on top of `generate_report_data()`: single
-  source of truth, no duplicate parsing.
-
-### Added
 - **ROI Summary** section in `agentguard report` output: session cost
   (model + total_usd + pricing source), ask/deny/allow breakdown with
   percentages, unresolved proposals count, PRs created.
@@ -42,7 +41,14 @@ All notable changes to this project will be documented in this file.
   counts in `generate_report_data()`.
 - **Web UI Report tab**: ROI Summary table at top, Ask stat card, proposals
   section with per-entry status badges and PR links.
-- 9 new tests (7 in `test_report.py`, 1 in `test_web_server.py`).
+- 17 new tests across `test_report.py` and `test_web_server.py` (439 total).
+
+### Changed
+- `agentguard report` now takes `--path .` (project directory) instead of
+  `--session agentguard.log`. Reads from `.agentguard/session.log` via the
+  existing `generate_report_data()` call — no separate log argument needed.
+- `generate_report()` rebuilt on top of `generate_report_data()`: single
+  source of truth, no duplicate parsing.
 
 ## [0.10.8] - 2026-06-21
 
