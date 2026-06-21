@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-06-21
+
+### Fixed
+- session.log input_summary increased from 100 to 500 characters —
+  Live Watch expanded rows now show substantially more context.
+
 ## [1.0.5] - 2026-06-21
 
 ### Fixed
