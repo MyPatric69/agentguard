@@ -284,6 +284,12 @@ governance.yaml's authorized scope?)
   governance.yaml-Regeln und schreibt diese als Proposals
   (.agentguard/proposals/) — Owner freigibt via PR. Erweiterung
   von Component A, nicht Component B.
+- **agentguard report — ROI View**: extend Layer 4 report with
+  cost-efficiency metrics for owner/PO-level justification:
+  session cost, tool-call breakdown (allow/ask/deny), blocked
+  actions, session duration, proposals created. Structured output
+  suitable for sprint reviews and KI-invest reporting.
+  Depends on Component C cost data.
 
 ### Tooling / Infrastructure
 - Homebrew formula for AgentGuard
@@ -342,4 +348,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Multi-threshold cost escalation, fix 1h cache pricing
+2026-06-21 – Add ROI View report extension to backlog
