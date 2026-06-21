@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-06-21
+
+### Fixed
+- Web UI: Live Watch expandable rows now correctly show ▸/▾
+  chevron on every entry, full text visible when expanded
+  (no truncation), entire row clickable to toggle.
+
 ## [1.0.3] - 2026-06-21
 
 ### Changed
