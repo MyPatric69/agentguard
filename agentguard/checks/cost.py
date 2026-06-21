@@ -169,13 +169,17 @@ def calculate_session_cost(
     """Read JSONL transcript, deduplicate by message.id, sum token usage.
 
     Returns:
-        {model, input_tokens, cache_write_tokens, cache_read_tokens,
-         output_tokens, total_usd, pricing_source}
+        {model, input_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
+         cache_read_tokens, output_tokens, total_usd, pricing_source}
     or None if transcript not found / unreadable / no usage data.
+
+    Cache writes: reads usage.cache_creation.ephemeral_5m_input_tokens and
+    ephemeral_1h_input_tokens (new API format). Falls back to the legacy flat
+    field cache_creation_input_tokens (treated as 5m) for older transcripts.
     """
     try:
         seen_ids: set[str] = set()
-        total_input = total_cache_write = total_cache_read = total_output = 0
+        total_input = total_cache_write_5m = total_cache_write_1h = total_cache_read = total_output = 0
         model: str | None = None
 
         with open(transcript_path) as f:
@@ -203,7 +207,13 @@ def calculate_session_cost(
                     continue
 
                 total_input += usage.get("input_tokens", 0)
-                total_cache_write += usage.get("cache_creation_input_tokens", 0)
+                cache_creation = usage.get("cache_creation")
+                if isinstance(cache_creation, dict):
+                    total_cache_write_5m += cache_creation.get("ephemeral_5m_input_tokens", 0)
+                    total_cache_write_1h += cache_creation.get("ephemeral_1h_input_tokens", 0)
+                else:
+                    # Legacy flat field — treat as 5m write
+                    total_cache_write_5m += usage.get("cache_creation_input_tokens", 0)
                 total_cache_read += usage.get("cache_read_input_tokens", 0)
                 total_output += usage.get("output_tokens", 0)
 
@@ -220,7 +230,8 @@ def calculate_session_cost(
         p = pricing[matched_key]
         total_usd = round(
             total_input * p["input"] / 1_000_000
-            + total_cache_write * p["cache_write_5m"] / 1_000_000
+            + total_cache_write_5m * p["cache_write_5m"] / 1_000_000
+            + total_cache_write_1h * p["cache_write_1h"] / 1_000_000
             + total_cache_read * p["cache_read"] / 1_000_000
             + total_output * p["output"] / 1_000_000,
             6,
@@ -229,7 +240,8 @@ def calculate_session_cost(
         return {
             "model": model,
             "input_tokens": total_input,
-            "cache_write_tokens": total_cache_write,
+            "cache_write_5m_tokens": total_cache_write_5m,
+            "cache_write_1h_tokens": total_cache_write_1h,
             "cache_read_tokens": total_cache_read,
             "output_tokens": total_output,
             "total_usd": total_usd,

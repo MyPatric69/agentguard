@@ -47,6 +47,7 @@ _HAPPY_PATH_INPUT = (
     "1\n"                 # accept hard limits concretization
     "owner@example.com\n"  # step 4: escalation
     "Ctrl+C\n"            # step 5: killswitch
+    "n\n"                 # cost awareness: skip
     "1\n"                 # final review: save
 )
 
@@ -189,6 +190,7 @@ def test_guided_adjustment_loop_max_3_rounds_saves_as_is():
         "2\n"                      # round 2: max rounds → save as-is
         "owner@example.com\n"      # step 4: escalation
         "Ctrl+C kill\n"            # step 5: killswitch
+        "n\n"                      # cost awareness: skip
         "1\n"                      # final review: save
     )
     with runner.isolated_filesystem():
@@ -219,6 +221,7 @@ def test_guided_escalation_invalid_contact_triggers_reentry():
         "n\n"                      # decline override
         "owner@example.com\n"      # step 4: escalation (valid — has @)
         "Ctrl+C\n"                 # step 5: killswitch
+        "n\n"                      # cost awareness: skip
         "1\n"                      # final review: save
     )
     with runner.isolated_filesystem():
@@ -403,6 +406,7 @@ def test_guided_ambiguity_prompt_shown_for_medium_confidence():
         "1\n"                      # accept hard limits
         "owner@example.com\n"      # step 4: escalation
         "Ctrl+C\n"                 # step 5: killswitch
+        "n\n"                      # cost awareness: skip
         "1\n"                      # final review: save
     )
     with runner.isolated_filesystem():
@@ -447,6 +451,7 @@ def test_guided_proceed_writes_ambiguities_as_yaml_comments():
         "1\n"                      # accept hard limits (HIGH, no ambiguity panel)
         "owner@example.com\n"
         "Ctrl+C\n"
+        "n\n"                      # cost awareness: skip
         "1\n"
     )
     with runner.isolated_filesystem():
@@ -480,6 +485,7 @@ def test_guided_address_ambiguity_triggers_reconcretization():
         "1\n"
         "owner@example.com\n"
         "Ctrl+C\n"
+        "n\n"                      # cost awareness: skip
         "1\n"
     )
     concretize_call_args = []
@@ -899,6 +905,7 @@ def test_guided_ambiguities_accumulated_across_rounds():
         "1\n"                      # accept
         "owner@example.com\n"      # step 4: escalation
         "Ctrl+C\n"                 # step 5: killswitch
+        "n\n"                      # cost awareness: skip
         "1\n"                      # final review: save
     )
 

@@ -8,7 +8,12 @@ import sys
 
 def notify_cost(total_usd: float, model: str, level: str, project: str) -> None:
     """Send desktop notification for cost threshold breach."""
-    title = "AgentGuard Warning" if level == "warn" else "AgentGuard Alert"
+    if level == "warn":
+        title = "AgentGuard Warning"
+    elif level == "critical":
+        title = "AgentGuard Critical"
+    else:
+        title = "AgentGuard Alert"
     message = f"Session cost: ${total_usd:.2f} ({model}) — {level} threshold exceeded"
     _send_notification(title, message)
     _play_sound(level)
@@ -37,7 +42,12 @@ def _play_sound(level: str) -> None:
     """Play platform-native alert sound. Never raises."""
     try:
         if sys.platform == "darwin":
-            sound = "Tink" if level == "warn" else "Funk"
+            if level == "warn":
+                sound = "Tink"
+            elif level == "critical":
+                sound = "Basso"
+            else:
+                sound = "Funk"
             subprocess.run(
                 ["afplay", f"/System/Library/Sounds/{sound}.aiff"],
                 timeout=3,

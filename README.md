@@ -914,13 +914,24 @@ default that preserves pre-path_policy behavior exactly — no new gates for exi
 
 ### cost_awareness (optional)
 
-Fires a desktop notification when session cost exceeds a threshold:
+Fires desktop notifications when session cost crosses configurable thresholds:
 
 ```yaml
 cost_awareness:
-  warn_at_usd: 1.00   # yellow warning notification
-  alert_at_usd: 5.00  # red alert notification
+  thresholds:
+    - at_usd: 0.50
+      level: warn      # "AgentGuard Warning" notification
+    - at_usd: 2.00
+      level: alert     # "AgentGuard Alert" notification
+    - at_usd: 5.00
+      level: critical  # "AgentGuard Critical" notification
+  repeat_last_threshold: true   # default: true
+  repeat_interval_usd: 2.00    # repeat critical every $2 above $5
 ```
+
+Each threshold fires exactly once per session. With `repeat_last_threshold: true`,
+the highest-level notification repeats every `repeat_interval_usd` above the last
+fixed threshold (e.g., at $7, $9, $11, ...).
 
 AgentGuard fetches live pricing from the Anthropic docs page at Stop time and
 falls back to hardcoded values if the fetch fails. No additional dependencies
@@ -928,9 +939,8 @@ are required (macOS: `osascript` + `afplay`, Linux: `notify-send`, both are
 system builtins). Session cost is always logged to `.agentguard/session.log`
 as `event: session_cost`, regardless of whether thresholds are configured.
 
-Both thresholds are optional — you can set either one or both.
-`warn_at_usd` must be less than `alert_at_usd` if both are present.
 If `cost_awareness` is absent, no notifications are fired (backward-compatible).
+The old `warn_at_usd`/`alert_at_usd` schema is still accepted and auto-converted.
 
 ### Why structured governance matters
 

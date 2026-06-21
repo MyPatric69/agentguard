@@ -92,6 +92,10 @@ Key features:
 - scope.unresolved_ambiguities: list of {text, added, status}
 - escalation: {contact, method, trigger}
 - killswitch: string
+- cost_awareness (optional): {thresholds: [{at_usd: float, level: str}],
+  repeat_last_threshold: bool (default true),
+  repeat_interval_usd: float (default 2.0)}
+  Old schema (warn_at_usd/alert_at_usd) auto-converted with DeprecationWarning.
 - concretization_pins: list of {field, input_hash, prompt_hash,
   output_hash, model, provider, temperature, date}
 - governance_history: list of {date, action, tool, version,
@@ -124,7 +128,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 384/384 passing
+- 415/415 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
@@ -250,13 +254,15 @@ Open design questions (2026-06-15):
   terminal, avoiding large-scale duplication of reviewer.py/
   concretizer.py logic.
 
-**C) Cost-Awareness Notification** — **Implemented (v0.11.0, 2026-06-21).**
+**C) Cost-Awareness Notification** — **Implemented + refactored (multi-threshold, 2026-06-21).**
 `agentguard/checks/cost.py` calculates session cost from JSONL transcript
 (live pricing via urllib from Anthropic docs, hardcoded fallback). Desktop
-notification fired on Stop when `cost_awareness.warn_at_usd` or
-`alert_at_usd` thresholds are exceeded. Cost always logged to session.log
-as `event: session_cost`. `agentguard check` validates `cost_awareness`
-schema. 34 new tests, ruff clean.
+notifications fired on Stop for each crossed threshold (warn/alert/critical),
+with optional repeat above last threshold every `repeat_interval_usd`.
+Old `warn_at_usd`/`alert_at_usd` schema auto-converted. Cache writes
+correctly split into 5m and 1h tokens and priced separately. Cost always
+logged to session.log as `event: session_cost`. `agentguard check` validates
+`cost_awareness` schema. 415 tests, ruff clean.
 
 Original C (Intent-Aware Live Observer) remains open as a separate
 future track: LLM-based drift detection via JSONL transcript analysis
@@ -336,4 +342,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Component C (cost-awareness notification) implemented
+2026-06-21 – Multi-threshold cost escalation, fix 1h cache pricing

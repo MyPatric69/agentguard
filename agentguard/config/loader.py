@@ -141,16 +141,16 @@ def _parse_path_entries(
     return result
 
 
-def load_cost_awareness(governance: dict) -> dict | None:
-    """Return cost_awareness config dict, or None if absent.
+def _convert_old_cost_awareness(raw: dict) -> dict:
+    """Convert legacy warn_at_usd/alert_at_usd schema to new thresholds format."""
+    import warnings as _warnings  # noqa: PLC0415
 
-    Raises GovernanceConfigError if warn_at_usd >= alert_at_usd.
-    """
-    raw = governance.get("cost_awareness")
-    if raw is None:
-        return None
-    if not isinstance(raw, dict):
-        raise GovernanceConfigError("cost_awareness must be a mapping")
+    _warnings.warn(
+        "cost_awareness: warn_at_usd/alert_at_usd is deprecated — "
+        "migrate to cost_awareness.thresholds list. Auto-converting.",
+        DeprecationWarning,
+        stacklevel=5,
+    )
     warn_at = raw.get("warn_at_usd")
     alert_at = raw.get("alert_at_usd")
     if warn_at is not None and alert_at is not None:
@@ -164,7 +164,88 @@ def load_cost_awareness(governance: dict) -> dict | None:
             raise GovernanceConfigError(
                 f"cost_awareness: invalid threshold value — {exc}"
             ) from exc
-    return raw
+    thresholds = []
+    if warn_at is not None:
+        thresholds.append({"at_usd": float(warn_at), "level": "warn"})
+    if alert_at is not None:
+        thresholds.append({"at_usd": float(alert_at), "level": "alert"})
+    return {"thresholds": thresholds, "repeat_last_threshold": True, "repeat_interval_usd": 2.0}
+
+
+def load_cost_awareness(governance: dict) -> dict | None:
+    """Return normalized cost_awareness config, or None if absent.
+
+    New schema: thresholds list, each entry {at_usd: float, level: str}.
+    Legacy schema (warn_at_usd/alert_at_usd): auto-converted with DeprecationWarning.
+
+    Raises GovernanceConfigError on invalid config.
+    """
+    raw = governance.get("cost_awareness")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise GovernanceConfigError("cost_awareness must be a mapping")
+
+    if "warn_at_usd" in raw or "alert_at_usd" in raw:
+        return _convert_old_cost_awareness(raw)
+
+    thresholds_raw = raw.get("thresholds")
+    if not isinstance(thresholds_raw, list) or not thresholds_raw:
+        raise GovernanceConfigError("cost_awareness.thresholds must be a non-empty list")
+
+    parsed: list[dict] = []
+    for i, t in enumerate(thresholds_raw):
+        if not isinstance(t, dict):
+            raise GovernanceConfigError(
+                f"cost_awareness.thresholds[{i}] must be a mapping"
+            )
+        at_usd_raw = t.get("at_usd")
+        if at_usd_raw is None:
+            raise GovernanceConfigError(
+                f"cost_awareness.thresholds[{i}] missing required 'at_usd'"
+            )
+        try:
+            at_usd = float(at_usd_raw)
+        except (TypeError, ValueError) as exc:
+            raise GovernanceConfigError(
+                f"cost_awareness.thresholds[{i}].at_usd invalid: {exc}"
+            ) from exc
+        if at_usd <= 0:
+            raise GovernanceConfigError(
+                f"cost_awareness.thresholds[{i}].at_usd must be > 0, got {at_usd}"
+            )
+        level = t.get("level")
+        if not isinstance(level, str) or not level:
+            raise GovernanceConfigError(
+                f"cost_awareness.thresholds[{i}] missing required string 'level'"
+            )
+        parsed.append({"at_usd": at_usd, "level": level})
+
+    for i in range(1, len(parsed)):
+        if parsed[i]["at_usd"] <= parsed[i - 1]["at_usd"]:
+            raise GovernanceConfigError(
+                f"cost_awareness.thresholds: at_usd values must be strictly ascending "
+                f"(index {i - 1}: {parsed[i - 1]['at_usd']}, index {i}: {parsed[i]['at_usd']})"
+            )
+
+    repeat_last = bool(raw.get("repeat_last_threshold", True))
+    repeat_interval_raw = raw.get("repeat_interval_usd", 2.0)
+    try:
+        repeat_interval = float(repeat_interval_raw)
+    except (TypeError, ValueError) as exc:
+        raise GovernanceConfigError(
+            f"cost_awareness.repeat_interval_usd invalid: {exc}"
+        ) from exc
+    if repeat_last and repeat_interval <= 0:
+        raise GovernanceConfigError(
+            "cost_awareness.repeat_interval_usd must be > 0"
+        )
+
+    return {
+        "thresholds": parsed,
+        "repeat_last_threshold": repeat_last,
+        "repeat_interval_usd": repeat_interval,
+    }
 
 
 def load_path_policy(governance: dict) -> PathPolicy:

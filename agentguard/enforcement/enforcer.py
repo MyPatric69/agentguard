@@ -112,9 +112,9 @@ def _write_session_log(cwd: Path, entry: dict) -> None:
         pass
 
 
-def _get_notified_levels(session_log_path: Path, session_id: str) -> set[str]:
-    """Return set of already-notified cost levels ('warn', 'alert') for this session."""
-    levels: set[str] = set()
+def _get_notified_thresholds(session_log_path: Path, session_id: str) -> set[float]:
+    """Return set of already-notified at_usd values for this session."""
+    thresholds: set[float] = set()
     try:
         with open(session_log_path) as f:
             for raw in f:
@@ -129,12 +129,15 @@ def _get_notified_levels(session_log_path: Path, session_id: str) -> set[str]:
                     entry.get("event") == "session_cost_notified"
                     and entry.get("session_id") == session_id
                 ):
-                    level = entry.get("level")
-                    if level:
-                        levels.add(level)
+                    at_usd = entry.get("at_usd")
+                    if at_usd is not None:
+                        try:
+                            thresholds.add(float(at_usd))
+                        except (TypeError, ValueError):
+                            pass
     except OSError:
         pass
-    return levels
+    return thresholds
 
 
 def log_post_tool_use(data: dict) -> None:
@@ -224,7 +227,7 @@ def handle_stop(data: dict, cwd_str: str) -> None:
         except OSError:
             pass
 
-    # Cost awareness: calculate session cost and fire notification if thresholds exceeded
+    # Cost awareness: calculate session cost and fire notifications for crossed thresholds
     if transcript_path:
         try:
             from agentguard.checks.cost import calculate_session_cost, fetch_pricing  # noqa: PLC0415,I001
@@ -239,38 +242,60 @@ def handle_stop(data: dict, cwd_str: str) -> None:
                     "model": cost_result["model"],
                     "total_usd": cost_result["total_usd"],
                     "input_tokens": cost_result["input_tokens"],
-                    "cache_write_tokens": cost_result["cache_write_tokens"],
+                    "cache_write_5m_tokens": cost_result["cache_write_5m_tokens"],
+                    "cache_write_1h_tokens": cost_result["cache_write_1h_tokens"],
                     "cache_read_tokens": cost_result["cache_read_tokens"],
                     "output_tokens": cost_result["output_tokens"],
                     "pricing_source": cost_result["pricing_source"],
                 })
                 config_path = cwd / "governance.yaml"
                 if config_path.exists():
+                    from agentguard.config.loader import load_cost_awareness  # noqa: PLC0415
                     cfg = load_config(config_path)
-                    cost_cfg = cfg.get("cost_awareness")
-                    if isinstance(cost_cfg, dict):
+                    try:
+                        cost_cfg = load_cost_awareness(cfg)
+                    except Exception:
+                        cost_cfg = None
+                    if cost_cfg is not None:
                         project = cfg.get("owner", str(cwd))
-                        warn_at = cost_cfg.get("warn_at_usd")
-                        alert_at = cost_cfg.get("alert_at_usd")
                         total = cost_result["total_usd"]
                         mdl = cost_result["model"]
-                        notified = _get_notified_levels(session_log_path, session_id)
-                        if alert_at is not None and total >= float(alert_at):
-                            if "alert" not in notified:
-                                notify_cost(total, mdl, "alert", project)
+                        thresholds = cost_cfg["thresholds"]
+                        repeat_last = cost_cfg.get("repeat_last_threshold", True)
+                        repeat_interval = float(cost_cfg.get("repeat_interval_usd", 2.0))
+                        notified = _get_notified_thresholds(session_log_path, session_id)
+
+                        for t in sorted(thresholds, key=lambda x: x["at_usd"]):
+                            at_usd = t["at_usd"]
+                            level = t["level"]
+                            if total >= at_usd and at_usd not in notified:
+                                notify_cost(total, mdl, level, project)
                                 _write_session_log(cwd, {
                                     "event": "session_cost_notified",
                                     "session_id": session_id,
-                                    "level": "alert",
+                                    "at_usd": at_usd,
+                                    "level": level,
                                 })
-                        elif warn_at is not None and total >= float(warn_at):
-                            if "warn" not in notified:
-                                notify_cost(total, mdl, "warn", project)
-                                _write_session_log(cwd, {
-                                    "event": "session_cost_notified",
-                                    "session_id": session_id,
-                                    "level": "warn",
-                                })
+
+                        if repeat_last and thresholds:
+                            last_t = max(thresholds, key=lambda x: x["at_usd"])
+                            last_at_usd = last_t["at_usd"]
+                            if total >= last_at_usd:
+                                repeat_sentinels = sorted(
+                                    a for a in notified if a >= last_at_usd
+                                )
+                                if repeat_sentinels:
+                                    next_repeat = repeat_sentinels[-1] + repeat_interval
+                                else:
+                                    next_repeat = last_at_usd + repeat_interval
+                                if total >= next_repeat:
+                                    notify_cost(total, mdl, last_t["level"], project)
+                                    _write_session_log(cwd, {
+                                        "event": "session_cost_notified",
+                                        "session_id": session_id,
+                                        "at_usd": next_repeat,
+                                        "level": last_t["level"],
+                                    })
         except Exception:
             pass
 

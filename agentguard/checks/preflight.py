@@ -151,7 +151,7 @@ def check_cost_awareness(governance: dict) -> Finding:
     """Check cost_awareness configuration.
 
     Absent → INFO (backward-compatible, no notifications).
-    Valid  → ok with threshold summary.
+    Valid  → ok with threshold count and repeat summary.
     Invalid → critical.
     """
     from agentguard.config.loader import GovernanceConfigError, load_cost_awareness  # noqa: PLC0415
@@ -160,20 +160,16 @@ def check_cost_awareness(governance: dict) -> Finding:
         return Finding(
             "info",
             "cost_awareness not configured — no session cost notifications. "
-            "Add cost_awareness.warn_at_usd / alert_at_usd to governance.yaml to enable.",
+            "Add cost_awareness.thresholds to governance.yaml to enable.",
         )
 
     try:
         ca = load_cost_awareness(governance) or {}
-        warn_at = ca.get("warn_at_usd")
-        alert_at = ca.get("alert_at_usd")
-        parts = []
-        if warn_at is not None:
-            parts.append(f"warn_at_usd=${float(warn_at):.2f}")
-        if alert_at is not None:
-            parts.append(f"alert_at_usd=${float(alert_at):.2f}")
-        label = ", ".join(parts) if parts else "no thresholds set"
-        return Finding("ok", f"cost_awareness configured ({label})")
+        n = len(ca.get("thresholds", []))
+        repeat = ca.get("repeat_last_threshold", True)
+        interval = ca.get("repeat_interval_usd", 2.0)
+        repeat_info = f", repeat every ${float(interval):.2f}" if repeat else ""
+        return Finding("ok", f"cost_awareness: {n} threshold(s) configured{repeat_info}")
     except GovernanceConfigError as exc:
         return Finding("critical", str(exc))
 

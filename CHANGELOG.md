@@ -7,19 +7,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-- Component C: cost-awareness notification — AgentGuard calculates
-  session cost from JSONL transcript (live pricing from Anthropic
-  docs, with hardcoded fallback) and fires a desktop notification
-  when configurable thresholds are exceeded (`cost_awareness.warn_at_usd`,
-  `cost_awareness.alert_at_usd` in governance.yaml).
-  Session cost is logged to session.log as `event: session_cost`.
-- `agentguard check` now validates `cost_awareness` schema
-  (INFO if absent, PASS if valid, FAIL if `warn_at_usd >= alert_at_usd`).
+### Changed
+- Component C cost notifications refactored to multi-threshold
+  escalation (Option B): configurable `thresholds` list with
+  `warn`/`alert`/`critical` levels, repeat notification above last
+  threshold at configurable interval (`repeat_interval_usd`).
+  Old `warn_at_usd`/`alert_at_usd` schema auto-converted with
+  `DeprecationWarning`.
+- `agentguard init --guided` now includes an optional cost awareness
+  setup step (no AI required): enter comma-separated USD thresholds
+  and repeat interval; levels assigned warn/alert/critical
+  automatically.
+
+### Fixed
+- Cache write tokens now correctly priced: `ephemeral_5m_input_tokens`
+  at $3.75/MTok and `ephemeral_1h_input_tokens` at $6.00/MTok
+  (previously all cache writes were priced at the 5m rate —
+  underestimated cost by up to 37.5% for 1h cached sessions).
+  Session log now records `cache_write_5m_tokens` and
+  `cache_write_1h_tokens` separately for auditability.
+
+### Added (original Component C, carried forward)
 - `agentguard/checks/cost.py`: session cost calculation with live
   pricing fetch and hardcoded fallback (no new required dependencies).
 - `agentguard/notifications.py`: cross-platform desktop notifications
   (macOS/Linux/Windows). No additional dependencies required on macOS.
+  Now handles `critical` level (title "AgentGuard Critical",
+  macOS sound "Basso").
+- `agentguard check` validates `cost_awareness` schema
+  (INFO if absent, PASS with threshold count + repeat interval if
+  valid, FAIL if invalid).
 
 ## [0.10.6] - 2026-06-18
 
