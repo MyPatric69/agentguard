@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -338,4 +338,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 – Auto-synced 1 commit(s) to 19977d0
+2026-06-21 – v1.0.1 release (code quality fixes)

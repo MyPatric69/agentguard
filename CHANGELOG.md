@@ -7,6 +7,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-21
+
+### Changed
+- Internal code quality fixes: removed redundant imports,
+  consolidated yaml.safe_load to load_governance(), extracted
+  _yaml_item_block DRY violation, replaced inline save_governance
+  patterns in server.py, resolved _split_mission_concretized
+  dead code.
+
 ## [1.0.0] - 2026-06-21
 
 This release marks v1.0.0 — all three v1.0.0 components complete:
