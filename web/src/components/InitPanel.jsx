@@ -78,23 +78,23 @@ export default function InitPanel({ projectPath, runInTerminal }) {
         <CommandCard
           title="⚡ Guided Setup (Recommended)"
           description="AI-powered 5-step dialog. Translates your intent into concrete, enforceable rules. Uses claude-sonnet for reliable schema generation."
-          cmd={`cd ${projectPath} && agentguard init --guided\r`}
+          cmd={`cd "${projectPath}" && agentguard init --guided\r`}
           accent="rgba(59,130,246,0.3)"
-          onRun={() => runInTerminal(`cd ${projectPath} && agentguard init --guided\r`)}
+          onRun={() => runInTerminal(`cd "${projectPath}" && agentguard init --guided\r`)}
         />
         <CommandCard
           title="📝 Interactive Setup"
           description="Manual setup without AI. Fill in governance fields directly. Good for teams with existing governance policies."
-          cmd={`cd ${projectPath} && agentguard init --interactive\r`}
+          cmd={`cd "${projectPath}" && agentguard init --interactive\r`}
           accent="rgba(16,185,129,0.2)"
-          onRun={() => runInTerminal(`cd ${projectPath} && agentguard init --interactive\r`)}
+          onRun={() => runInTerminal(`cd "${projectPath}" && agentguard init --interactive\r`)}
         />
         <CommandCard
           title="📄 Template Only"
           description="Generate a governance.yaml template to fill in manually. Best for scripted or CI/CD environments."
-          cmd={`cd ${projectPath} && agentguard init --template-only\r`}
+          cmd={`cd "${projectPath}" && agentguard init --template-only\r`}
           accent="rgba(99,102,241,0.2)"
-          onRun={() => runInTerminal(`cd ${projectPath} && agentguard init --template-only\r`)}
+          onRun={() => runInTerminal(`cd "${projectPath}" && agentguard init --template-only\r`)}
         />
       </div>
 

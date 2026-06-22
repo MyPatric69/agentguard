@@ -47,23 +47,23 @@ export default function ReviewPanel({ projectPath, runInTerminal }) {
       <CommandCard
         title="🤖 AI-Assisted Review (Recommended)"
         description="Review all governance fields with AI concretization. Updates only changed fields — unchanged fields are preserved. All changes logged in governance_history."
-        cmd={`cd ${projectPath} && agentguard review --guided\r`}
+        cmd={`cd "${projectPath}" && agentguard review --guided\r`}
         accent="rgba(59,130,246,0.3)"
-        onRun={() => runInTerminal(`cd ${projectPath} && agentguard review --guided\r`)}
+        onRun={() => runInTerminal(`cd "${projectPath}" && agentguard review --guided\r`)}
       />
       <CommandCard
         title="📋 Interactive Review"
         description="Review governance fields manually. Choose which fields to keep, update, or add rules to. Mark ambiguities as resolved."
-        cmd={`cd ${projectPath} && agentguard review\r`}
+        cmd={`cd "${projectPath}" && agentguard review\r`}
         accent="rgba(16,185,129,0.2)"
-        onRun={() => runInTerminal(`cd ${projectPath} && agentguard review\r`)}
+        onRun={() => runInTerminal(`cd "${projectPath}" && agentguard review\r`)}
       />
       <CommandCard
         title="🎯 Review Specific Field"
         description="Update only authorized, prohibited, or requires_confirmation scope. Fastest for targeted changes."
-        cmd={`cd ${projectPath} && agentguard review --field authorized\r`}
+        cmd={`cd "${projectPath}" && agentguard review --field authorized\r`}
         accent="rgba(99,102,241,0.2)"
-        onRun={() => runInTerminal(`cd ${projectPath} && agentguard review --field authorized\r`)}
+        onRun={() => runInTerminal(`cd "${projectPath}" && agentguard review --field authorized\r`)}
       />
 
       <div style={{
