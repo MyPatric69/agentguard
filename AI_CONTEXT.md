@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.0.7  
+**Version:** 1.0.8  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-21 — docs updated for v1.0.7
+2026-06-22 – v1.0.8: quote project paths with spaces in terminal commands

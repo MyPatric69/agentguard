@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-06-22
+
+### Fixed
+- Web UI: terminal commands now correctly quote project paths
+  containing spaces (Review & Update, Init, and other panels).
+
 ## [1.0.7] - 2026-06-21
 
 ### Fixed
