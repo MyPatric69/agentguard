@@ -339,5 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – v1.1.0: escalation contact validation accepts GitHub
-usernames (placeholder words still flagged); SKILL.md added at repo root
+2026-09-05 – Auto-synced 1 commit(s) to 7ba91ef
