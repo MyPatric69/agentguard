@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `agentguard check`: harness checks (attempt counter, action log,
+  error pattern detection) now scan both Python source files AND
+  CLAUDE.md — projects that document their harness in CLAUDE.md
+  instead of Python code no longer produce false-positive warnings.
+
 ## [1.0.8] - 2026-06-22
 
 ### Fixed

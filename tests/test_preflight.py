@@ -211,6 +211,69 @@ def test_no_action_log_triggers_warning(tmp_path):
     assert _find(findings, "warning", "action log")
 
 
+# ── Harness checks scan CLAUDE.md as well as Python source ────────────────────
+
+_HARNESS_CLAUDE = (
+    "loop detection, root cause, fetch docs\n"
+    "The harness tracks max_attempts per task and writes an action_log entry\n"
+    "for every step, flagging consecutive_errors.\n"
+)
+
+
+def test_harness_patterns_in_claude_md_only_pass(tmp_path):
+    """Patterns documented in CLAUDE.md, no Python files → checks pass."""
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV, claude_md=_HARNESS_CLAUDE)
+    findings = run_preflight(proj)
+    assert _find(findings, "ok", "attempt counter found in harness")
+    assert _find(findings, "ok", "action log found in harness")
+    assert not _find(findings, "warning", "attempt")
+    assert not _find(findings, "warning", "action log")
+
+
+def test_harness_patterns_in_python_only_still_pass(tmp_path):
+    """Existing behavior: patterns in Python source only → checks pass."""
+    proj = _make_project(
+        tmp_path,
+        governance_yaml=_VALID_GOV,
+        claude_md="loop detection, root cause, fetch docs",
+        py_content="max_attempts = 3\naction_log = []\n",
+    )
+    findings = run_preflight(proj)
+    assert _find(findings, "ok", "attempt counter found in harness")
+    assert _find(findings, "ok", "action log found in harness")
+
+
+def test_harness_patterns_in_both_sources_pass(tmp_path):
+    proj = _make_project(
+        tmp_path,
+        governance_yaml=_VALID_GOV,
+        claude_md=_HARNESS_CLAUDE,
+        py_content="max_attempts = 3\naction_log = []\n",
+    )
+    findings = run_preflight(proj)
+    assert _find(findings, "ok", "attempt counter found in harness")
+    assert _find(findings, "ok", "action log found in harness")
+
+
+def test_harness_patterns_in_neither_source_warn(tmp_path):
+    proj = _make_project(
+        tmp_path,
+        governance_yaml=_VALID_GOV,
+        claude_md="loop detection, root cause, fetch docs",
+        py_content="def run(): pass\n",
+    )
+    findings = run_preflight(proj)
+    assert _find(findings, "warning", "attempt")
+    assert _find(findings, "warning", "action log")
+
+
+def test_harness_checks_skipped_when_no_claude_md_and_no_python(tmp_path):
+    """Empty project → no harness OK findings, instruction-file critical instead."""
+    proj = _make_project(tmp_path, governance_yaml=_VALID_GOV)
+    findings = run_preflight(proj)
+    assert not _find(findings, "ok", "found in harness")
+
+
 # ── Hint text for missing instruction file ────────────────────────────────────
 
 

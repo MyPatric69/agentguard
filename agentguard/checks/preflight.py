@@ -327,10 +327,11 @@ def run_preflight(
             )
         )
 
-    # ── Harness checks (scan Python source) ──────────────────────────────────
+    # ── Harness checks (scan Python source + CLAUDE.md) ──────────────────────
 
-    if py_content:
-        if _scan_patterns(py_content, ATTEMPT_COUNTER_PATTERNS):
+    harness_text = (py_content or "") + " " + (instruction_text or "")
+    if harness_text.strip():
+        if _scan_patterns(harness_text, ATTEMPT_COUNTER_PATTERNS):
             findings.append(Finding("ok", "Attempt counter found in harness"))
         else:
             findings.append(
@@ -340,7 +341,7 @@ def run_preflight(
                 )
             )
 
-        if _scan_patterns(py_content, ACTION_LOG_PATTERNS):
+        if _scan_patterns(harness_text, ACTION_LOG_PATTERNS):
             findings.append(Finding("ok", "Action log found in harness"))
         else:
             findings.append(
@@ -350,7 +351,7 @@ def run_preflight(
                 )
             )
 
-        if _scan_patterns(py_content, ERROR_PATTERN_PATTERNS):
+        if _scan_patterns(harness_text, ERROR_PATTERN_PATTERNS):
             findings.append(Finding("ok", "Error pattern detection found in harness"))
 
     # ── Session log check ────────────────────────────────────────────────────
