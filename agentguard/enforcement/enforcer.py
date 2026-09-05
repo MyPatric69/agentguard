@@ -392,7 +392,7 @@ def _extract_keywords(text: str) -> list[str]:
 
 def _match_prohibited_text(tool_name: str, tool_str: str, prohibited_text: str) -> bool:
     """Return True if tool_str matches the given prohibited text string."""
-    if re.search(r"\brm\s+-\S*[rf]", tool_str):
+    if re.search(r"\brm\s+-\S*r", tool_str):
         if any(kw in prohibited_text for kw in _DELETION_SCOPE_WORDS):
             return True
     if "git push" in tool_str and "git push" in prohibited_text:
@@ -423,7 +423,7 @@ def _match_confirmation_text(
     tool_name: str, tool_str: str, confirmation_text: str, file_path: str = ""
 ) -> bool:
     """Return True if tool_str matches the given confirmation text string."""
-    if tool_name == "Bash" and re.search(r"\brm\s+-\S*[rf]", tool_str):
+    if tool_name == "Bash" and re.search(r"\brm\s+-\S*r", tool_str):
         if any(kw in confirmation_text for kw in _DELETION_SCOPE_WORDS):
             return True
     # only tag-related push operations, not all git push commands

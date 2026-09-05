@@ -11,6 +11,7 @@ from agentguard.cli import _write_hook_config
 from agentguard.enforcement.enforcer import (
     _match_confirmation_text,
     _match_path_policy,
+    _match_prohibited_text,
     log_post_tool_use,
     run_enforce,
 )
@@ -538,8 +539,22 @@ def test_rm_f_in_source_content_not_blocked(tmp_path, monkeypatch, capsys):
     assert capsys.readouterr().out == ""
 
 
-def test_bash_rm_f_command_still_triggers(tmp_path, monkeypatch, capsys):
-    """An actual Bash 'rm -f somefile' command must still trigger the deletion-scope match."""
+def test_bash_rm_rf_command_still_triggers(tmp_path, monkeypatch, capsys):
+    """An actual Bash 'rm -rf somedir' command must still trigger the deletion-scope match."""
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "rm -rf somedir"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+def test_bash_rm_f_single_file_not_blocked(tmp_path, monkeypatch, capsys):
+    """'rm -f <single file>' (force, non-recursive) is not destructive — must be allowed."""
     (tmp_path / "governance.yaml").write_text(_GOV_CONFIRMATION)
     monkeypatch.setattr(
         "sys.stdin",
@@ -548,8 +563,26 @@ def test_bash_rm_f_command_still_triggers(tmp_path, monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         run_enforce()
     assert exc.value.code == 0
-    result = json.loads(capsys.readouterr().out)
-    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert capsys.readouterr().out == ""
+
+
+# ── 26b. rm regex: only recursive variants match the deletion scope ──────────
+
+_RM_PROHIBITED_TEXT = "no file deletion outside ./tmp"
+
+
+def test_rm_regex_recursive_variants_match():
+    for cmd in ("rm -rf /path", "rm -r /path", "rm -rdf /path", "rm -fr /path"):
+        assert _match_prohibited_text("Bash", cmd, _RM_PROHIBITED_TEXT) is True, cmd
+
+
+def test_rm_regex_force_only_single_file_does_not_match():
+    for cmd in (
+        "rm -f /path/file.txt",
+        'rm -f "./test_output.txt"',
+        "rm /path/file.txt",
+    ):
+        assert _match_prohibited_text("Bash", cmd, _RM_PROHIBITED_TEXT) is False, cmd
 
 
 # ── 27-32. Tag-push branch: only tag-related push operations match ────────────

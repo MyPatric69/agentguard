@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Enforcer: `rm -f` on a single file no longer triggers a
+  HARD_LIMIT deny — only recursive `rm -r` / `rm -rf` variants
+  are treated as destructive. Plain force-delete of a single
+  file is no longer a false positive.
+
 ## [1.1.0] - 2026-09-05
 
 ### Fixed
