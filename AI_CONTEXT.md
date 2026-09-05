@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.1.2  
+**Version:** 1.1.3  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -144,7 +144,7 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
 
-## Recent Hardening (v1.0.9 – v1.1.2)
+## Recent Hardening (v1.0.9 – v1.1.3)
 
 - **v1.0.9** — `agentguard check` harness checks (attempt counter, action
   log, error pattern) now scan CLAUDE.md/AGENTS.md in addition to `*.py`
@@ -163,6 +163,16 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
   `requires_confirmation`/`prohibited` rules — Claude Code's own
   permission system returns "allow" before AgentGuard's hook can say
   "ask"/"deny". Anchored substring match (first token must agree).
+- **v1.1.3** — enforcer `_match_prohibited_text` / `_match_confirmation_text`
+  gained `_direct_match()`: for **Bash** commands, a rule matches when it
+  names a curated command token (`curl`, `ssh`, `sudo`, `docker`, …) that
+  appears in the command, or when two consecutive meaningful rule words
+  appear verbatim in it. Closes the gap where rules like
+  `"git push origin main"` or `"pip install"` produced no
+  `_extract_keywords` output (only `no …` / `never …` phrasings did) and
+  were silently allowed. Single generic words never match alone; file
+  content is not phrase-matched (Write/Edit noise); tag-push rules stay
+  with `_is_tag_push`.
 
 ## Dogfooding Session (2026-06-12/13)
 

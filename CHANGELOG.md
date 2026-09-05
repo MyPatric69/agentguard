@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-09-05
+
 ### Fixed
 - Enforcer: `scope.requires_confirmation` and `scope.prohibited`
   rules now match Bash tool calls via direct phrase matching — not
