@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.1.1  
+**Version:** 1.1.2  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -339,4 +339,5 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Auto-synced 1 commit(s) to b23260e
+2026-09-05 – v1.1.2: agentguard check detects .claude/settings.local.json
+allow-entries that bypass governance requires_confirmation/prohibited rules

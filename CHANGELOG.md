@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-09-05
+
 ### Added
 - `agentguard check` now detects conflicts between
   `.claude/settings.local.json` allow-entries and
