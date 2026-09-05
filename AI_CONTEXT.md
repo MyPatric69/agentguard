@@ -362,6 +362,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Docs review for v1.1.2 (CLAUDE.md, AI_CONTEXT.md, README.md):
-test count 458, v1.0.9–v1.1.2 hardening summary, settings.local.json
-conflict check documented, harness-check CLAUDE.md scan noted
+2026-09-05 – Auto-synced 1 commit(s) to 5850660
