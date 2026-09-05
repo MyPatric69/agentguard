@@ -390,6 +390,103 @@ def _extract_keywords(text: str) -> list[str]:
     return keywords
 
 
+_STOPWORDS = frozenset(
+    {
+        "the",
+        "and",
+        "or",
+        "for",
+        "with",
+        "that",
+        "this",
+        "from",
+        "into",
+        "when",
+        "will",
+        "have",
+        "been",
+        "must",
+        "never",
+        "always",
+        "without",
+        "explicit",
+        "approval",
+        "confirmation",
+        "owner",
+        "user",
+        "any",
+        "all",
+        "new",
+        "run",
+        "use",
+        "add",
+        "get",
+        "set",
+        "not",
+        "non",
+    }
+)
+
+# Bare occurrence of one of these command names in a rule is meaningful on its
+# own (e.g. rule "no curl to external hosts" vs. tool "curl https://…"). Common
+# multi-purpose verbs like "git" / "pip" are deliberately excluded — they appear
+# in generic rule prose ("rewrite git history") and would over-match; the
+# consecutive-bigram check below already covers "git push", "pip install", etc.
+_COMMAND_TOKENS = frozenset(
+    {
+        "curl",
+        "wget",
+        "ssh",
+        "scp",
+        "rsync",
+        "sudo",
+        "chmod",
+        "chown",
+        "dd",
+        "mkfs",
+        "fdisk",
+        "mount",
+        "umount",
+        "iptables",
+        "docker",
+        "kubectl",
+        "helm",
+        "terraform",
+        "systemctl",
+    }
+)
+
+
+def _direct_match(tool_str: str, rule_text: str) -> bool:
+    """Direct phrase match of a governance rule against a tool-call string.
+
+    Complements ``_extract_keywords`` (which only fires on "no X" / "never X"
+    phrasings). Returns True when either:
+
+    1. the rule names a known command token (``curl``, ``ssh``, ...) and that
+       command appears as a word in ``tool_str``, or
+    2. two consecutive meaningful rule words appear verbatim in ``tool_str``.
+
+    A single generic word never matches on its own — that would flag most
+    ordinary tool calls.
+    """
+    tool_lower = tool_str.lower()
+    toks = [
+        t
+        for t in re.findall(r"[a-z0-9][a-z0-9._/+-]*", rule_text.lower())
+        if t not in _STOPWORDS and len(t) > 2
+    ]
+    if not toks:
+        return False
+    for tok in toks:
+        if tok in _COMMAND_TOKENS and re.search(rf"(?:^|[\s;&|(]){re.escape(tok)}\b", tool_lower):
+            return True
+    for first, second in zip(toks, toks[1:]):
+        if f"{first} {second}" in tool_lower:
+            return True
+    return False
+
+
 def _match_prohibited_text(tool_name: str, tool_str: str, prohibited_text: str) -> bool:
     """Return True if tool_str matches the given prohibited text string."""
     if re.search(r"\brm\s+-\S*r", tool_str):
@@ -403,6 +500,14 @@ def _match_prohibited_text(tool_name: str, tool_str: str, prohibited_text: str) 
     for keyword in _extract_keywords(prohibited_text):
         if len(keyword) > 3 and keyword in tool_str:
             return True
+    # Direct phrase match against rule text — Bash only (matching rule phrases
+    # against file content is noise-prone); "tag" rules handled by _is_tag_push.
+    if (
+        tool_name == "Bash"
+        and "tag" not in prohibited_text
+        and _direct_match(tool_str, prohibited_text)
+    ):
+        return True
     return False
 
 
@@ -432,6 +537,14 @@ def _match_confirmation_text(
     for keyword in _extract_keywords(confirmation_text):
         if len(keyword) > 3 and keyword in tool_str:
             return True
+    # Direct phrase match against rule text — Bash only (matching rule phrases
+    # against file content is noise-prone); "tag" rules handled by _is_tag_push.
+    if (
+        tool_name == "Bash"
+        and "tag" not in confirmation_text
+        and _direct_match(tool_str, confirmation_text)
+    ):
+        return True
     return False
 
 

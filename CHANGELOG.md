@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Enforcer: `scope.requires_confirmation` and `scope.prohibited`
+  rules now match Bash tool calls via direct phrase matching — not
+  only keyword extraction. Rules like "git push origin main" and
+  "pip install" are now enforced without requiring specific
+  `no …` / `never …` phrasing. Matching is limited to Bash commands
+  and fires on a curated set of command tokens (`curl`, `ssh`,
+  `sudo`, …) or a verbatim two-word rule phrase; single generic
+  words never match on their own, and tag-push rules stay handled
+  by the existing narrow `_is_tag_push` matcher.
+
 ## [1.1.2] - 2026-09-05
 
 ### Added

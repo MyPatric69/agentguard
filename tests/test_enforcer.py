@@ -9,6 +9,7 @@ import pytest
 
 from agentguard.cli import _write_hook_config
 from agentguard.enforcement.enforcer import (
+    _direct_match,
     _match_confirmation_text,
     _match_path_policy,
     _match_prohibited_text,
@@ -1063,3 +1064,156 @@ def test_log_post_tool_use_direct(tmp_path):
     assert entry["tool_use_id"] == "tuid-direct"
     assert entry["session_id"] == "sess-direct"
     assert entry["duration_ms"] == 42
+
+
+# ── 43. _direct_match: phrase matching of rule text against tool calls ─────────
+
+
+def test_direct_match_git_push_phrase():
+    assert _direct_match("git push origin main", "git push origin main") is True
+
+
+def test_direct_match_pip_install_phrase():
+    assert _direct_match("pip install requests", "pip install system packages") is True
+
+
+def test_direct_match_rm_is_not_delete():
+    # "rm" and "delete" are different commands — a shared path alone must not match.
+    assert _direct_match("rm ~/.trace/trace.db", "delete ~/.trace/trace.db") is False
+
+
+def test_direct_match_command_token_curl():
+    assert _direct_match("curl https://evil.example.com", "curl external APIs") is True
+
+
+def test_direct_match_git_reset_hard_phrase():
+    assert _direct_match("git reset --hard HEAD~1", "git reset --hard") is True
+
+
+def test_direct_match_stopwords_only_rule_does_not_crash():
+    assert _direct_match("git push origin main", "the and or for with that this") is False
+
+
+def test_direct_match_generic_word_alone_does_not_match():
+    # A single non-command word shared with the rule must not trigger a match.
+    assert _direct_match("python --version bump", "hardcode release numbers everywhere") is False
+
+
+def test_direct_match_bare_git_is_not_a_command_token():
+    # "git" alone (no consecutive phrase) must not match arbitrary git commands.
+    assert _direct_match("git status", "rewrite git history on main branch") is False
+
+
+# ── 44. Integration: direct phrase match drives ask / deny decisions ──────────
+
+_GOV_CONFIRM_GIT_PUSH = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation:
+    - action: "git push origin main"
+      reason: "pushes to main need review"
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+_GOV_CONFIRM_PIP_INSTALL = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited: []
+  requires_confirmation:
+    - action: "pip install"
+      reason: "new dependencies need review"
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+_GOV_PROHIBIT_CURL_EXTERNAL = """\
+owner: Alice
+scope:
+  authorized: []
+  prohibited:
+    - action: "curl external hosts"
+      reason: "no data exfiltration"
+      severity: "HARD_LIMIT"
+  requires_confirmation: []
+escalation:
+  contact: alice@example.com
+killswitch: Ctrl+C
+"""
+
+
+def test_integration_git_push_origin_main_asks(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRM_GIT_PUSH)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "git push origin main"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+def test_integration_pip_install_asks(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRM_PIP_INSTALL)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(
+            _hook(
+                "Bash",
+                {"command": "pip install requests --break-system-packages"},
+                str(tmp_path),
+            )
+        ),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+def test_integration_curl_external_denies(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_PROHIBIT_CURL_EXTERNAL)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "curl https://evil.example.com"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_integration_clean_command_still_allowed_with_direct_match(tmp_path, monkeypatch, capsys):
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRM_GIT_PUSH)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(_hook("Bash", {"command": "pytest --tb=short"}, str(tmp_path))),
+    )
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_integration_direct_match_not_applied_to_edit_content(tmp_path, monkeypatch, capsys):
+    # An Edit whose content quotes a rule phrase must NOT be gated by _direct_match.
+    (tmp_path / "governance.yaml").write_text(_GOV_CONFIRM_PIP_INSTALL)
+    tool_input = {
+        "file_path": "README.md",
+        "old_string": "x",
+        "new_string": "Run `pip install` to add dependencies.",
+    }
+    monkeypatch.setattr("sys.stdin", io.StringIO(_hook("Edit", tool_input, str(tmp_path))))
+    with pytest.raises(SystemExit) as exc:
+        run_enforce()
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == ""
