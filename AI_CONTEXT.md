@@ -339,5 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – v1.0.9: harness checks (attempt counter, action log, error
-pattern) now scan CLAUDE.md in addition to Python source
+2026-09-05 – Auto-synced 1 commit(s) to 43920c0
