@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-09-05
+
 ### Fixed
 - `agentguard check`: harness checks (attempt counter, action log,
   error pattern detection) now scan both Python source files AND

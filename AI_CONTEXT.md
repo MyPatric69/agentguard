@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.0.8  
+**Version:** 1.0.9  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -339,4 +339,5 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Auto-synced 1 commit(s) to 1c78cf1
+2026-09-05 – v1.0.9: harness checks (attempt counter, action log, error
+pattern) now scan CLAUDE.md in addition to Python source
