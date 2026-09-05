@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -200,6 +201,105 @@ def check_cost_awareness(governance: dict) -> Finding:
         return Finding("critical", str(exc))
 
 
+def _rule_actions(scope_field: object) -> list[str]:
+    """Normalize a scope field (list of dicts or legacy string) to action strings."""
+    if isinstance(scope_field, list):
+        return [
+            str(item.get("action", "")).strip()
+            for item in scope_field
+            if isinstance(item, dict) and str(item.get("action", "")).strip()
+        ]
+    text = str(scope_field or "").strip()
+    return [text] if text else []
+
+
+def _allow_entry_command(entry: str) -> str:
+    """Extract the bare command pattern from a Claude Code permission allow-entry.
+
+    "Bash(pip install:*)" -> "pip install"
+    "Bash(git push *)"    -> "git push"
+    "Read(~/.zshrc)"      -> "~/.zshrc"
+    """
+    entry = entry.strip()
+    match = re.match(r"^[A-Za-z_]+\((.*)\)$", entry)
+    inner = match.group(1) if match else entry
+    inner = re.sub(r"[:\s]*\*+\s*$", "", inner)  # strip trailing wildcard
+    return inner.strip().strip("'\"").strip()
+
+
+def _rule_conflicts(cmd: str, action: str) -> bool:
+    """True if an allow-entry command bypasses a governance rule.
+
+    The command must appear in the rule's action text AND share its first token,
+    so a rule that merely *mentions* a command as a side condition (e.g.
+    "Push commits when pytest --tb=short fails") is not a false positive.
+    """
+    cmd, action = cmd.lower(), action.lower()
+    if len(cmd) < 3 or cmd not in action:
+        return False
+    return cmd.split()[:1] == action.split()[:1]
+
+
+def check_settings_conflicts(project_path: Path, governance: dict) -> list[Finding]:
+    """Check .claude/settings.local.json / settings.json for allow-entries that
+    conflict with requires_confirmation or prohibited rules in governance.yaml.
+
+    Claude Code adds allow-entries when a user clicks "Yes, allow always". Those
+    entries make Claude Code's own permission system return "allow" before
+    AgentGuard's hook can return "ask"/"deny" — silently bypassing governance.
+    """
+    scope = governance.get("scope", {})
+    if not isinstance(scope, dict):
+        return []
+
+    rc_actions = _rule_actions(scope.get("requires_confirmation"))
+    prohibited_actions = _rule_actions(scope.get("prohibited"))
+    if not (rc_actions or prohibited_actions):
+        return []
+
+    base = Path(project_path)
+    allow_entries: list[str] = []
+    for name in ("settings.local.json", "settings.json"):
+        path = base / ".claude" / name
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        perms = data.get("permissions", {}) if isinstance(data, dict) else {}
+        allow = perms.get("allow", []) if isinstance(perms, dict) else []
+        if isinstance(allow, list):
+            allow_entries.extend(e for e in allow if isinstance(e, str))
+
+    if not allow_entries:
+        return []
+
+    findings: list[Finding] = []
+    seen: set[str] = set()
+    for entry in allow_entries:
+        cmd = _allow_entry_command(entry)
+        if not cmd:
+            continue
+        for label, actions in (
+            ("HARD_LIMIT", prohibited_actions),
+            ("requires_confirmation", rc_actions),
+        ):
+            for action in actions:
+                if not _rule_conflicts(cmd, action):
+                    continue
+                short = f"{action[:77]}…" if len(action) > 78 else action
+                msg = (
+                    f"settings.local.json allows '{cmd}' — conflicts with "
+                    f"{label} rule: '{short}'"
+                )
+                if msg not in seen:
+                    seen.add(msg)
+                    findings.append(Finding("warning", msg))
+
+    return findings
+
+
 def run_preflight(
     project_path: str | Path,
     config_path: str | Path | None = None,
@@ -367,6 +467,10 @@ def run_preflight(
 
         if _scan_patterns(harness_text, ERROR_PATTERN_PATTERNS):
             findings.append(Finding("ok", "Error pattern detection found in harness"))
+
+    # ── settings.local.json vs governance conflict check ─────────────────────
+
+    findings.extend(check_settings_conflicts(base, config))
 
     # ── Session log check ────────────────────────────────────────────────────
 

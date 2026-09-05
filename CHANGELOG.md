@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `agentguard check` now detects conflicts between
+  `.claude/settings.local.json` allow-entries and
+  `governance.yaml` requires_confirmation/prohibited rules —
+  warns when Claude Code's own permissions silently bypass
+  AgentGuard governance.
+
 ## [1.1.1] - 2026-09-05
 
 ### Fixed

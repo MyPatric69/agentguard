@@ -1,8 +1,13 @@
 """Tests for checks/preflight.py."""
 
+import json
 from pathlib import Path
 
-from agentguard.checks.preflight import has_criticals, run_preflight
+from agentguard.checks.preflight import (
+    check_settings_conflicts,
+    has_criticals,
+    run_preflight,
+)
 
 # ── Shared fixtures ───────────────────────────────────────────────────────────
 
@@ -667,3 +672,104 @@ def test_cli_check_output_includes_path_policy_ok_when_present(tmp_path):
     assert "path_policy:" in result.output
     assert "1 denied" in result.output
     assert "1 authorized" in result.output
+
+
+# ── settings.local.json conflict detection ──────────────────────────────────
+
+
+def _rule(action: str) -> dict:
+    return {"action": action, "reason": "test", "added": "2026-01-01"}
+
+
+def _gov_scope(*, rc=None, prohibited=None) -> dict:
+    return {"scope": {"requires_confirmation": rc or [], "prohibited": prohibited or []}}
+
+
+def _write_settings(tmp_path, name: str, allow: list[str]) -> None:
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir(exist_ok=True)
+    (claude_dir / name).write_text(json.dumps({"permissions": {"allow": allow}}))
+
+
+def test_settings_conflict_requires_confirmation(tmp_path):
+    _write_settings(tmp_path, "settings.local.json", ["Bash(pip install:*)"])
+    gov = _gov_scope(rc=[_rule("pip install system packages")])
+    findings = check_settings_conflicts(tmp_path, gov)
+    assert len(findings) == 1
+    assert findings[0].severity == "warning"
+    assert "requires_confirmation rule" in findings[0].message
+    assert "pip install" in findings[0].message
+
+
+def test_settings_conflict_prohibited_hard_limit(tmp_path):
+    _write_settings(tmp_path, "settings.local.json", ["Bash(rm -rf:*)"])
+    gov = _gov_scope(prohibited=[_rule("rm -rf on any directory outside ./tmp")])
+    findings = check_settings_conflicts(tmp_path, gov)
+    assert len(findings) == 1
+    assert findings[0].severity == "warning"
+    assert "HARD_LIMIT rule" in findings[0].message
+    assert "rm -rf" in findings[0].message
+
+
+def test_settings_conflict_safe_entries_no_findings(tmp_path):
+    _write_settings(
+        tmp_path,
+        "settings.local.json",
+        ["Bash(pytest --tb=short)", "Bash(git add:*)", "Bash(ruff check *)"],
+    )
+    gov = _gov_scope(
+        rc=[_rule("pip install system packages")],
+        prohibited=[_rule("Push commits when pytest --tb=short fails")],
+    )
+    assert check_settings_conflicts(tmp_path, gov) == []
+
+
+def test_settings_conflict_no_settings_file_graceful(tmp_path):
+    gov = _gov_scope(rc=[_rule("pip install system packages")])
+    assert check_settings_conflicts(tmp_path, gov) == []
+
+
+def test_settings_conflict_malformed_json_graceful(tmp_path):
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "settings.local.json").write_text("{not valid json,,,")
+    gov = _gov_scope(rc=[_rule("pip install system packages")])
+    assert check_settings_conflicts(tmp_path, gov) == []
+
+
+def test_settings_conflict_settings_json_also_checked(tmp_path):
+    _write_settings(tmp_path, "settings.json", ["Bash(pip install:*)"])
+    gov = _gov_scope(rc=[_rule("pip install system packages")])
+    findings = check_settings_conflicts(tmp_path, gov)
+    assert len(findings) == 1
+    assert "pip install" in findings[0].message
+
+
+def test_settings_conflict_both_files_merged_and_deduped(tmp_path):
+    _write_settings(tmp_path, "settings.local.json", ["Bash(pip install:*)"])
+    _write_settings(tmp_path, "settings.json", ["Bash(pip install:*)", "Bash(rm -rf:*)"])
+    gov = _gov_scope(
+        rc=[_rule("pip install system packages")],
+        prohibited=[_rule("rm -rf on any directory")],
+    )
+    findings = check_settings_conflicts(tmp_path, gov)
+    messages = {f.message for f in findings}
+    assert len(findings) == 2  # pip install (deduped across both files) + rm -rf
+    assert any("HARD_LIMIT rule" in m and "rm -rf" in m for m in messages)
+    assert any("requires_confirmation rule" in m and "pip install" in m for m in messages)
+
+
+def test_settings_conflict_wired_into_run_preflight(tmp_path):
+    gov = (
+        "owner: Alice\n"
+        "scope:\n"
+        "  authorized: read and modify Python files in ./src directory only\n"
+        "  prohibited: no database operations, no external API calls\n"
+        "  requires_confirmation: git push to any remote branch\n"
+        "escalation:\n  contact: alice@example.com\n"
+        "killswitch: Ctrl+C\n"
+    )
+    proj = _make_project(tmp_path, governance_yaml=gov, claude_md=_FULL_CLAUDE)
+    _write_settings(proj, "settings.local.json", ["Bash(git push:*)"])
+    findings = run_preflight(proj)
+    assert _find(findings, "warning", "conflicts with requires_confirmation rule")
+    assert _find(findings, "warning", "git push")
