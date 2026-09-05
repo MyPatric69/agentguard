@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-05
+
 ### Fixed
 - `agentguard check`: escalation contact validation now accepts a bare
   GitHub username (alphanumeric + hyphens, 1–39 chars) as valid — a

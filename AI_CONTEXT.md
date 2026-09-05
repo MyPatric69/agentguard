@@ -7,7 +7,7 @@
 ## Project
 
 **Name:** AgentGuard  
-**Version:** 1.0.9  
+**Version:** 1.1.0  
 **Repo:** github.com/MyPatric69/agentguard  
 **Purpose:** Governance layer for autonomous AI agents — pre-flight
 checks, runtime enforcement, concretization, and audit trail.
@@ -339,4 +339,5 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Auto-synced 1 commit(s) to 175a075
+2026-09-05 – v1.1.0: escalation contact validation accepts GitHub
+usernames (placeholder words still flagged); SKILL.md added at repo root
