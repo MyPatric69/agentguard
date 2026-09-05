@@ -9,6 +9,10 @@ AgentGuard is a governance layer for autonomous AI agents. It provides pre-fligh
 agentguard/
 ├── checks/
 │   ├── preflight.py      # Layer 1: governance + prompt + harness checks
+│   │                     #          (harness patterns scanned in *.py AND
+│   │                     #          CLAUDE.md); check_settings_conflicts()
+│   │                     #          flags .claude/settings.local.json
+│   │                     #          allow-entries that bypass governance
 │   ├── runtime.py        # Layer 3: session log monitoring, loop/stall/burn
 │   └── report.py         # Layer 4: post-session governance report
 ├── enforcement/
@@ -58,6 +62,15 @@ Project directory (runtime):
   enforcer.py (Layer 2) for file-editing tools via pathspec
   (gitignore-style globs). Schema and loading in `agentguard/config/loader.py`.
   See README §path_policy and governance.yaml Reference for details.
+
+- Enforcer `rm` gating (`enforcer.py`) matches recursive variants only
+  (`rm -r` / `rm -rf` / `rm -rdf`, regex `\brm\s+-\S*r`). Plain
+  `rm -f <file>` is not treated as destructive.
+
+- `agentguard check` also flags `.claude/settings.local.json` /
+  `settings.json` allow-entries that would silently bypass a
+  `requires_confirmation` or `prohibited` rule (Claude Code's own
+  permission system returns "allow" before AgentGuard's hook runs).
 
 - Enforcement layer: deterministic, no LLM, exit 0 or 2
 - Concretization layer: LLM with temperature=0, human confirms

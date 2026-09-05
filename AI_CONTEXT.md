@@ -28,10 +28,10 @@ runs before, during, and after observability tools do.
 - Build: hatchling, PyPI: agentguard-governance
 - Frontend: web/vite.config.js outDir = '../agentguard/web/dist' (builds directly into package)
 
-## Current State (v1.0.7)
+## Current State (v1.1.2)
 
 ### CLI Commands (15 total)
-- `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact)
+- `agentguard check` — pre-flight: governance + prompt + harness checks; validates `path_policy` if present (INFO if absent, no score impact); harness checks scan CLAUDE.md as well as `*.py` (v1.0.9); flags `.claude/settings.local.json` allow-entries that bypass `requires_confirmation`/`prohibited` rules (v1.1.2)
 - `agentguard check --ai-review` — + AI scope quality score 1-10
 - `agentguard init --interactive` — basic setup, no AI required
 - `agentguard init --guided` — AI-concretized 5-step governance dialog
@@ -85,6 +85,9 @@ Key features:
 - Pinning: SHA-256 hashes of prompt+output in governance.yaml
 - Enforcer signals: prohibited/HARD_LIMIT → deny() exit 2; requires_confirmation → ask() exit 0 (per Claude Code hooks docs)
 - path_policy evaluated FIRST for file-targeting tools (Write/Edit/MultiEdit/NotebookEdit) via pathspec gitignore-style patterns; denied_paths→deny, protected_paths→ask, authorized_paths→allow (then content checks still run), unmatched→default_for_unmatched. Backward compat: no path_policy key → protected_paths=CORE_ARCHITECTURE_PATHS, default="allow"
+- Enforcer `rm` regex (`_match_prohibited_text`/`_match_confirmation_text`) matches only recursive variants (`rm -r`/`rm -rf`/`rm -rdf`) — `r"\brm\s+-\S*r"`; plain `rm -f <file>` is not destructive and is not gated (v1.1.1)
+- Escalation contact validation accepts a bare GitHub username (`^[a-z0-9][a-z0-9-]{0,38}$`, case-insensitive); a placeholder blocklist (`me`, `tbd`, `todo`, `email`, `name`, `owner`, `n/a`, `none`) is still flagged; email match requires a real domain (v1.1.0)
+- `check_settings_conflicts()` (preflight.py) reads `.claude/settings.local.json` + `.claude/settings.json`, flags each `permissions.allow` entry whose bare command is a substring of a `requires_confirmation`/`prohibited` action AND shares its first token (anchored — avoids false positives like `pytest --tb=short` vs "Push commits when pytest --tb=short fails") (v1.1.2)
 - CORE_ARCHITECTURE_PATHS constant lives in agentguard/config/loader.py (moved from enforcer to avoid circular import)
 - Version: single source of truth via importlib.metadata
 - Terminal: PTY via Python stdlib pty + WebSocket + xterm.js
@@ -137,9 +140,29 @@ Parsed by `load_path_policy(governance: dict) -> PathPolicy` in `agentguard/conf
 `CORE_ARCHITECTURE_PATHS` constant lives in `loader.py` (moved from enforcer to avoid circular import).
 
 ### Tests
-- 439/439 passing
+- 458/458 passing
 - CI: GitHub Actions, Python 3.11 + 3.12, green
 - Web tests: TestClient (fastapi), PTY documented as manual-test-only
+
+## Recent Hardening (v1.0.9 – v1.1.2)
+
+- **v1.0.9** — `agentguard check` harness checks (attempt counter, action
+  log, error pattern) now scan CLAUDE.md/AGENTS.md in addition to `*.py`
+  source, so projects that document their harness in prose no longer get
+  false-positive warnings.
+- **v1.1.0** — escalation contact validation accepts a bare GitHub
+  username (placeholder words still flagged; email now requires a
+  domain). `SKILL.md` added at repo root (release workflow, prompt
+  format, testing, frontend build conventions).
+- **v1.1.1** — enforcer `rm` regex narrowed to recursive variants
+  (`rm -r`/`rm -rf`); plain `rm -f <file>` no longer a HARD_LIMIT false
+  positive. One existing test (`test_bash_rm_f_command_still_triggers`)
+  was replaced to match the new intent.
+- **v1.1.2** — `agentguard check` detects `.claude/settings.local.json`
+  (and `settings.json`) allow-entries that silently bypass
+  `requires_confirmation`/`prohibited` rules — Claude Code's own
+  permission system returns "allow" before AgentGuard's hook can say
+  "ask"/"deny". Anchored substring match (first token must agree).
 
 ## Dogfooding Session (2026-06-12/13)
 
@@ -170,9 +193,9 @@ fixed five issues in review/concretization/enforcement:
    source code contained that string literally. Fixed: removed, rm regex
    scoped to Bash tool only (35bbb80).
 
-AgentGuard's own governance.yaml was created (15 authorized rules, 11
-prohibited HARD_LIMIT rules, 3 requires_confirmation, escalation: log to
-owner email).
+AgentGuard's own governance.yaml was created (now 14 authorized rules,
+10 prohibited HARD_LIMIT rules, 5 requires_confirmation; escalation
+contact `MyPatric69`, method `github_pr`).
 
 ## Open Items / Backlog
 
@@ -339,4 +362,6 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Auto-synced 1 commit(s) to 7738605
+2026-09-05 – Docs review for v1.1.2 (CLAUDE.md, AI_CONTEXT.md, README.md):
+test count 458, v1.0.9–v1.1.2 hardening summary, settings.local.json
+conflict check documented, harness-check CLAUDE.md scan noted

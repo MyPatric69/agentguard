@@ -194,7 +194,11 @@ agentguard check --ai-review              # include AI-powered scope quality rev
   authorized path counts (PASS/FAIL). If absent: reports INFO with no score impact
   (backward-compatible defaults apply).
 - Instruction file directives (loop detection, root cause, API research rules)
-- Harness patterns (attempt counter, action log)
+- Harness patterns (attempt counter, action log) — scanned in `*.py` source
+  **and** in `CLAUDE.md` / `AGENTS.md`
+- `.claude/settings.local.json` conflicts — warns when a Claude Code
+  "allow always" entry would silently bypass a `requires_confirmation`
+  or `prohibited` governance rule
 
 **Exit codes:**
 - `0` — OK or warnings only (with or without AI review)
@@ -219,7 +223,8 @@ agentguard init --template-only # copies governance.yaml.example to ./governance
 
 Interactive mode guides you through:
 - Agent owner, scope (authorized / prohibited / confirmation-required)
-- Escalation contact with format validation
+- Escalation contact with format validation — email, Slack handle
+  (`@name`), GitHub username, or full name
 - Escalation method (log / terminal / file)
 - Killswitch definition
 
@@ -993,11 +998,31 @@ is institutional memory.
 
 ### Harness Quality (WARNING)
 
-| Check | Patterns scanned in `*.py` files |
+| Check | Patterns scanned in `*.py` files **and** `CLAUDE.md` / `AGENTS.md` |
 |---|---|
 | Attempt counter | `attempt_count`, `retry_count`, `max_attempts` |
 | Action log | `action_log`, `log_action`, `append.*log` |
 | Error pattern detection | `same_error`, `error_pattern`, `consecutive_errors` |
+
+A match in **either** source counts as passing — projects that document
+their harness in prose (not code) are no longer false-flagged.
+
+### Permission Conflicts (WARNING)
+
+`agentguard check` reads `.claude/settings.local.json` and
+`.claude/settings.json` and warns when a `permissions.allow` entry
+(added by Claude Code's "Yes, allow always") matches a
+`requires_confirmation` or `prohibited` rule in `governance.yaml`:
+
+```
+🟡 WARNING  settings.local.json allows 'git push' — conflicts with
+            requires_confirmation rule: 'Git tag operations require…'
+```
+
+Claude Code's own permission system returns `allow` before the
+AgentGuard hook can return `ask`/`deny`, so these entries silently
+bypass governance. Narrow or remove the allow-entry to restore
+enforcement.
 
 ---
 
