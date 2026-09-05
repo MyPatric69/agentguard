@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `agentguard check`: escalation contact validation now accepts a bare
+  GitHub username (alphanumeric + hyphens, 1–39 chars) as valid — a
+  known placeholder set (`me`, `tbd`, `todo`, …) is still flagged. Email
+  matching tightened to require a domain (`name@host.tld`), so a
+  trailing `@` no longer passes.
+
+### Added
+- `SKILL.md` at repo root — release workflow, Claude Code prompt format,
+  testing, and frontend build conventions.
+
 ## [1.0.9] - 2026-09-05
 
 ### Fixed

@@ -250,7 +250,7 @@ def test_guided_escalation_invalid_contact_triggers_reentry():
         "1\n"  # accept mission
         "no production writes\n"  # step 3: hard limits
         "1\n"  # accept hard limits
-        "invalidname\n"  # step 4: escalation (invalid — single word, no @)
+        "tbd\n"  # step 4: escalation (invalid — placeholder word)
         "n\n"  # decline override
         "owner@example.com\n"  # step 4: escalation (valid — has @)
         "Ctrl+C\n"  # step 5: killswitch

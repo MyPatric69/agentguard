@@ -378,6 +378,30 @@ def test_escalation_contact_invalid_is_warning_not_critical(tmp_path):
     assert not _find(findings, "critical", "escalation contact")
 
 
+def test_escalation_contact_github_username_ok(tmp_path):
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("MyPatric69"), claude_md=_FULL_CLAUDE
+    )
+    findings = run_preflight(proj)
+    assert not _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_github_username_with_hyphens_ok(tmp_path):
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("github-user-123"), claude_md=_FULL_CLAUDE
+    )
+    findings = run_preflight(proj)
+    assert not _find(findings, "warning", "escalation contact appears invalid")
+
+
+def test_escalation_contact_trailing_at_triggers_warning(tmp_path):
+    proj = _make_project(
+        tmp_path, governance_yaml=_gov_with_contact("MyPatric69@"), claude_md=_FULL_CLAUDE
+    )
+    findings = run_preflight(proj)
+    assert _find(findings, "warning", "escalation contact appears invalid")
+
+
 # ── List format scope checks ──────────────────────────────────────────────────
 
 _VALID_STRUCTURED_GOV = """\

@@ -41,13 +41,27 @@ def _collect_py_content(project_path: Path) -> str:
     return "\n".join(parts)
 
 
+_PLACEHOLDER_CONTACTS = {"me", "tbd", "todo", "email", "name", "owner", "n/a", "none"}
+
+
 def _is_invalid_contact(contact: str) -> bool:
     """Return True if escalation contact looks like an invalid placeholder."""
-    if "@" in contact:
+    contact = contact.strip()
+    if contact.lower() in _PLACEHOLDER_CONTACTS:
+        return True
+    # Email address
+    if re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", contact):
+        return False
+    # Slack/Teams/Discord handle or channel (leading @ or #)
+    if contact.startswith(("@", "#")):
         return False
     if any(domain in contact.lower() for domain in ("slack.com", "teams.microsoft.com", "discord")):
         return False
-    if " " in contact.strip():
+    # Full name (two or more words)
+    if " " in contact:
+        return False
+    # GitHub username: alphanumeric + hyphens, 1-39 chars, no leading hyphen
+    if re.match(r"^[a-z0-9][a-z0-9\-]{0,38}$", contact, re.IGNORECASE):
         return False
     return True
 
@@ -229,7 +243,7 @@ def run_preflight(
                 Finding(
                     "warning",
                     "Escalation contact appears invalid — provide email (name@domain.com),"
-                    " Slack handle (@name or channel), or full name",
+                    " Slack handle (@name or channel), GitHub username, or full name",
                 )
             )
 
