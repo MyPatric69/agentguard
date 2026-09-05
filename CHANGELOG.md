@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-05
+
 ### Fixed
 - Enforcer: `rm -f` on a single file no longer triggers a
   HARD_LIMIT deny — only recursive `rm -r` / `rm -rf` variants
