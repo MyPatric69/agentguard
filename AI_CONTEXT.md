@@ -339,5 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – v1.1.1: enforcer rm regex narrowed to recursive variants
-(rm -r / rm -rf); plain `rm -f <file>` no longer a HARD_LIMIT false positive
+2026-09-05 – Auto-synced 1 commit(s) to 1ff5b32
