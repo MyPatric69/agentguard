@@ -339,5 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – v1.1.2: agentguard check detects .claude/settings.local.json
-allow-entries that bypass governance requires_confirmation/prohibited rules
+2026-09-05 – Auto-synced 1 commit(s) to 7738605
