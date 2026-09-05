@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-06-22 – v1.0.8: quote project paths with spaces in terminal commands
+2026-09-05 – Auto-synced 1 commit(s) to 1c78cf1
