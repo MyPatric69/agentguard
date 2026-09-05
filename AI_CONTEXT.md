@@ -339,4 +339,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Auto-synced 1 commit(s) to 7ba91ef
+2026-09-05 – Auto-synced 1 commit(s) to 7dfe98d
