@@ -823,6 +823,23 @@ For production systems, combine with OS-level sandboxing.
 
 See [What AgentGuard Cannot Do](#what-agentguard-cannot-do) for the full list.
 
+### Governance Best Practices
+
+- **Use `path_policy` for critical paths** — `denied_paths` is
+  hard-enforced regardless of permission mode. `requires_confirmation`
+  is advisory in auto-approve sessions.
+- **Write focused rules** — one concern per `action` string. Blob
+  rules with multiple concerns reduce matching accuracy.
+- **Run `agentguard check` regularly** — detects conflicts between
+  `.claude/settings.local.json` allow-entries and governance rules.
+- **Phrase-match aware (v1.1.3+)** — rules containing the actual
+  command ("git push origin main", "pip install") are enforced
+  directly. Abstract rules ("add new dependencies") require
+  `path_policy` or `denied_paths` for reliable enforcement.
+
+See `AI_CONTEXT.md` → *Governance Best Practices (from stress testing)*
+for the detailed rationale and worked examples.
+
 ---
 
 ## governance.yaml Reference

@@ -95,6 +95,12 @@ Key features:
 - Session logging: every tool call → .agentguard/session.log (gitignored)
 - Loop threshold: 6 (configurable via --loop-threshold)
 - Concretization prompts are grounded in real project structure: directory scan (depth 2) + CLAUDE.md Architecture Overview excerpt, injected before the user input
+- Enforcer phrase matching (v1.1.3): `_direct_match()` added to
+  `_match_prohibited_text()` and `_match_confirmation_text()` — curated
+  command tokens (curl, wget, ssh, sudo, etc.) + verbatim two-word bigrams
+  from rule text. Bash-only; Edit/Write excluded to prevent false positives
+  on source code containing rule text. Tag rules skipped (delegated to
+  `_is_tag_push()`).
 
 ### governance.yaml Schema
 - owner: string
@@ -206,6 +212,50 @@ fixed five issues in review/concretization/enforcement:
 AgentGuard's own governance.yaml was created (now 14 authorized rules,
 10 prohibited HARD_LIMIT rules, 5 requires_confirmation; escalation
 contact `MyPatric69`, method `github_pr`).
+
+## Governance Best Practices (from stress testing)
+
+Lessons learned from live stress tests across agentguard, trace,
+and mindtrace projects (2026-09-05):
+
+### What is deterministically enforced
+- `path_policy.denied_paths` — hard deny, always blocks regardless
+  of permission mode
+- `path_policy.protected_paths` — ask, logged correctly
+- `rm -rf` regex — hard deny
+- `settings.local.json` conflict detection — warns on check
+
+### What requires careful rule formulation
+- `scope.requires_confirmation` and `scope.prohibited` rules are
+  matched via phrase matching since v1.1.3. Rules must contain
+  the actual command or phrase that will appear in tool calls:
+  - ✅ "git push origin main" — matches `git push origin main`
+  - ✅ "pip install" — matches `pip install requests`
+  - ❌ "Add new external dependencies" — too abstract, won't match
+    `pip install requests`
+
+### Blob rules vs. individual rules
+- Never put multiple rules in one action string (blob).
+  The matcher works best with short, focused action texts.
+  - ❌ "Never delete trace.db. Never push to main. Never pip install."
+  - ✅ Three separate prohibited entries, one concern each.
+
+### ask vs. deny
+- `ask` (exit 0) is advisory in auto-approve/acceptEdits mode —
+  the tool executes, the decision is only logged.
+- `deny` (exit 2) is hard-enforced regardless of permission mode.
+- For critical protections: use `path_policy.denied_paths` (deny)
+  rather than `requires_confirmation` (ask).
+
+### settings.local.json
+- Claude Code auto-adds allow-entries when "Yes, allow always" is
+  clicked — this silently bypasses AgentGuard governance.
+- Run `agentguard check` regularly to detect conflicts.
+- Remove conflicting entries manually or via:
+  python3 -c "import json; path='.../.claude/settings.local.json';
+  d=json.load(open(path)); d['permissions']['allow']=[x for x in
+  d['permissions']['allow'] if 'pip install' not in x];
+  json.dump(d, open(path,'w'), indent=2)"
 
 ## Open Items / Backlog
 
@@ -372,4 +422,5 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-05 – Auto-synced 1 commit(s) to 61443c1
+2026-09-06 – Documentation update: governance best practices from
+stress testing, enforcer phrase-matching notes (v1.1.3).
