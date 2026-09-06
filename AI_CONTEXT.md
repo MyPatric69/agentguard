@@ -422,5 +422,4 @@ governance.yaml's authorized scope?)
 
 ## Last updated
 
-2026-09-06 – Documentation update: governance best practices from
-stress testing, enforcer phrase-matching notes (v1.1.3).
+2026-09-06 – Auto-synced 1 commit(s) to 19f32a8
